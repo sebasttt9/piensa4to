@@ -1,0 +1,234 @@
+import api from './api';
+
+/* ==================== DATASETS API ==================== */
+
+export interface Dataset {
+    _id: string;
+    name: string;
+    description?: string;
+    filename: string;
+    fileSize: number;
+    rowCount?: number;
+    columnCount?: number;
+    uploadedAt: string;
+    updatedAt: string;
+    userId: string;
+    status: 'pending' | 'processed' | 'error';
+    preview?: Record<string, any>[];
+}
+
+export interface CreateDatasetInput {
+    name: string;
+    description?: string;
+}
+
+export const datasetsAPI = {
+    // Listar todos los datasets del usuario
+    list: async (page = 1, limit = 10) => {
+        const response = await api.get<{
+            data: Dataset[];
+            total: number;
+            page: number;
+            limit: number;
+        }>('/datasets', { params: { page, limit } });
+        return response.data;
+    },
+
+    // Obtener un dataset específico por ID
+    getById: async (id: string) => {
+        const response = await api.get<Dataset>(`/datasets/${id}`);
+        return response.data;
+    },
+
+    // Crear un nuevo dataset
+    create: async (input: CreateDatasetInput) => {
+        const response = await api.post<Dataset>('/datasets', input);
+        return response.data;
+    },
+
+    // Actualizar dataset (metadata)
+    update: async (id: string, input: Partial<CreateDatasetInput>) => {
+        const response = await api.put<Dataset>(`/datasets/${id}`, input);
+        return response.data;
+    },
+
+    // Eliminar dataset
+    delete: async (id: string) => {
+        await api.delete(`/datasets/${id}`);
+    },
+
+    // Subir archivo CSV/Excel
+    uploadFile: async (id: string, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post<Dataset>(`/datasets/${id}/upload`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+
+    // Obtener preview del dataset
+    getPreview: async (id: string, limit = 50) => {
+        const response = await api.get<{
+            data: Record<string, any>[];
+            columns: string[];
+            total: number;
+        }>(`/datasets/${id}/preview`, { params: { limit } });
+        return response.data;
+    },
+};
+
+/* ==================== DASHBOARDS API ==================== */
+
+export interface Dashboard {
+    _id: string;
+    name: string;
+    description?: string;
+    layout: Record<string, any>;
+    charts: Array<{
+        id: string;
+        type: string;
+        config: Record<string, any>;
+    }>;
+    datasetIds: string[];
+    createdAt: string;
+    updatedAt: string;
+    userId: string;
+    isPublic: boolean;
+}
+
+export interface CreateDashboardInput {
+    name: string;
+    description?: string;
+    datasetIds: string[];
+}
+
+export interface UpdateDashboardInput extends Partial<CreateDashboardInput> {
+    layout?: Record<string, any>;
+    charts?: Dashboard['charts'];
+}
+
+export const dashboardsAPI = {
+    // Listar todos los dashboards del usuario
+    list: async (page = 1, limit = 10) => {
+        const response = await api.get<{
+            data: Dashboard[];
+            total: number;
+            page: number;
+            limit: number;
+        }>('/dashboards', { params: { page, limit } });
+        return response.data;
+    },
+
+    // Obtener un dashboard específico
+    getById: async (id: string) => {
+        const response = await api.get<Dashboard>(`/dashboards/${id}`);
+        return response.data;
+    },
+
+    // Crear nuevo dashboard
+    create: async (input: CreateDashboardInput) => {
+        const response = await api.post<Dashboard>('/dashboards', input);
+        return response.data;
+    },
+
+    // Actualizar dashboard
+    update: async (id: string, input: UpdateDashboardInput) => {
+        const response = await api.put<Dashboard>(`/dashboards/${id}`, input);
+        return response.data;
+    },
+
+    // Eliminar dashboard
+    delete: async (id: string) => {
+        await api.delete(`/dashboards/${id}`);
+    },
+
+    // Compartir dashboard (hace público)
+    share: async (id: string, isPublic: boolean) => {
+        const response = await api.patch<Dashboard>(`/dashboards/${id}/share`, {
+            isPublic,
+        });
+        return response.data;
+    },
+};
+
+/* ==================== ANALYSIS API ==================== */
+
+export interface AnalysisResult {
+    datasetId: string;
+    summary: string;
+    insights: Array<{
+        title: string;
+        description: string;
+        type: 'trend' | 'anomaly' | 'correlation' | 'recommendation';
+    }>;
+    statistics: {
+        totalRecords: number;
+        columns: string[];
+        dataTypes: Record<string, string>;
+        missingValues: Record<string, number>;
+    };
+}
+
+export const analysisAPI = {
+    // Analizar un dataset completo
+    analyzeDataset: async (datasetId: string) => {
+        const response = await api.post<AnalysisResult>(
+            `/datasets/${datasetId}/analyze`,
+            {}
+        );
+        return response.data;
+    },
+
+    // Obtener insights específicos de un dataset
+    getInsights: async (datasetId: string) => {
+        const response = await api.get<AnalysisResult>(
+            `/datasets/${datasetId}/insights`
+        );
+        return response.data;
+    },
+
+    // Generar reporte automático
+    generateReport: async (datasetId: string, format: 'pdf' | 'json' = 'json') => {
+        const response = await api.get(`/datasets/${datasetId}/report`, {
+            params: { format },
+            responseType: format === 'pdf' ? 'blob' : 'json',
+        });
+        return response.data;
+    },
+};
+
+/* ==================== USERS API ==================== */
+
+export interface UserProfile {
+    _id: string;
+    name: string;
+    email: string;
+    role: 'admin' | 'user';
+    createdAt: string;
+}
+
+export const usersAPI = {
+    // Obtener perfil del usuario autenticado
+    getProfile: async () => {
+        const response = await api.get<UserProfile>('/users/me');
+        return response.data;
+    },
+
+    // Actualizar perfil del usuario
+    updateProfile: async (input: Partial<Pick<UserProfile, 'name'>>) => {
+        const response = await api.put<UserProfile>('/users/me', input);
+        return response.data;
+    },
+
+    // Cambiar contraseña
+    changePassword: async (
+        currentPassword: string,
+        newPassword: string
+    ) => {
+        await api.post('/users/change-password', {
+            currentPassword,
+            newPassword,
+        });
+    },
+};

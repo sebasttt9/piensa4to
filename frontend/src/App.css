@@ -1,0 +1,18 @@
+/* App.css - Main application styles */
+
+/* Remove default restrictions */
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure full viewport */
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
