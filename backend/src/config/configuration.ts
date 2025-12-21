@@ -8,14 +8,14 @@ export default () => ({
 
   // JWT Authentication
   auth: {
-    jwtSecret: process.env.JWT_SECRET ?? 'superchangeme',
+    jwtSecret: process.env.JWT_SECRET,
     jwtExpiration: process.env.JWT_EXPIRATION ?? '24h',
   },
 
   seed: {
     admin: {
-      email: process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@datapulse.com',
-      password: process.env.DEFAULT_ADMIN_PASSWORD ?? 'datapulse123',
+      email: process.env.DEFAULT_ADMIN_EMAIL,
+      password: process.env.DEFAULT_ADMIN_PASSWORD,
       name: process.env.DEFAULT_ADMIN_NAME ?? 'DataPulse Admin',
       role: process.env.DEFAULT_ADMIN_ROLE ?? 'admin',
     },
