@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, LogOut, Menu } from 'lucide-react';
+import { Activity, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { appNavigation } from '../../lib/navigation';
 import './AppShell.css';
@@ -46,8 +46,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const toggleNav = () => setNavOpen((prev) => !prev);
   const closeNav = () => setNavOpen(false);
 
-  const activeNav = appNavigation.find((item) => location.pathname.startsWith(item.to));
-  const sectionTitle = activeNav?.label ?? 'Panel principal';
+  const asideClasses = useMemo(() => {
+    const classes = ['app-shell__aside'];
+    if (navOpen) {
+      classes.push('app-shell__aside--open');
+    }
+    if (!navOpen && isDesktop) {
+      classes.push('app-shell__aside--collapsed');
+    }
+    return classes.join(' ');
+  }, [isDesktop, navOpen]);
+
   const mainClasses = useMemo(() => {
     const classes = ['app-shell__main'];
     if (isDesktop && navOpen) {
@@ -55,6 +64,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
     if (!isDesktop && navOpen) {
       classes.push('app-shell__main--shifted');
+    }
+    if (isDesktop && !navOpen) {
+      classes.push('app-shell__main--collapsed-nav');
     }
     return classes.join(' ');
   }, [isDesktop, navOpen]);
@@ -91,18 +103,43 @@ export function AppShell({ children }: { children: ReactNode }) {
         />
       )}
 
+      {!navOpen && !isDesktop && (
+        <button
+          type="button"
+          aria-label="Mostrar panel de navegación"
+          className="app-shell__toggle app-shell__floating-toggle"
+          onClick={toggleNav}
+        >
+          <ChevronRight className="app-shell__toggle-icon" />
+        </button>
+      )}
+
       <aside
-        className={`app-shell__aside ${navOpen ? 'app-shell__aside--open' : ''}`}
+        className={asideClasses}
         aria-hidden={asideHiddenForMobile}
       >
-        <div className="app-shell__brand">
-          <div className="app-shell__brand-badge">
-            <Activity className="app-shell__brand-icon" strokeWidth={2.5} />
+        <div className="app-shell__aside-top">
+          <div className="app-shell__brand">
+            <div className="app-shell__brand-badge">
+              <Activity className="app-shell__brand-icon" strokeWidth={2.5} />
+            </div>
+            <div className="app-shell__brand-copy">
+              <span className="app-shell__brand-title">DataPulse</span>
+              <span className="app-shell__brand-subtitle">Business Analytics</span>
+            </div>
           </div>
-          <div className="app-shell__brand-copy">
-            <span className="app-shell__brand-title">DataPulse</span>
-            <span className="app-shell__brand-subtitle">Business Analytics</span>
-          </div>
+          <button
+            type="button"
+            aria-label={navOpen ? 'Ocultar panel de navegación' : 'Mostrar panel de navegación'}
+            className="app-shell__toggle app-shell__aside-toggle"
+            onClick={toggleNav}
+          >
+            {navOpen ? (
+              <ChevronLeft className="app-shell__toggle-icon" />
+            ) : (
+              <ChevronRight className="app-shell__toggle-icon" />
+            )}
+          </button>
         </div>
 
         <nav className="app-shell__nav">
@@ -145,18 +182,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className={mainClasses}>
         <div className="app-shell__content">
-          <div className="app-shell__header">
-            <button
-              type="button"
-              onClick={toggleNav}
-              className="app-shell__toggle"
-              aria-label={navOpen ? 'Ocultar menú de navegación' : 'Mostrar menú de navegación'}
-              aria-expanded={navOpen}
-            >
-              <Menu className="app-shell__toggle-icon" />
-            </button>
-            <h2 className="app-shell__title">{sectionTitle}</h2>
-          </div>
+          <div className="app-shell__header" />
           {children}
         </div>
       </main>
