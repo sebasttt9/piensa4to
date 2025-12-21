@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { TrendingUp, TrendingDown, Package, ShoppingCart, DollarSign, AlertCircle } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { getInventory, getSales, getPurchases } from '../lib/storage';
@@ -73,29 +73,29 @@ export function OverviewPage() {
       title: 'Ingresos Totales',
       value: `$${stats.totalRevenue.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
       icon: DollarSign,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      accent: '#10b981',
+      accentSoft: 'rgba(16, 185, 129, 0.15)',
     },
     {
       title: 'Gastos Totales',
       value: `$${stats.totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
       icon: ShoppingCart,
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
+      accent: '#ef4444',
+      accentSoft: 'rgba(239, 68, 68, 0.18)',
     },
     {
       title: 'Ganancia Neta',
       value: `$${stats.netProfit.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
       icon: stats.netProfit >= 0 ? TrendingUp : TrendingDown,
-      color: stats.netProfit >= 0 ? 'text-blue-600' : 'text-red-600',
-      bgColor: stats.netProfit >= 0 ? 'bg-blue-50' : 'bg-red-50',
+      accent: stats.netProfit >= 0 ? '#3b82f6' : '#f97316',
+      accentSoft: stats.netProfit >= 0 ? 'rgba(59, 130, 246, 0.18)' : 'rgba(249, 115, 22, 0.18)',
     },
     {
       title: 'Valor Inventario',
       value: `$${stats.inventoryValue.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
       icon: Package,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+      accent: '#a855f7',
+      accentSoft: 'rgba(168, 85, 247, 0.18)',
     },
   ];
 
@@ -106,11 +106,18 @@ export function OverviewPage() {
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <div key={index} className="overview-stat-card">
+            <div
+              key={index}
+              className="overview-stat-card"
+              style={{
+                '--dp-card-accent': stat.accent,
+                '--dp-card-accent-soft': stat.accentSoft,
+              } as CSSProperties}
+            >
               <div className="overview-stat-card__header">
                 <h3 className="overview-stat-card__title">{stat.title}</h3>
                 <div className="overview-stat-card__icon">
-                  <Icon className="w-5 h-5 text-blue-600" />
+                  <Icon className="overview-stat-card__icon-svg" />
                 </div>
               </div>
               <p className="overview-stat-card__value">{stat.value}</p>

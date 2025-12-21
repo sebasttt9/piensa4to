@@ -5,6 +5,19 @@
   flex-direction: column;
   gap: 32px;
   padding: 0;
+  /* Scoped color tokens to avoid clashes with global variables */
+  --dp-overview-border: rgba(148, 163, 184, 0.2);
+  --dp-overview-border-hover: rgba(148, 163, 184, 0.4);
+  --dp-overview-alert-border: rgba(248, 113, 113, 0.3);
+  --dp-overview-alert-icon: #f97316;
+  --dp-overview-alert-text: #fed7aa;
+  --dp-overview-muted-text: #94a3b8;
+  --dp-overview-strong-text: #f1f5f9;
+  --dp-overview-soft-bg: rgba(148, 163, 184, 0.1);
+  --dp-overview-chart-divider: rgba(71, 85, 105, 0.3);
+  --dp-overview-progress-bg: rgba(71, 85, 105, 0.4);
+  --dp-overview-progress-fill: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  --dp-overview-progress-text: #60a5fa;
 }
 
 /* Stats Grid */
@@ -18,18 +31,15 @@
   position: relative;
   border-radius: 12px;
   padding: 24px;
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(71, 85, 105, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(8px);
+  background: transparent;
+  border: 1px solid var(--dp-overview-border);
+  transition: border-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --dp-card-accent: #6366f1;
+  --dp-card-accent-soft: rgba(99, 102, 241, 0.1);
 }
 
 .overview-stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.4);
-  background: rgba(59, 130, 246, 0.05);
+  border-color: var(--dp-overview-border-hover);
 }
 
 .overview-stat-card__header {
@@ -42,7 +52,7 @@
 .overview-stat-card__title {
   font-size: 12px;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--dp-overview-muted-text);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0;
@@ -55,24 +65,26 @@
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: linear-gradient(
-    135deg,
-    rgba(59, 130, 246, 0.2) 0%,
-    rgba(99, 102, 241, 0.1) 100%
-  );
+  background: var(--dp-card-accent-soft);
+}
+
+.overview-stat-card__icon-svg {
+  width: 20px;
+  height: 20px;
+  color: var(--dp-card-accent);
 }
 
 .overview-stat-card__value {
   font-size: 24px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--dp-overview-strong-text);
   margin: 12px 0 8px 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
 }
 
 .overview-stat-card__meta {
   font-size: 12px;
-  color: #64748b;
+  color: var(--dp-overview-muted-text);
   margin: 0;
 }
 
@@ -80,13 +92,8 @@
 .overview-alert {
   border-radius: 12px;
   padding: 16px 20px;
-  background: linear-gradient(
-    135deg,
-    rgba(251, 146, 60, 0.1) 0%,
-    rgba(239, 68, 68, 0.05) 100%
-  );
-  border: 1px solid rgba(251, 146, 60, 0.3);
-  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.1);
+  background: transparent;
+  border: 1px solid var(--dp-overview-alert-border);
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -95,7 +102,7 @@
 .overview-alert__icon {
   flex-shrink: 0;
   margin-top: 2px;
-  color: #f97316;
+  color: var(--dp-overview-alert-icon);
 }
 
 .overview-alert__content {
@@ -104,13 +111,13 @@
 
 .overview-alert__title {
   font-weight: 600;
-  color: #fed7aa;
+  color: var(--dp-overview-alert-text);
   margin: 0 0 2px;
   font-size: 14px;
 }
 
 .overview-alert__message {
-  color: #fed7aa;
+  color: var(--dp-overview-alert-text);
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
@@ -126,34 +133,31 @@
 .overview-chart-card {
   border-radius: 12px;
   padding: 24px;
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(71, 85, 105, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 200ms ease;
-  backdrop-filter: blur(8px);
+  background: transparent;
+  border: 1px solid var(--dp-overview-border);
+  transition: border-color 200ms ease;
 }
 
 .overview-chart-card:hover {
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.4);
+  border-color: var(--dp-overview-border-hover);
 }
 
 .overview-chart-card__header {
   margin-bottom: 20px;
-  border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+  border-bottom: 1px solid var(--dp-overview-chart-divider);
   padding-bottom: 16px;
 }
 
 .overview-chart-card__title {
   font-size: 16px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--dp-overview-strong-text);
   margin: 0 0 4px 0;
 }
 
 .overview-chart-card__subtitle {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--dp-overview-muted-text);
   margin: 0;
 }
 
@@ -174,23 +178,19 @@
 .overview-quick-stat {
   border-radius: 12px;
   padding: 20px;
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(71, 85, 105, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 200ms ease;
-  backdrop-filter: blur(8px);
+  background: transparent;
+  border: 1px solid var(--dp-overview-border);
+  transition: border-color 200ms ease;
 }
 
 .overview-quick-stat:hover {
-  transform: translateY(-2px);
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.15);
+  border-color: var(--dp-overview-border-hover);
 }
 
 .overview-quick-stat__label {
   font-size: 11px;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--dp-overview-muted-text);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 12px 0;
@@ -199,7 +199,7 @@
 .overview-quick-stat__value {
   font-size: 28px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--dp-overview-strong-text);
   margin: 0 0 12px 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
 }
@@ -213,14 +213,14 @@
 .overview-quick-stat__progress-bar {
   flex: 1;
   height: 6px;
-  background: rgba(71, 85, 105, 0.4);
+  background: var(--dp-overview-progress-bg);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .overview-quick-stat__progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  background: var(--dp-overview-progress-fill);
   border-radius: 3px;
   transition: width 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -228,7 +228,7 @@
 .overview-quick-stat__progress-text {
   font-size: 11px;
   font-weight: 700;
-  color: #60a5fa;
+  color: var(--dp-overview-progress-text);
   white-space: nowrap;
 }
 

@@ -2,7 +2,7 @@ import { BarChart3, Database, UploadCloud, LineChart, LayoutGrid } from 'lucide-
 
 // Main application navigation (used by AppShell)
 export const appNavigation = [
-  { label: 'Resumen', to: '/app/overview', icon: BarChart3 },
+  { label: 'Dashboard', to: '/app/overview', icon: BarChart3 },
   { label: 'Datasets', to: '/app/datasets', icon: Database },
   { label: 'Subir archivo', to: '/app/upload', icon: UploadCloud },
   { label: 'Dashboards guardados', to: '/app/saved', icon: LayoutGrid },
@@ -11,7 +11,7 @@ export const appNavigation = [
 
 // Overview sub-navigation (used inside the Overview page and SimpleLayoutDemo)
 // This is intentionally separate from the main nav: it represents subsections
-// within the 'Resumen' area. Keep labels in Spanish to match the app.
+// within the Dashboard area. Keep labels in Spanish to match the app.
 export const overviewNav = [
   { id: 'dashboard', name: 'Dashboard' },
   { id: 'inventory', name: 'Inventario' },

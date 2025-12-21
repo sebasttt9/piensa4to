@@ -1,48 +1,162 @@
-import type { ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { Activity, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-
-const navigation = [
-  { label: 'Resumen', to: '/app/overview' },
-  { label: 'Datasets', to: '/app/datasets' },
-  { label: 'Subir archivo', to: '/app/upload' },
-  { label: 'Dashboards guardados', to: '/app/saved' },
-  { label: 'IA Insights', to: '/app/insights' },
-];
+import { appNavigation } from '../../lib/navigation';
+import './AppShell.css';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const location = useLocation();
+  const navWidth = 280;
+  const initialDesktop = typeof window !== 'undefined' ? window.innerWidth >= 1024 : false;
+  const [navOpen, setNavOpen] = useState(initialDesktop);
+  const [isDesktop, setIsDesktop] = useState(initialDesktop);
 
-  const activeNav = navigation.find((item) => location.pathname.startsWith(item.to));
-  const sectionTitle = activeNav?.label ?? 'Panel Principal';
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const media = window.matchMedia('(min-width: 1024px)');
+    const syncNavState = (event: MediaQueryList | MediaQueryListEvent) => {
+      const matches = 'matches' in event ? event.matches : media.matches;
+      setIsDesktop(matches);
+      setNavOpen(matches);
+    };
+
+    syncNavState(media);
+
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', syncNavState);
+      return () => media.removeEventListener('change', syncNavState);
+    }
+
+    media.addListener(syncNavState);
+    return () => media.removeListener(syncNavState);
+  }, []);
+
+  useEffect(() => {
+    if (isDesktop) {
+      return;
+    }
+    setNavOpen(false);
+  }, [isDesktop, location.pathname]);
+
+  const toggleNav = () => setNavOpen((prev) => !prev);
+  const closeNav = () => setNavOpen(false);
+
+  const activeNav = appNavigation.find((item) => location.pathname.startsWith(item.to));
+  const sectionTitle = activeNav?.label ?? 'Panel principal';
+  const mainClasses = useMemo(() => {
+    const classes = ['app-shell__main'];
+    if (isDesktop && navOpen) {
+      classes.push('app-shell__main--with-nav');
+    }
+    if (!isDesktop && navOpen) {
+      classes.push('app-shell__main--shifted');
+    }
+    return classes.join(' ');
+  }, [isDesktop, navOpen]);
+  const asideHiddenForMobile = !navOpen && !isDesktop;
+  const userInitials = useMemo(() => {
+    if (!user?.name) {
+      return 'AD';
+    }
+    const parts = user.name.trim().split(/\s+/);
+    const [first, second] = parts;
+    const firstInitial = first?.[0] ?? '';
+    const secondInitial = second?.[0] ?? (parts[parts.length - 1]?.[0] ?? '');
+    return `${firstInitial}${secondInitial}`.toUpperCase();
+  }, [user?.name]);
+
+  const shellStyles = useMemo(
+    () => ({
+      '--app-shell-nav-width': `${navWidth}px`,
+    }) as CSSProperties,
+    [navWidth],
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 flex flex-col">
-      <header className="sticky top-0 z-40 bg-gradient-to-r from-indigo-800/80 to-blue-800/80 border-b border-purple-500/30 px-6 py-4 flex items-center justify-between backdrop-blur-md">
-        <div>
-          <h2 className="text-xl font-bold text-white">{sectionTitle}</h2>
-          <p className="text-xs text-slate-400 mt-1">Explora, analiza y comparte insights</p>
+    <div
+      className="app-shell"
+      style={shellStyles}
+    >
+      {navOpen && !isDesktop && (
+        <button
+          type="button"
+          aria-label="Cerrar panel de navegación"
+          className="app-shell__overlay"
+          onClick={closeNav}
+        />
+      )}
+
+      <aside
+        className={`app-shell__aside ${navOpen ? 'app-shell__aside--open' : ''}`}
+        aria-hidden={asideHiddenForMobile}
+      >
+        <div className="app-shell__brand">
+          <div className="app-shell__brand-badge">
+            <Activity className="app-shell__brand-icon" strokeWidth={2.5} />
+          </div>
+          <div className="app-shell__brand-copy">
+            <span className="app-shell__brand-title">DataPulse</span>
+            <span className="app-shell__brand-subtitle">Business Analytics</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-full border border-slate-700">
-            <div className="h-2 w-2 rounded-full bg-green-500"></div>
-            <span className="text-xs font-medium text-slate-300">{user?.name || 'Demo'}</span>
+        <nav className="app-shell__nav">
+          {appNavigation.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={() => {
+                  if (!isDesktop) {
+                    closeNav();
+                  }
+                }}
+                className={({ isActive }) => `app-shell__nav-link ${isActive ? 'is-active' : ''}`}
+              >
+                <span className="app-shell__nav-icon">
+                  <Icon className="app-shell__nav-icon-svg" />
+                </span>
+                <span className="app-shell__nav-label">{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        <div className="app-shell__account">
+          <div className="app-shell__account-user">
+            <span className="app-shell__account-badge">{userInitials}</span>
+            <div className="app-shell__account-data">
+              <span className="app-shell__account-name">{user?.name ?? 'Admin User'}</span>
+              <span className="app-shell__account-email">{user?.email ?? 'admin@datapulse.com'}</span>
+            </div>
           </div>
-          <button
-            onClick={signOut}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-purple-100 hover:bg-purple-800/40 hover:text-red-300 transition-colors duration-200 text-sm font-medium"
-          >
-            <LogOut className="w-4 h-4" />
+          <button type="button" onClick={signOut} className="app-shell__signout">
+            <LogOut className="app-shell__signout-icon" />
             Cerrar sesión
           </button>
         </div>
-      </header>
+      </aside>
 
-      <main className="flex-1 overflow-y-auto p-6 lg:p-10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        <div className="max-w-7xl mx-auto">
+      <main className={mainClasses}>
+        <div className="app-shell__content">
+          <div className="app-shell__header">
+            <button
+              type="button"
+              onClick={toggleNav}
+              className="app-shell__toggle"
+              aria-label={navOpen ? 'Ocultar menú de navegación' : 'Mostrar menú de navegación'}
+              aria-expanded={navOpen}
+            >
+              <Menu className="app-shell__toggle-icon" />
+            </button>
+            <h2 className="app-shell__title">{sectionTitle}</h2>
+          </div>
           {children}
         </div>
       </main>

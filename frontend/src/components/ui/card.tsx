@@ -7,15 +7,15 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function Card({ variant = 'default', className, children, ...props }: CardProps) {
   const variants = {
-    default: 'bg-gradient-to-br from-white/8 to-white/4 border border-white/15 backdrop-blur-xl shadow-lg hover:shadow-[0_20px_50px_rgba(167,139,250,0.2)] hover:border-white/25 hover:translate-y-[-2px]',
-    elevated: 'bg-gradient-to-br from-white/12 via-white/8 to-white/4 border border-white/20 backdrop-blur-2xl shadow-2xl shadow-purple-900/30 hover:shadow-[0_30px_60px_rgba(99,102,241,0.4)] hover:translate-y-[-4px]',
-    outlined: 'bg-gradient-to-br from-white/6 to-transparent border-2 border-white/20 backdrop-blur-lg hover:border-white/40 hover:bg-white/10 hover:shadow-lg',
+    default: 'bg-transparent border border-white/15 hover:border-white/25',
+    elevated: 'bg-transparent border border-white/20 hover:border-white/35',
+    outlined: 'bg-transparent border-2 border-white/20 hover:border-white/35',
   };
 
   return (
     <div
       className={cn(
-        'rounded-2xl p-6 transition-all duration-300 ease-out',
+        'rounded-2xl p-6 transition-colors duration-300 ease-out',
         variants[variant],
         className
       )}

@@ -1,6 +1,6 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { AppShell } from './components/layout/AppShell';
+import { AuthenticatedApp } from './components/layout/AuthenticatedApp';
 import { OverviewPage } from './pages/OverviewPage';
 import { DatasetsPage } from './pages/DatasetsPage';
 import { UploadPage } from './pages/UploadPage';
@@ -11,25 +11,16 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import SimpleLayoutDemo from './pages/SimpleLayoutDemo';
 
-function AppLayout() {
-  return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
-  );
-}
-
 export default function App() {
   return (
     <Routes>
-      {/* Demo route to preview the simple layout you provided */}
       <Route path="/simple" element={<SimpleLayoutDemo />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<ProtectedRoute />}>
-        <Route path="/app" element={<AppLayout />}>
+        <Route path="/app" element={<AuthenticatedApp />}>
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<OverviewPage />} />
           <Route path="datasets" element={<DatasetsPage />} />
