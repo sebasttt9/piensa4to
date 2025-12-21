@@ -49,3 +49,14 @@ export class Dataset {
 export type DatasetDocument = HydratedDocument<Dataset>;
 
 export const DatasetSchema = SchemaFactory.createForClass(Dataset);
+
+DatasetSchema.set('toJSON', {
+  versionKey: false,
+  transform: (_doc, ret: Partial<Dataset> & { _id?: Types.ObjectId }) => {
+    if (ret._id) {
+      (ret as { id?: string }).id = ret._id.toString();
+      delete ret._id;
+    }
+    return ret;
+  },
+});

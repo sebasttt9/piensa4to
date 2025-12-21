@@ -9,6 +9,14 @@ exports.default = () => ({
         jwtSecret: process.env.JWT_SECRET ?? 'superchangeme',
         jwtExpiration: process.env.JWT_EXPIRATION ?? '24h',
     },
+    seed: {
+        admin: {
+            email: process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@datapulse.com',
+            password: process.env.DEFAULT_ADMIN_PASSWORD ?? 'datapulse123',
+            name: process.env.DEFAULT_ADMIN_NAME ?? 'DataPulse Admin',
+            role: process.env.DEFAULT_ADMIN_ROLE ?? 'admin',
+        },
+    },
     uploads: {
         maxFileSize: parseInt(process.env.FILE_MAX_SIZE ?? '5242880', 10),
         previewLimit: parseInt(process.env.FILE_PREVIEW_LIMIT ?? '50', 10),

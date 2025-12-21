@@ -7,6 +7,14 @@ declare const _default: () => {
         jwtSecret: string;
         jwtExpiration: string;
     };
+    seed: {
+        admin: {
+            email: string;
+            password: string;
+            name: string;
+            role: string;
+        };
+    };
     uploads: {
         maxFileSize: number;
         previewLimit: number;

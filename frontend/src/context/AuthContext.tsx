@@ -1,5 +1,6 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { isAxiosError } from 'axios';
 import api from '../lib/api';
 
 type Role = 'admin' | 'user';
@@ -14,6 +15,7 @@ type AuthUser = {
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
+  isAuthenticating: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   register: (input: { name: string; email: string; password: string }) => Promise<void>;
   signOut: () => void;
@@ -22,6 +24,36 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const STORAGE_KEY = 'datapulse.persist';
+const TOKEN_KEY = 'datapulse.token';
+
+const mapApiUser = (payload: any): AuthUser => ({
+  id: payload.id ?? payload._id ?? payload.sub ?? 'current',
+  name: payload.name ?? 'Usuario',
+  email: payload.email,
+  role: (payload.role as Role) ?? 'user',
+});
+
+const resolveErrorMessage = (error: unknown): string => {
+  if (isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (Array.isArray(message)) {
+      return message[0];
+    }
+    if (typeof message === 'string') {
+      return message;
+    }
+    return 'No pudimos conectar con el servidor de autenticación.';
+  }
+  return 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+};
+
+const applyAuthHeader = (token?: string) => {
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
@@ -40,8 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const [loading, setLoading] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
 
-  const persistUser = (nextUser: AuthUser | null, token?: string) => {
+  const persistUser = useCallback((nextUser: AuthUser | null, token?: string) => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -53,64 +86,99 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (token) {
-      localStorage.setItem('datapulse.token', token);
+      localStorage.setItem(TOKEN_KEY, token);
     }
-  };
 
-  const signIn = async (email: string, password: string) => {
+    applyAuthHeader(token);
+  }, []);
+
+  const signIn = useCallback(async (email: string, password: string) => {
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', { email, password });
-      const nextUser: AuthUser = {
-        id: data.user.id ?? data.user._id ?? data.user.sub ?? 'current',
-        name: data.user.name ?? 'Usuario',
-        email: data.user.email,
-        role: data.user.role as Role,
-      };
+      const nextUser = mapApiUser(data.user);
       setUser(nextUser);
       persistUser(nextUser, data.accessToken);
     } catch (error) {
-      console.warn('Using offline mode. Backend no disponible todavía.', error);
-      const fallbackUser: AuthUser = {
-        id: 'local-user',
-        name: 'Demo DataPulse',
-        email,
-        role: 'admin',
-      };
-      setUser(fallbackUser);
-      persistUser(fallbackUser, 'demo-token');
+      setUser(null);
+      persistUser(null);
+      throw new Error(resolveErrorMessage(error));
     } finally {
       setLoading(false);
     }
-  };
+  }, [persistUser]);
 
-  const register = async (input: { name: string; email: string; password: string }) => {
+  const register = useCallback(async (input: { name: string; email: string; password: string }) => {
     setLoading(true);
     try {
       await api.post('/auth/register', input);
       await signIn(input.email, input.password);
+    } catch (error) {
+      throw new Error(resolveErrorMessage(error));
     } finally {
       setLoading(false);
     }
-  };
+  }, [signIn]);
 
-  const signOut = () => {
+  const signOut = useCallback(() => {
     setUser(null);
     persistUser(null);
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('datapulse.token');
+      localStorage.removeItem(TOKEN_KEY);
     }
-  };
+  }, [persistUser]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setIsAuthenticating(false);
+      return;
+    }
+
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      applyAuthHeader();
+      setIsAuthenticating(false);
+      return;
+    }
+
+    applyAuthHeader(token);
+
+    const bootstrap = async () => {
+      try {
+        const { data } = await api.get('/auth/me');
+        const nextUser = mapApiUser(data);
+        setUser(nextUser);
+        persistUser(nextUser, token);
+      } catch {
+        signOut();
+      } finally {
+        setIsAuthenticating(false);
+      }
+    };
+
+    bootstrap();
+  }, [signOut]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handler = () => signOut();
+    window.addEventListener('datapulse:unauthorized', handler);
+    return () => window.removeEventListener('datapulse:unauthorized', handler);
+  }, [signOut]);
 
   const value = useMemo(
     () => ({
       user,
       loading,
+      isAuthenticating,
       signIn,
       register,
       signOut,
     }),
-    [loading, user],
+    [isAuthenticating, loading, register, signIn, signOut, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

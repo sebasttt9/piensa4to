@@ -60,7 +60,7 @@ let AuthService = class AuthService {
     async register(dto) {
         const user = await this.usersService.create(dto);
         const accessToken = this.buildToken(user);
-        return { accessToken, user };
+        return { accessToken, user: this.sanitizeUser(user) };
     }
     async login({ email, password }) {
         const user = await this.usersService.findByEmail(email);
@@ -72,17 +72,26 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException('Credenciales inválidas');
         }
         const accessToken = this.buildToken(user);
-        return { accessToken, user };
+        return { accessToken, user: this.sanitizeUser(user) };
     }
     buildToken(user) {
         const payload = {
-            sub: user.id,
+            sub: user._id.toString(),
             email: user.email,
             role: user.role,
         };
         return this.jwtService.sign(payload, {
             expiresIn: this.jwtExpiration,
         });
+    }
+    sanitizeUser(user) {
+        const plain = user.toObject({ versionKey: false, virtuals: true });
+        delete plain['password'];
+        plain['id'] = plain['id'] ?? user._id.toString();
+        if ('_id' in plain) {
+            delete plain['_id'];
+        }
+        return plain;
     }
 };
 exports.AuthService = AuthService;

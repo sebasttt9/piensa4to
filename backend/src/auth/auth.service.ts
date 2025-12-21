@@ -20,13 +20,13 @@ export class AuthService {
     this.jwtExpiration = (configService.get<string>('auth.jwtExpiration') ?? '1h') as SignOptions['expiresIn'];
   }
 
-  async register(dto: RegisterDto): Promise<{ accessToken: string; user: UserDocument }> {
+  async register(dto: RegisterDto): Promise<{ accessToken: string; user: Record<string, unknown> }> {
     const user = await this.usersService.create(dto);
     const accessToken = this.buildToken(user);
-    return { accessToken, user };
+    return { accessToken, user: this.sanitizeUser(user) };
   }
 
-  async login({ email, password }: LoginDto): Promise<{ accessToken: string; user: UserDocument }> {
+  async login({ email, password }: LoginDto): Promise<{ accessToken: string; user: Record<string, unknown> }> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Credenciales inválidas');
@@ -38,12 +38,12 @@ export class AuthService {
     }
 
     const accessToken = this.buildToken(user);
-    return { accessToken, user };
+    return { accessToken, user: this.sanitizeUser(user) };
   }
 
   private buildToken(user: UserDocument): string {
     const payload = {
-      sub: user.id,
+      sub: user._id.toString(),
       email: user.email,
       role: user.role,
     };
@@ -51,5 +51,15 @@ export class AuthService {
     return this.jwtService.sign(payload, {
       expiresIn: this.jwtExpiration,
     });
+  }
+
+  private sanitizeUser(user: UserDocument): Record<string, unknown> {
+    const plain = user.toObject({ versionKey: false, virtuals: true }) as Record<string, unknown>;
+    delete plain['password'];
+    plain['id'] = (plain['id'] as string | undefined) ?? user._id.toString();
+    if ('_id' in plain) {
+      delete plain['_id'];
+    }
+    return plain;
   }
 }

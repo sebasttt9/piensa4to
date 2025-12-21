@@ -13,6 +13,7 @@ const users_service_1 = require("./users.service");
 const users_controller_1 = require("./users.controller");
 const user_schema_1 = require("./schemas/user.schema");
 const roles_guard_1 = require("../common/guards/roles.guard");
+const users_initializer_1 = require("./users.initializer");
 let UsersModule = class UsersModule {
 };
 exports.UsersModule = UsersModule;
@@ -20,7 +21,7 @@ exports.UsersModule = UsersModule = __decorate([
     (0, common_1.Module)({
         imports: [mongoose_1.MongooseModule.forFeature([{ name: user_schema_1.User.name, schema: user_schema_1.UserSchema }])],
         controllers: [users_controller_1.UsersController],
-        providers: [users_service_1.UsersService, roles_guard_1.RolesGuard],
+        providers: [users_service_1.UsersService, roles_guard_1.RolesGuard, users_initializer_1.UsersInitializer],
         exports: [users_service_1.UsersService, mongoose_1.MongooseModule],
     })
 ], UsersModule);

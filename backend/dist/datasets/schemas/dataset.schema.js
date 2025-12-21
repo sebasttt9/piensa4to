@@ -84,4 +84,14 @@ exports.Dataset = Dataset = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Dataset);
 exports.DatasetSchema = mongoose_1.SchemaFactory.createForClass(Dataset);
+exports.DatasetSchema.set('toJSON', {
+    versionKey: false,
+    transform: (_doc, ret) => {
+        if (ret._id) {
+            ret.id = ret._id.toString();
+            delete ret._id;
+        }
+        return ret;
+    },
+});
 //# sourceMappingURL=dataset.schema.js.map

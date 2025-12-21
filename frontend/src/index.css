@@ -6,12 +6,28 @@
 :root {
   color-scheme: dark;
   perspective: 1000px;
+  --app-background: radial-gradient(
+      circle at top left,
+      rgba(118, 80, 255, 0.38),
+      transparent 52%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(59, 130, 246, 0.34),
+      transparent 62%
+    ),
+    radial-gradient(circle, rgba(255, 255, 255, 0.06), transparent 72%),
+    linear-gradient(135deg, #030617 0%, #161b44 48%, #432a87 100%);
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui,
     sans-serif;
-  background: transparent;
+  background: var(
+    --app-background,
+    linear-gradient(135deg, #06102d 0%, #0c1c4a 55%, #1a1242 100%)
+  );
+  background-attachment: fixed;
   color: #e2e8f0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -64,6 +80,38 @@ body {
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+@layer utilities {
+  .login-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .login-feature-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-auto-rows: auto;
+  }
+
+  @media (min-width: 1024px) {
+    .login-grid {
+      grid-template-columns: minmax(0, 1.25fr) 26.25rem;
+      align-items: stretch;
+      column-gap: 3rem;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .login-grid {
+      column-gap: 4rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .login-feature-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: 1fr;
+    }
   }
 }
 

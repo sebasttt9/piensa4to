@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import colors from 'tailwindcss/colors';
 import forms from '@tailwindcss/forms';
 
 const config: Config = {
@@ -11,6 +12,10 @@ const config: Config = {
         body: ['"Inter"', 'system-ui', 'sans-serif'],
       },
       colors: {
+        white: '#ffffff',
+        slate: colors.slate,
+        indigo: colors.indigo,
+        purple: colors.purple,
         brand: {
           50: '#eef5ff',
           100: '#d8e7ff',

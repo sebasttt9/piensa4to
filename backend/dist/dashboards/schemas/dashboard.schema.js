@@ -9,40 +9,41 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DashboardSchema = exports.Dashboard = exports.ChartConfigSchema = exports.ChartConfig = void 0;
+exports.DashboardSchema = exports.Dashboard = exports.DashboardChart = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const user_schema_1 = require("../../users/schemas/user.schema");
 const dataset_schema_1 = require("../../datasets/schemas/dataset.schema");
-let ChartConfig = class ChartConfig {
+let DashboardChart = class DashboardChart {
     type;
     title;
-    settings;
+    config;
 };
-exports.ChartConfig = ChartConfig;
+exports.DashboardChart = DashboardChart;
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
-], ChartConfig.prototype, "type", void 0);
+], DashboardChart.prototype, "type", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
+    (0, mongoose_1.Prop)({ trim: true }),
     __metadata("design:type", String)
-], ChartConfig.prototype, "title", void 0);
+], DashboardChart.prototype, "title", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: Object, required: true }),
+    (0, mongoose_1.Prop)({ type: Object, default: {} }),
     __metadata("design:type", Object)
-], ChartConfig.prototype, "settings", void 0);
-exports.ChartConfig = ChartConfig = __decorate([
+], DashboardChart.prototype, "config", void 0);
+exports.DashboardChart = DashboardChart = __decorate([
     (0, mongoose_1.Schema)({ _id: false })
-], ChartConfig);
-exports.ChartConfigSchema = mongoose_1.SchemaFactory.createForClass(ChartConfig);
+], DashboardChart);
+const DashboardChartSchema = mongoose_1.SchemaFactory.createForClass(DashboardChart);
 let Dashboard = class Dashboard {
     owner;
-    dataset;
-    title;
+    name;
     description;
+    datasetIds;
+    layout;
     charts;
-    filters;
+    isPublic;
 };
 exports.Dashboard = Dashboard;
 __decorate([
@@ -50,27 +51,41 @@ __decorate([
     __metadata("design:type", mongoose_2.Types.ObjectId)
 ], Dashboard.prototype, "owner", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: dataset_schema_1.Dataset.name, required: true }),
-    __metadata("design:type", mongoose_2.Types.ObjectId)
-], Dashboard.prototype, "dataset", void 0);
-__decorate([
     (0, mongoose_1.Prop)({ required: true, trim: true }),
     __metadata("design:type", String)
-], Dashboard.prototype, "title", void 0);
+], Dashboard.prototype, "name", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ trim: true }),
     __metadata("design:type", String)
 ], Dashboard.prototype, "description", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: [exports.ChartConfigSchema], default: [] }),
+    (0, mongoose_1.Prop)({ type: [mongoose_2.Types.ObjectId], ref: dataset_schema_1.Dataset.name, default: [] }),
     __metadata("design:type", Array)
-], Dashboard.prototype, "charts", void 0);
+], Dashboard.prototype, "datasetIds", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ type: Object, default: {} }),
     __metadata("design:type", Object)
-], Dashboard.prototype, "filters", void 0);
+], Dashboard.prototype, "layout", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: [DashboardChartSchema], default: [] }),
+    __metadata("design:type", Array)
+], Dashboard.prototype, "charts", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: false }),
+    __metadata("design:type", Boolean)
+], Dashboard.prototype, "isPublic", void 0);
 exports.Dashboard = Dashboard = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Dashboard);
 exports.DashboardSchema = mongoose_1.SchemaFactory.createForClass(Dashboard);
+exports.DashboardSchema.set('toJSON', {
+    versionKey: false,
+    transform: (_doc, ret) => {
+        if (ret._id) {
+            ret.id = ret._id.toString();
+            delete ret._id;
+        }
+        return ret;
+    },
+});
 //# sourceMappingURL=dashboard.schema.js.map
