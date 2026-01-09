@@ -1,84 +1,200 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Inject, Injectable, NotFoundException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User, UserDocument } from './schemas/user.schema';
+import { UserRole } from '../common/constants/roles.enum';
+import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { UserEntity } from './entities/user.entity';
+
+interface UserRow {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  password_hash: string;
+  created_at: string;
+  updated_at: string;
+}
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectModel(User.name)
-    private readonly userModel: Model<UserDocument>,
+    @Inject(SUPABASE_CLIENT)
+    private readonly supabase: SupabaseClient,
   ) { }
 
-  async create(input: CreateUserDto): Promise<UserDocument> {
+  private readonly tableName = 'users';
+
+  async create(input: CreateUserDto): Promise<Omit<UserEntity, 'passwordHash'>> {
     const email = input.email.toLowerCase();
-    const existing = await this.userModel.findOne({ email }).lean();
+    const existing = await this.findByEmail(email);
     if (existing) {
       throw new ConflictException('El correo ya está registrado');
     }
 
     const hashedPassword = await bcrypt.hash(input.password, 12);
-    const created = new this.userModel({ ...input, email, password: hashedPassword });
-    return created.save();
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .insert({
+        email,
+        name: input.name,
+        role: input.role ?? UserRole.User,
+        password_hash: hashedPassword,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        throw new ConflictException('El correo ya está registrado');
+      }
+      throw new InternalServerErrorException('No se pudo crear el usuario');
+    }
+
+    if (!data) {
+      throw new InternalServerErrorException('No se pudo crear el usuario');
+    }
+
+    return this.toPublicUser(data as UserRow);
   }
 
-  async findAll(): Promise<UserDocument[]> {
-    return this.userModel.find().sort({ createdAt: -1 }).select('-password').exec();
+  async findAll(): Promise<Array<Omit<UserEntity, 'passwordHash'>>> {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudieron listar los usuarios');
+    }
+
+    return ((data ?? []) as UserRow[]).map((row) => this.toPublicUser(row));
   }
 
-  async findById(id: string): Promise<UserDocument> {
-    const user = await this.userModel.findById(id).exec();
-    if (!user) {
+  async findById(id: string): Promise<Omit<UserEntity, 'passwordHash'>> {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudo obtener el usuario');
+    }
+
+    if (!data) {
       throw new NotFoundException('Usuario no encontrado');
     }
-    return user;
+
+    return this.toPublicUser(data as UserRow);
   }
 
-  async findByEmail(email: string): Promise<UserDocument | null> {
-    return this.userModel.findOne({ email: email.toLowerCase() }).exec();
+  async findByEmail(email: string): Promise<UserEntity | null> {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudo consultar el usuario');
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return this.toUserEntity(data as UserRow);
   }
 
-  async update(id: string, changes: UpdateUserDto): Promise<UserDocument> {
+  async update(id: string, changes: UpdateUserDto): Promise<Omit<UserEntity, 'passwordHash'>> {
     if (changes.email) {
-      const existing = await this.userModel.findOne({
-        email: changes.email.toLowerCase(),
-        _id: { $ne: id },
-      });
-      if (existing) {
+      const existing = await this.supabase
+        .from(this.tableName)
+        .select('id')
+        .eq('email', changes.email.toLowerCase())
+        .neq('id', id)
+        .maybeSingle();
+
+      if (existing.data) {
         throw new ConflictException('El correo ya está registrado');
+      }
+      if (existing.error && existing.error.code !== 'PGRST116') {
+        throw new InternalServerErrorException('No se pudo actualizar el usuario');
       }
     }
 
-    const updatePayload = { ...changes } as UpdateUserDto & { password?: string };
+    const updatePayload: Record<string, unknown> = {};
     if (changes.email) {
       updatePayload.email = changes.email.toLowerCase();
     }
 
     if (changes.password) {
-      updatePayload.password = await bcrypt.hash(changes.password, 12);
+      updatePayload.password_hash = await bcrypt.hash(changes.password, 12);
     }
 
-    const updated = await this.userModel.findByIdAndUpdate(id, updatePayload, {
-      new: true,
-      runValidators: true,
-    })
-      .select('-password')
-      .exec();
+    if (changes.name) {
+      updatePayload.name = changes.name;
+    }
+    if (changes.role) {
+      updatePayload.role = changes.role;
+    }
 
-    if (!updated) {
+    if (Object.keys(updatePayload).length === 0) {
+      return this.findById(id);
+    }
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .update(updatePayload)
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudo actualizar el usuario');
+    }
+
+    if (!data) {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    return updated;
+    return this.toPublicUser(data as UserRow);
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.userModel.findByIdAndDelete(id);
-    if (!result) {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudo eliminar el usuario');
+    }
+
+    if (!data) {
       throw new NotFoundException('Usuario no encontrado');
     }
+  }
+
+  private toPublicUser(row: UserRow): Omit<UserEntity, 'passwordHash'> {
+    const entity = this.toUserEntity(row);
+    const { passwordHash, ...rest } = entity;
+    return rest;
+  }
+
+  private toUserEntity(row: UserRow): UserEntity {
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      role: row.role,
+      passwordHash: row.password_hash,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   }
 }

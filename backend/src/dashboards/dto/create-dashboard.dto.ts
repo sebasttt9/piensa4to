@@ -1,6 +1,6 @@
 import {
   IsArray,
-  IsMongoId,
+  IsUUID,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -16,7 +16,7 @@ export class CreateDashboardDto {
   description?: string;
 
   @IsArray()
-  @IsMongoId({ each: true })
+  @IsUUID('4', { each: true })
   @IsOptional()
   datasetIds?: string[];
 }

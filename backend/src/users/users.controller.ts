@@ -17,7 +17,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/constants/roles.enum';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import type { UserDocument } from './schemas/user.schema';
+import type { UserEntity } from './entities/user.entity';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -25,7 +25,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
   @Get('me')
-  getProfile(@CurrentUser() user: UserDocument) {
+  getProfile(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
     return user;
   }
 

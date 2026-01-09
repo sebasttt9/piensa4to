@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import type { UserDocument } from '../../users/schemas/user.schema';
+import type { UserEntity } from '../../users/entities/user.entity';
 export interface AuthenticatedRequest extends Request {
-    user: UserDocument;
+    user: Omit<UserEntity, 'passwordHash'>;
 }

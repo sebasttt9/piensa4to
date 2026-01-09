@@ -1,7 +1,8 @@
 declare const _default: () => {
     port: number;
-    mongodb: {
-        uri: string;
+    supabase: {
+        url: string;
+        serviceRoleKey: string;
     };
     auth: {
         jwtSecret: string;
@@ -9,8 +10,8 @@ declare const _default: () => {
     };
     seed: {
         admin: {
-            email: string;
-            password: string;
+            email: string | undefined;
+            password: string | undefined;
             name: string;
             role: string;
         };

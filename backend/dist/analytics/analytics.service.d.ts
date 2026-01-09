@@ -1,6 +1,4 @@
-import { Model } from 'mongoose';
-import { DatasetDocument } from '../datasets/schemas/dataset.schema';
-import { DashboardDocument } from '../dashboards/schemas/dashboard.schema';
+import { SupabaseClient } from '@supabase/supabase-js';
 export interface OverviewAnalytics {
     summary: {
         totalDatasets: number;
@@ -39,9 +37,8 @@ export interface OverviewAnalytics {
     lastUpdated: string;
 }
 export declare class AnalyticsService {
-    private readonly datasetModel;
-    private readonly dashboardModel;
-    constructor(datasetModel: Model<DatasetDocument>, dashboardModel: Model<DashboardDocument>);
+    private readonly supabase;
+    constructor(supabase: SupabaseClient);
     getOverview(ownerId: string): Promise<OverviewAnalytics>;
     private buildMonthlySeries;
     private calculateGrowth;

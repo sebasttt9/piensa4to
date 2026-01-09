@@ -5,8 +5,8 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { UserDocument } from '../users/schemas/user.schema';
 import type { SignOptions } from 'jsonwebtoken';
+import { UserEntity } from '../users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -22,8 +22,8 @@ export class AuthService {
 
   async register(dto: RegisterDto): Promise<{ accessToken: string; user: Record<string, unknown> }> {
     const user = await this.usersService.create(dto);
-    const accessToken = this.buildToken(user);
-    return { accessToken, user: this.sanitizeUser(user) };
+    const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
+    return { accessToken, user };
   }
 
   async login({ email, password }: LoginDto): Promise<{ accessToken: string; user: Record<string, unknown> }> {
@@ -32,18 +32,19 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const isValid = await bcrypt.compare(password, user.password);
+    const isValid = await bcrypt.compare(password, user.passwordHash ?? '');
     if (!isValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const accessToken = this.buildToken(user);
-    return { accessToken, user: this.sanitizeUser(user) };
+    const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
+    const publicUser = this.sanitizeUser(user);
+    return { accessToken, user: publicUser };
   }
 
-  private buildToken(user: UserDocument): string {
+  private buildToken(user: Pick<UserEntity, 'id' | 'email' | 'role'>): string {
     const payload = {
-      sub: user._id.toString(),
+      sub: user.id,
       email: user.email,
       role: user.role,
     };
@@ -53,13 +54,8 @@ export class AuthService {
     });
   }
 
-  private sanitizeUser(user: UserDocument): Record<string, unknown> {
-    const plain = user.toObject({ versionKey: false, virtuals: true }) as Record<string, unknown>;
-    delete plain['password'];
-    plain['id'] = (plain['id'] as string | undefined) ?? user._id.toString();
-    if ('_id' in plain) {
-      delete plain['_id'];
-    }
-    return plain;
+  private sanitizeUser(user: UserEntity): Record<string, unknown> {
+    const { passwordHash, ...rest } = user;
+    return rest;
   }
 }

@@ -13,7 +13,7 @@ import {
 import { DashboardsService } from './dashboards.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import type { UserDocument } from '../users/schemas/user.schema';
+import type { UserEntity } from '../users/entities/user.entity';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 
@@ -23,37 +23,39 @@ export class DashboardsController {
   constructor(private readonly dashboardsService: DashboardsService) { }
 
   @Post()
-  create(@CurrentUser() user: UserDocument, @Body() dto: CreateDashboardDto) {
+  create(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Body() dto: CreateDashboardDto) {
     return this.dashboardsService.create(user.id, dto);
   }
 
   @Get()
   async findAll(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Query('page') page = 1,
     @Query('limit') limit = 10,
   ) {
-    const skip = (page - 1) * limit;
+    const parsedPage = Number(page) || 1;
+    const parsedLimit = Number(limit) || 10;
+    const skip = (parsedPage - 1) * parsedLimit;
     const [dashboards, total] = await Promise.all([
-      this.dashboardsService.findAll(user.id, skip, limit),
+      this.dashboardsService.findAll(user.id, skip, parsedLimit),
       this.dashboardsService.countByUser(user.id),
     ]);
     return {
       data: dashboards,
       total,
-      page: Number(page),
-      limit: Number(limit),
+      page: parsedPage,
+      limit: parsedLimit,
     };
   }
 
   @Get(':id')
-  findOne(@CurrentUser() user: UserDocument, @Param('id') id: string) {
+  findOne(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
     return this.dashboardsService.findOne(user.id, id);
   }
 
   @Put(':id')
   update(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
     @Body() dto: UpdateDashboardDto,
   ) {
@@ -62,7 +64,7 @@ export class DashboardsController {
 
   @Patch(':id/share')
   share(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
     @Body() dto: { isPublic: boolean },
   ) {
@@ -70,7 +72,7 @@ export class DashboardsController {
   }
 
   @Delete(':id')
-  remove(@CurrentUser() user: UserDocument, @Param('id') id: string) {
+  remove(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
     return this.dashboardsService.remove(user.id, id);
   }
 }

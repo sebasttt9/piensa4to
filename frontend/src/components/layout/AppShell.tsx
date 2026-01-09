@@ -45,6 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const toggleNav = () => setNavOpen((prev) => !prev);
   const closeNav = () => setNavOpen(false);
+  const isCollapsedDesktop = isDesktop && !navOpen;
 
   const asideClasses = useMemo(() => {
     const classes = ['app-shell__aside'];
@@ -59,6 +60,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const mainClasses = useMemo(() => {
     const classes = ['app-shell__main'];
+    if (navOpen) {
+      classes.push('app-shell__main--align-right');
+    } else {
+      classes.push('app-shell__main--centered');
+    }
     if (isDesktop && navOpen) {
       classes.push('app-shell__main--with-nav');
     }
@@ -70,7 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
     return classes.join(' ');
   }, [isDesktop, navOpen]);
-  const asideHiddenForMobile = !navOpen && !isDesktop;
+  const asideHidden = !navOpen && !isDesktop;
   const userInitials = useMemo(() => {
     if (!user?.name) {
       return 'AD';
@@ -88,6 +94,26 @@ export function AppShell({ children }: { children: ReactNode }) {
     }) as CSSProperties,
     [navWidth],
   );
+
+  const contentClasses = useMemo(() => {
+    const classes = ['app-shell__content'];
+    if (navOpen) {
+      classes.push('app-shell__content--right');
+    } else {
+      classes.push('app-shell__content--centered');
+    }
+    return classes.join(' ');
+  }, [navOpen]);
+
+  const headerClasses = useMemo(() => {
+    const classes = ['app-shell__header'];
+    if (navOpen) {
+      classes.push('app-shell__header--right');
+    } else {
+      classes.push('app-shell__header--centered');
+    }
+    return classes.join(' ');
+  }, [navOpen]);
 
   return (
     <div
@@ -107,7 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button
           type="button"
           aria-label="Mostrar panel de navegación"
-          className="app-shell__toggle app-shell__floating-toggle"
+          className="app-shell__toggle app-shell__floating-toggle app-shell__toggle--inactive"
           onClick={toggleNav}
         >
           <ChevronRight className="app-shell__toggle-icon" />
@@ -116,7 +142,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <aside
         className={asideClasses}
-        aria-hidden={asideHiddenForMobile}
+        aria-hidden={asideHidden}
       >
         <div className="app-shell__aside-top">
           <div className="app-shell__brand">
@@ -131,7 +157,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             aria-label={navOpen ? 'Ocultar panel de navegación' : 'Mostrar panel de navegación'}
-            className="app-shell__toggle app-shell__aside-toggle"
+            className={`app-shell__toggle app-shell__aside-toggle ${!navOpen ? 'app-shell__toggle--inactive' : ''}`.trim()}
             onClick={toggleNav}
           >
             {navOpen ? (
@@ -168,21 +194,34 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="app-shell__account">
           <div className="app-shell__account-user">
             <span className="app-shell__account-badge">{userInitials}</span>
-            <div className="app-shell__account-data">
-              <span className="app-shell__account-name">{user?.name ?? 'Admin User'}</span>
-              <span className="app-shell__account-email">{user?.email ?? 'admin@datapulse.com'}</span>
-            </div>
+            {!isCollapsedDesktop && (
+              <div className="app-shell__account-data">
+                <span className="app-shell__account-name">{user?.name ?? 'Admin User'}</span>
+                <span className="app-shell__account-email">{user?.email ?? 'admin@datapulse.com'}</span>
+              </div>
+            )}
           </div>
-          <button type="button" onClick={signOut} className="app-shell__signout">
-            <LogOut className="app-shell__signout-icon" />
-            Cerrar sesión
-          </button>
+          {!isCollapsedDesktop ? (
+            <button type="button" onClick={signOut} className="app-shell__signout">
+              <LogOut className="app-shell__signout-icon" />
+              Cerrar sesión
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={signOut}
+              className="app-shell__signout-icon-only"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut className="app-shell__signout-icon" />
+            </button>
+          )}
         </div>
       </aside>
 
       <main className={mainClasses}>
-        <div className="app-shell__content">
-          <div className="app-shell__header" />
+        <div className={contentClasses}>
+          <div className={headerClasses} />
           {children}
         </div>
       </main>

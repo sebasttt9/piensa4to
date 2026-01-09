@@ -16,7 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { DatasetsService } from './datasets.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import type { UserDocument } from '../users/schemas/user.schema';
+import type { UserEntity } from '../users/entities/user.entity';
 import { UploadDatasetDto } from './dto/upload-dataset.dto';
 
 @Controller('datasets')
@@ -28,31 +28,33 @@ export class DatasetsController {
 
   @Get()
   async findAll(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Query('page') page = 1,
     @Query('limit') limit = 10,
   ) {
-    const skip = (page - 1) * limit;
+    const parsedPage = Number(page) || 1;
+    const parsedLimit = Number(limit) || 10;
+    const skip = (parsedPage - 1) * parsedLimit;
     const [datasets, total] = await Promise.all([
-      this.datasetsService.findAll(user.id, skip, limit),
+      this.datasetsService.findAll(user.id, skip, parsedLimit),
       this.datasetsService.countByUser(user.id),
     ]);
     return {
       data: datasets,
       total,
-      page: Number(page),
-      limit: Number(limit),
+      page: parsedPage,
+      limit: parsedLimit,
     };
   }
 
   @Get(':id')
-  findOne(@CurrentUser() user: UserDocument, @Param('id') id: string) {
+  findOne(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
     return this.datasetsService.findOne(user.id, id);
   }
 
   @Post()
   create(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Body() dto: UploadDatasetDto,
   ) {
     return this.datasetsService.create(user.id, dto);
@@ -60,7 +62,7 @@ export class DatasetsController {
 
   @Put(':id')
   update(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
     @Body() dto: Partial<UploadDatasetDto>,
   ) {
@@ -70,7 +72,7 @@ export class DatasetsController {
   @Post(':id/upload')
   @UseInterceptors(FileInterceptor('file'))
   uploadFile(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
@@ -82,7 +84,7 @@ export class DatasetsController {
 
   @Get(':id/preview')
   async getPreview(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
     @Query('limit') limit = 50,
   ) {
@@ -98,7 +100,7 @@ export class DatasetsController {
 
   @Get(':id/analyze')
   analyzeDataset(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
   ) {
     // TODO: Implement analysis
@@ -107,7 +109,7 @@ export class DatasetsController {
 
   @Get(':id/insights')
   getInsights(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
   ) {
     // TODO: Implement insights
@@ -116,7 +118,7 @@ export class DatasetsController {
 
   @Get(':id/report')
   async generateReport(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
     @Query('format') format: 'json' | 'pdf' = 'json',
   ) {
@@ -132,7 +134,7 @@ export class DatasetsController {
   }
 
   @Delete(':id')
-  remove(@CurrentUser() user: UserDocument, @Param('id') id: string) {
+  remove(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
     return this.datasetsService.remove(user.id, id);
   }
 }

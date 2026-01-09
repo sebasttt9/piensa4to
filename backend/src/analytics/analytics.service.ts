@@ -1,8 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Dataset, DatasetDocument } from '../datasets/schemas/dataset.schema';
-import { Dashboard, DashboardDocument } from '../dashboards/schemas/dashboard.schema';
+import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { DashboardChartEntity } from '../dashboards/entities/dashboard.entity';
 
 export interface OverviewAnalytics {
     summary: {
@@ -32,20 +31,54 @@ export interface OverviewAnalytics {
     lastUpdated: string;
 }
 
+interface DatasetSummary {
+    status: 'pending' | 'processed' | 'error';
+    fileSize?: number;
+    tags?: string[];
+}
+
+interface DashboardSummary {
+    charts?: DashboardChartEntity[] | null;
+}
+
 @Injectable()
 export class AnalyticsService {
     constructor(
-        @InjectModel(Dataset.name)
-        private readonly datasetModel: Model<DatasetDocument>,
-        @InjectModel(Dashboard.name)
-        private readonly dashboardModel: Model<DashboardDocument>,
+        @Inject(SUPABASE_CLIENT)
+        private readonly supabase: SupabaseClient,
     ) { }
 
     async getOverview(ownerId: string): Promise<OverviewAnalytics> {
-        const [datasets, dashboards] = await Promise.all([
-            this.datasetModel.find({ owner: ownerId }).lean().exec(),
-            this.dashboardModel.find({ owner: ownerId }).lean().exec(),
+        const [datasetsResponse, dashboardsResponse] = await Promise.all([
+            this.supabase
+                .from('datasets')
+                .select('status, file_size, tags')
+                .eq('owner_id', ownerId),
+            this.supabase
+                .from('dashboards')
+                .select('charts')
+                .eq('owner_id', ownerId),
         ]);
+
+        if (datasetsResponse.error) {
+            throw new InternalServerErrorException('No se pudo obtener la información de datasets');
+        }
+
+        if (dashboardsResponse.error) {
+            throw new InternalServerErrorException('No se pudo obtener la información de dashboards');
+        }
+
+        const datasets: DatasetSummary[] = ((datasetsResponse.data ?? []) as Array<{
+            status: 'pending' | 'processed' | 'error';
+            file_size: number | null;
+            tags: string[] | null;
+        }>).map((dataset) => ({
+            status: dataset.status,
+            fileSize: dataset.file_size ?? undefined,
+            tags: dataset.tags ?? undefined,
+        }));
+
+        const dashboards: DashboardSummary[] = (dashboardsResponse.data ?? []) as DashboardSummary[];
 
         const monthlySeries = this.buildMonthlySeries();
         const totalRevenue = monthlySeries.reduce((acc, item) => acc + item.revenue, 0);
@@ -61,7 +94,7 @@ export class AnalyticsService {
                 totalDatasets: datasets.length,
                 activeReports: dashboards.length,
                 createdCharts: dashboards.reduce(
-                    (acc, dashboard) => acc + ((dashboard as { charts?: unknown[] }).charts?.length ?? 0),
+                    (acc, dashboard) => acc + (dashboard.charts?.length ?? 0),
                     0,
                 ),
                 growthPercentage,

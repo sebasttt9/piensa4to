@@ -1,14 +1,15 @@
 export default () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
 
-  // MongoDB Configuration
-  mongodb: {
-    uri: process.env.MONGODB_URI ?? 'mongodb://localhost:27017/datapulse',
+  // Supabase Configuration
+  supabase: {
+    url: process.env.SUPABASE_URL ?? 'https://bggsqbvrpenahcppvuyc.supabase.co',
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'contraseña',
   },
 
   // JWT Authentication
   auth: {
-    jwtSecret: process.env.JWT_SECRET,
+    jwtSecret: process.env.JWT_SECRET ?? 'dev-secret',
     jwtExpiration: process.env.JWT_EXPIRATION ?? '24h',
   },
 

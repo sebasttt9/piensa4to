@@ -8,14 +8,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatasetsModule = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
 const platform_express_1 = require("@nestjs/platform-express");
 const config_1 = require("@nestjs/config");
 const multer_1 = require("multer");
 const datasets_controller_1 = require("./datasets.controller");
 const datasets_service_1 = require("./datasets.service");
-const dataset_schema_1 = require("./schemas/dataset.schema");
 const analysis_service_1 = require("./analysis.service");
+const supabase_module_1 = require("../database/supabase.module");
 let DatasetsModule = class DatasetsModule {
 };
 exports.DatasetsModule = DatasetsModule;
@@ -23,7 +22,7 @@ exports.DatasetsModule = DatasetsModule = __decorate([
     (0, common_1.Module)({
         imports: [
             config_1.ConfigModule,
-            mongoose_1.MongooseModule.forFeature([{ name: dataset_schema_1.Dataset.name, schema: dataset_schema_1.DatasetSchema }]),
+            supabase_module_1.SupabaseModule,
             platform_express_1.MulterModule.registerAsync({
                 inject: [config_1.ConfigService],
                 useFactory: (configService) => ({

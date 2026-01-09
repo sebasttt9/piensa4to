@@ -2,17 +2,18 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = () => ({
     port: parseInt(process.env.PORT ?? '3000', 10),
-    mongodb: {
-        uri: process.env.MONGODB_URI ?? 'mongodb://localhost:27017/datapulse',
+    supabase: {
+        url: process.env.SUPABASE_URL ?? 'https://bggsqbvrpenahcppvuyc.supabase.co',
+        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'contraseña',
     },
     auth: {
-        jwtSecret: process.env.JWT_SECRET ?? 'superchangeme',
+        jwtSecret: process.env.JWT_SECRET ?? 'dev-secret',
         jwtExpiration: process.env.JWT_EXPIRATION ?? '24h',
     },
     seed: {
         admin: {
-            email: process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@datapulse.com',
-            password: process.env.DEFAULT_ADMIN_PASSWORD ?? 'datapulse123',
+            email: process.env.DEFAULT_ADMIN_EMAIL,
+            password: process.env.DEFAULT_ADMIN_PASSWORD,
             name: process.env.DEFAULT_ADMIN_NAME ?? 'DataPulse Admin',
             role: process.env.DEFAULT_ADMIN_ROLE ?? 'admin',
         },

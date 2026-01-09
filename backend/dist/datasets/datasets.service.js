@@ -50,38 +50,50 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatasetsService = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
 const config_1 = require("@nestjs/config");
-const mongoose_2 = require("mongoose");
 const papaparse_1 = __importDefault(require("papaparse"));
 const XLSX = __importStar(require("xlsx"));
-const dataset_schema_1 = require("./schemas/dataset.schema");
 const analysis_service_1 = require("./analysis.service");
+const supabase_js_1 = require("@supabase/supabase-js");
+const supabase_constants_1 = require("../database/supabase.constants");
 let DatasetsService = class DatasetsService {
-    datasetModel;
+    supabase;
     analysisService;
     configService;
     maxRowsForPreview = 1000;
     dataCache = new Map();
-    constructor(datasetModel, analysisService, configService) {
-        this.datasetModel = datasetModel;
+    constructor(supabase, analysisService, configService) {
+        this.supabase = supabase;
         this.analysisService = analysisService;
         this.configService = configService;
     }
+    tableName = 'datasets';
     async create(ownerId, dto) {
-        const document = new this.datasetModel({
-            owner: new mongoose_2.Types.ObjectId(ownerId),
+        if (!dto.name) {
+            throw new common_1.BadRequestException('El nombre del dataset es obligatorio');
+        }
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .insert({
+            owner_id: ownerId,
             name: dto.name,
-            description: dto.description,
+            description: dto.description ?? null,
             status: 'pending',
-        });
-        return document.save();
+            tags: dto.tags ?? [],
+            preview: [],
+        })
+            .select('*')
+            .single();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo crear el dataset');
+        }
+        return this.toEntity(data);
     }
     async uploadDataset(ownerId, datasetId, file) {
         if (!file) {
             throw new common_1.BadRequestException('Debe adjuntar un archivo CSV o Excel.');
         }
-        const dataset = await this.findOne(ownerId, datasetId);
+        await this.findOne(ownerId, datasetId);
         const extension = this.resolveExtension(file.originalname);
         const rows = await this.parseFile(file, extension);
         if (rows.length === 0) {
@@ -90,59 +102,127 @@ let DatasetsService = class DatasetsService {
         const previewLimit = this.configService.get('uploads.previewLimit', 50) ?? 50;
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
         this.dataCache.set(datasetId, rows);
-        dataset.filename = file.originalname;
-        dataset.fileSize = file.size;
-        dataset.fileType = extension;
-        dataset.rowCount = rows.length;
-        dataset.columnCount = columns.length;
-        dataset.preview = rows.slice(0, previewLimit);
-        dataset.status = 'processed';
-        return dataset.save();
-    }
-    async update(ownerId, datasetId, dto) {
-        const dataset = await this.findOne(ownerId, datasetId);
-        if (dto.name) {
-            dataset.name = dto.name;
+        const preview = rows.slice(0, previewLimit);
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update({
+            filename: file.originalname,
+            file_size: file.size,
+            file_type: extension,
+            row_count: rows.length,
+            column_count: columns.length,
+            preview,
+            status: 'processed',
+        })
+            .eq('id', datasetId)
+            .eq('owner_id', ownerId)
+            .select('*')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo actualizar el dataset');
         }
-        if (dto.description !== undefined) {
-            dataset.description = dto.description;
-        }
-        return dataset.save();
-    }
-    async findAll(ownerId, skip = 0, limit = 10) {
-        return this.datasetModel
-            .find({ owner: ownerId })
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .exec();
-    }
-    async countByUser(ownerId) {
-        return this.datasetModel.countDocuments({ owner: ownerId });
-    }
-    async findOne(ownerId, datasetId) {
-        const dataset = await this.datasetModel
-            .findOne({ _id: datasetId, owner: ownerId })
-            .exec();
-        if (!dataset) {
+        if (!data) {
             throw new common_1.NotFoundException('Dataset no encontrado');
         }
-        return dataset;
+        return this.toEntity(data);
+    }
+    async update(ownerId, datasetId, dto) {
+        await this.findOne(ownerId, datasetId);
+        const payload = {};
+        if (dto.name !== undefined) {
+            payload.name = dto.name;
+        }
+        if (dto.description !== undefined) {
+            payload.description = dto.description;
+        }
+        if (dto.tags !== undefined) {
+            payload.tags = dto.tags;
+        }
+        if (Object.keys(payload).length === 0) {
+            return this.findOne(ownerId, datasetId);
+        }
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update(payload)
+            .eq('id', datasetId)
+            .eq('owner_id', ownerId)
+            .select('*')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo actualizar el dataset');
+        }
+        if (!data) {
+            throw new common_1.NotFoundException('Dataset no encontrado');
+        }
+        return this.toEntity(data);
+    }
+    async findAll(ownerId, skip = 0, limit = 10) {
+        const rangeStart = skip;
+        const rangeEnd = skip + limit - 1;
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('*')
+            .eq('owner_id', ownerId)
+            .order('created_at', { ascending: false })
+            .range(rangeStart, rangeEnd);
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudieron listar los datasets');
+        }
+        return (data ?? []).map((row) => this.toEntity(row));
+    }
+    async countByUser(ownerId) {
+        const { count, error } = await this.supabase
+            .from(this.tableName)
+            .select('id', { count: 'exact', head: true })
+            .eq('owner_id', ownerId);
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo contar los datasets');
+        }
+        return count ?? 0;
+    }
+    async findOne(ownerId, datasetId) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('*')
+            .eq('id', datasetId)
+            .eq('owner_id', ownerId)
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo obtener el dataset');
+        }
+        if (!data) {
+            throw new common_1.NotFoundException('Dataset no encontrado');
+        }
+        return this.toEntity(data);
     }
     async getPreview(datasetId, limit = 50) {
         const cached = this.dataCache.get(datasetId);
         if (cached) {
             return cached.slice(0, limit);
         }
-        const dataset = await this.datasetModel.findById(datasetId);
-        return dataset?.preview?.slice(0, limit) || [];
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('preview')
+            .eq('id', datasetId)
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo obtener la vista previa');
+        }
+        const preview = data?.preview ?? [];
+        return preview.slice(0, limit);
     }
     async remove(ownerId, datasetId) {
-        const result = await this.datasetModel.deleteOne({
-            _id: datasetId,
-            owner: ownerId,
-        });
-        if (!result.deletedCount) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .delete()
+            .eq('id', datasetId)
+            .eq('owner_id', ownerId)
+            .select('id')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo eliminar el dataset');
+        }
+        if (!data) {
             throw new common_1.NotFoundException('Dataset no encontrado');
         }
         this.dataCache.delete(datasetId);
@@ -181,12 +261,31 @@ let DatasetsService = class DatasetsService {
         });
         return data;
     }
+    toEntity(row) {
+        return {
+            id: row.id,
+            ownerId: row.owner_id,
+            name: row.name,
+            description: row.description ?? undefined,
+            filename: row.filename ?? undefined,
+            fileSize: row.file_size ?? undefined,
+            fileType: row.file_type ?? undefined,
+            rowCount: row.row_count ?? undefined,
+            columnCount: row.column_count ?? undefined,
+            analysis: row.analysis ?? undefined,
+            preview: row.preview ?? [],
+            status: row.status,
+            tags: row.tags ?? [],
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        };
+    }
 };
 exports.DatasetsService = DatasetsService;
 exports.DatasetsService = DatasetsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(dataset_schema_1.Dataset.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model,
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
+    __metadata("design:paramtypes", [supabase_js_1.SupabaseClient,
         analysis_service_1.AnalysisService,
         config_1.ConfigService])
 ], DatasetsService);

@@ -47,77 +47,162 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
-const mongoose_2 = require("mongoose");
 const bcrypt = __importStar(require("bcrypt"));
-const user_schema_1 = require("./schemas/user.schema");
+const roles_enum_1 = require("../common/constants/roles.enum");
+const supabase_constants_1 = require("../database/supabase.constants");
+const supabase_js_1 = require("@supabase/supabase-js");
 let UsersService = class UsersService {
-    userModel;
-    constructor(userModel) {
-        this.userModel = userModel;
+    supabase;
+    constructor(supabase) {
+        this.supabase = supabase;
     }
+    tableName = 'users';
     async create(input) {
         const email = input.email.toLowerCase();
-        const existing = await this.userModel.findOne({ email }).lean();
+        const existing = await this.findByEmail(email);
         if (existing) {
             throw new common_1.ConflictException('El correo ya está registrado');
         }
         const hashedPassword = await bcrypt.hash(input.password, 12);
-        const created = new this.userModel({ ...input, email, password: hashedPassword });
-        return created.save();
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .insert({
+            email,
+            name: input.name,
+            role: input.role ?? roles_enum_1.UserRole.User,
+            password_hash: hashedPassword,
+        })
+            .select()
+            .single();
+        if (error) {
+            if (error.code === '23505') {
+                throw new common_1.ConflictException('El correo ya está registrado');
+            }
+            throw new common_1.InternalServerErrorException('No se pudo crear el usuario');
+        }
+        if (!data) {
+            throw new common_1.InternalServerErrorException('No se pudo crear el usuario');
+        }
+        return this.toPublicUser(data);
     }
     async findAll() {
-        return this.userModel.find().sort({ createdAt: -1 }).select('-password').exec();
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudieron listar los usuarios');
+        }
+        return (data ?? []).map((row) => this.toPublicUser(row));
     }
     async findById(id) {
-        const user = await this.userModel.findById(id).exec();
-        if (!user) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo obtener el usuario');
+        }
+        if (!data) {
             throw new common_1.NotFoundException('Usuario no encontrado');
         }
-        return user;
+        return this.toPublicUser(data);
     }
     async findByEmail(email) {
-        return this.userModel.findOne({ email: email.toLowerCase() }).exec();
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('*')
+            .eq('email', email.toLowerCase())
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo consultar el usuario');
+        }
+        if (!data) {
+            return null;
+        }
+        return this.toUserEntity(data);
     }
     async update(id, changes) {
         if (changes.email) {
-            const existing = await this.userModel.findOne({
-                email: changes.email.toLowerCase(),
-                _id: { $ne: id },
-            });
-            if (existing) {
+            const existing = await this.supabase
+                .from(this.tableName)
+                .select('id')
+                .eq('email', changes.email.toLowerCase())
+                .neq('id', id)
+                .maybeSingle();
+            if (existing.data) {
                 throw new common_1.ConflictException('El correo ya está registrado');
             }
+            if (existing.error && existing.error.code !== 'PGRST116') {
+                throw new common_1.InternalServerErrorException('No se pudo actualizar el usuario');
+            }
         }
-        const updatePayload = { ...changes };
+        const updatePayload = {};
         if (changes.email) {
             updatePayload.email = changes.email.toLowerCase();
         }
         if (changes.password) {
-            updatePayload.password = await bcrypt.hash(changes.password, 12);
+            updatePayload.password_hash = await bcrypt.hash(changes.password, 12);
         }
-        const updated = await this.userModel.findByIdAndUpdate(id, updatePayload, {
-            new: true,
-            runValidators: true,
-        })
-            .select('-password')
-            .exec();
-        if (!updated) {
+        if (changes.name) {
+            updatePayload.name = changes.name;
+        }
+        if (changes.role) {
+            updatePayload.role = changes.role;
+        }
+        if (Object.keys(updatePayload).length === 0) {
+            return this.findById(id);
+        }
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update(updatePayload)
+            .eq('id', id)
+            .select('*')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo actualizar el usuario');
+        }
+        if (!data) {
             throw new common_1.NotFoundException('Usuario no encontrado');
         }
-        return updated;
+        return this.toPublicUser(data);
     }
     async remove(id) {
-        const result = await this.userModel.findByIdAndDelete(id);
-        if (!result) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .delete()
+            .eq('id', id)
+            .select('id')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo eliminar el usuario');
+        }
+        if (!data) {
             throw new common_1.NotFoundException('Usuario no encontrado');
         }
+    }
+    toPublicUser(row) {
+        const entity = this.toUserEntity(row);
+        const { passwordHash, ...rest } = entity;
+        return rest;
+    }
+    toUserEntity(row) {
+        return {
+            id: row.id,
+            email: row.email,
+            name: row.name,
+            role: row.role,
+            passwordHash: row.password_hash,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        };
     }
 };
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(user_schema_1.User.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model])
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
+    __metadata("design:paramtypes", [supabase_js_1.SupabaseClient])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

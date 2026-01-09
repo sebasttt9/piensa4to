@@ -14,53 +14,82 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardsService = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
-const mongoose_2 = require("mongoose");
-const dashboard_schema_1 = require("./schemas/dashboard.schema");
 const datasets_service_1 = require("../datasets/datasets.service");
+const supabase_constants_1 = require("../database/supabase.constants");
+const supabase_js_1 = require("@supabase/supabase-js");
 let DashboardsService = class DashboardsService {
-    dashboardModel;
+    supabase;
     datasetsService;
-    constructor(dashboardModel, datasetsService) {
-        this.dashboardModel = dashboardModel;
+    constructor(supabase, datasetsService) {
+        this.supabase = supabase;
         this.datasetsService = datasetsService;
     }
+    tableName = 'dashboards';
     async create(ownerId, dto) {
         if (dto.datasetIds && dto.datasetIds.length > 0) {
             for (const datasetId of dto.datasetIds) {
                 await this.datasetsService.findOne(ownerId, datasetId);
             }
         }
-        const dashboard = new this.dashboardModel({
-            owner: new mongoose_2.Types.ObjectId(ownerId),
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .insert({
+            owner_id: ownerId,
             name: dto.name,
-            description: dto.description,
-            datasetIds: (dto.datasetIds || []).map((id) => new mongoose_2.Types.ObjectId(id)),
+            description: dto.description ?? null,
+            dataset_ids: dto.datasetIds ?? [],
             layout: {},
             charts: [],
-            isPublic: false,
-        });
-        return dashboard.save();
+            is_public: false,
+        })
+            .select('*')
+            .single();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo crear el dashboard');
+        }
+        if (!data) {
+            throw new common_1.InternalServerErrorException('No se pudo crear el dashboard');
+        }
+        return this.toEntity(data);
     }
     async findAll(ownerId, skip = 0, limit = 10) {
-        return this.dashboardModel
-            .find({ owner: ownerId })
-            .sort({ updatedAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .exec();
+        const rangeStart = skip;
+        const rangeEnd = skip + limit - 1;
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('*')
+            .eq('owner_id', ownerId)
+            .order('updated_at', { ascending: false })
+            .range(rangeStart, rangeEnd);
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudieron listar los dashboards');
+        }
+        return (data ?? []).map((row) => this.toEntity(row));
     }
     async countByUser(ownerId) {
-        return this.dashboardModel.countDocuments({ owner: ownerId });
+        const { count, error } = await this.supabase
+            .from(this.tableName)
+            .select('id', { count: 'exact', head: true })
+            .eq('owner_id', ownerId);
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo contar los dashboards');
+        }
+        return count ?? 0;
     }
     async findOne(ownerId, id) {
-        const dashboard = await this.dashboardModel
-            .findOne({ _id: id, owner: ownerId })
-            .exec();
-        if (!dashboard) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('*')
+            .eq('id', id)
+            .eq('owner_id', ownerId)
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo obtener el dashboard');
+        }
+        if (!data) {
             throw new common_1.NotFoundException('Dashboard no encontrado');
         }
-        return dashboard;
+        return this.toEntity(data);
     }
     async update(ownerId, id, dto) {
         const { datasetIds, ...rest } = dto;
@@ -71,43 +100,74 @@ let DashboardsService = class DashboardsService {
         }
         const updatePayload = { ...rest };
         if (datasetIds) {
-            updatePayload.datasetIds = datasetIds.map((id) => new mongoose_2.Types.ObjectId(id));
+            updatePayload.dataset_ids = datasetIds;
         }
-        const dashboard = await this.dashboardModel
-            .findOneAndUpdate({ _id: id, owner: ownerId }, updatePayload, {
-            new: true,
-            runValidators: true,
-        })
-            .exec();
-        if (!dashboard) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update(updatePayload)
+            .eq('id', id)
+            .eq('owner_id', ownerId)
+            .select('*')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo actualizar el dashboard');
+        }
+        if (!data) {
             throw new common_1.NotFoundException('Dashboard no encontrado');
         }
-        return dashboard;
+        return this.toEntity(data);
     }
     async share(ownerId, id, isPublic) {
-        const dashboard = await this.dashboardModel
-            .findOneAndUpdate({ _id: id, owner: ownerId }, { isPublic }, { new: true })
-            .exec();
-        if (!dashboard) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update({ is_public: isPublic })
+            .eq('id', id)
+            .eq('owner_id', ownerId)
+            .select('*')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo compartir el dashboard');
+        }
+        if (!data) {
             throw new common_1.NotFoundException('Dashboard no encontrado');
         }
-        return dashboard;
+        return this.toEntity(data);
     }
     async remove(ownerId, id) {
-        const result = await this.dashboardModel.deleteOne({
-            _id: id,
-            owner: ownerId,
-        });
-        if (!result.deletedCount) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .delete()
+            .eq('id', id)
+            .eq('owner_id', ownerId)
+            .select('id')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo eliminar el dashboard');
+        }
+        if (!data) {
             throw new common_1.NotFoundException('Dashboard no encontrado');
         }
+    }
+    toEntity(row) {
+        return {
+            id: row.id,
+            ownerId: row.owner_id,
+            name: row.name,
+            description: row.description ?? undefined,
+            datasetIds: row.dataset_ids ?? [],
+            layout: row.layout ?? {},
+            charts: row.charts ?? [],
+            isPublic: row.is_public,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        };
     }
 };
 exports.DashboardsService = DashboardsService;
 exports.DashboardsService = DashboardsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(dashboard_schema_1.Dashboard.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model,
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
+    __metadata("design:paramtypes", [supabase_js_1.SupabaseClient,
         datasets_service_1.DatasetsService])
 ], DashboardsService);
 //# sourceMappingURL=dashboards.service.js.map

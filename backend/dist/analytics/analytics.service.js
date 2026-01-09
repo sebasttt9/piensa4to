@@ -14,22 +14,36 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AnalyticsService = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
-const mongoose_2 = require("mongoose");
-const dataset_schema_1 = require("../datasets/schemas/dataset.schema");
-const dashboard_schema_1 = require("../dashboards/schemas/dashboard.schema");
+const supabase_js_1 = require("@supabase/supabase-js");
+const supabase_constants_1 = require("../database/supabase.constants");
 let AnalyticsService = class AnalyticsService {
-    datasetModel;
-    dashboardModel;
-    constructor(datasetModel, dashboardModel) {
-        this.datasetModel = datasetModel;
-        this.dashboardModel = dashboardModel;
+    supabase;
+    constructor(supabase) {
+        this.supabase = supabase;
     }
     async getOverview(ownerId) {
-        const [datasets, dashboards] = await Promise.all([
-            this.datasetModel.find({ owner: ownerId }).lean().exec(),
-            this.dashboardModel.find({ owner: ownerId }).lean().exec(),
+        const [datasetsResponse, dashboardsResponse] = await Promise.all([
+            this.supabase
+                .from('datasets')
+                .select('status, file_size, tags')
+                .eq('owner_id', ownerId),
+            this.supabase
+                .from('dashboards')
+                .select('charts')
+                .eq('owner_id', ownerId),
         ]);
+        if (datasetsResponse.error) {
+            throw new common_1.InternalServerErrorException('No se pudo obtener la información de datasets');
+        }
+        if (dashboardsResponse.error) {
+            throw new common_1.InternalServerErrorException('No se pudo obtener la información de dashboards');
+        }
+        const datasets = (datasetsResponse.data ?? []).map((dataset) => ({
+            status: dataset.status,
+            fileSize: dataset.file_size ?? undefined,
+            tags: dataset.tags ?? undefined,
+        }));
+        const dashboards = (dashboardsResponse.data ?? []);
         const monthlySeries = this.buildMonthlySeries();
         const totalRevenue = monthlySeries.reduce((acc, item) => acc + item.revenue, 0);
         const totalCosts = monthlySeries.reduce((acc, item) => acc + item.costs, 0);
@@ -135,9 +149,7 @@ let AnalyticsService = class AnalyticsService {
 exports.AnalyticsService = AnalyticsService;
 exports.AnalyticsService = AnalyticsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(dataset_schema_1.Dataset.name)),
-    __param(1, (0, mongoose_1.InjectModel)(dashboard_schema_1.Dashboard.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model,
-        mongoose_2.Model])
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
+    __metadata("design:paramtypes", [supabase_js_1.SupabaseClient])
 ], AnalyticsService);
 //# sourceMappingURL=analytics.service.js.map

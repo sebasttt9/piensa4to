@@ -59,24 +59,25 @@ let AuthService = class AuthService {
     }
     async register(dto) {
         const user = await this.usersService.create(dto);
-        const accessToken = this.buildToken(user);
-        return { accessToken, user: this.sanitizeUser(user) };
+        const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
+        return { accessToken, user };
     }
     async login({ email, password }) {
         const user = await this.usersService.findByEmail(email);
         if (!user) {
             throw new common_1.UnauthorizedException('Credenciales inválidas');
         }
-        const isValid = await bcrypt.compare(password, user.password);
+        const isValid = await bcrypt.compare(password, user.passwordHash ?? '');
         if (!isValid) {
             throw new common_1.UnauthorizedException('Credenciales inválidas');
         }
-        const accessToken = this.buildToken(user);
-        return { accessToken, user: this.sanitizeUser(user) };
+        const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
+        const publicUser = this.sanitizeUser(user);
+        return { accessToken, user: publicUser };
     }
     buildToken(user) {
         const payload = {
-            sub: user._id.toString(),
+            sub: user.id,
             email: user.email,
             role: user.role,
         };
@@ -85,13 +86,8 @@ let AuthService = class AuthService {
         });
     }
     sanitizeUser(user) {
-        const plain = user.toObject({ versionKey: false, virtuals: true });
-        delete plain['password'];
-        plain['id'] = plain['id'] ?? user._id.toString();
-        if ('_id' in plain) {
-            delete plain['_id'];
-        }
-        return plain;
+        const { passwordHash, ...rest } = user;
+        return rest;
     }
 };
 exports.AuthService = AuthService;

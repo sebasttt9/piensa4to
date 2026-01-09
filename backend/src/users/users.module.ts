@@ -1,15 +1,14 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-import { User, UserSchema } from './schemas/user.schema';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UsersInitializer } from './users.initializer';
+import { SupabaseModule } from '../database/supabase.module';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }])],
+  imports: [SupabaseModule],
   controllers: [UsersController],
   providers: [UsersService, RolesGuard, UsersInitializer],
-  exports: [UsersService, MongooseModule],
+  exports: [UsersService],
 })
 export class UsersModule { }

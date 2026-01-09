@@ -1,41 +1,21 @@
 import { DashboardsService } from './dashboards.service';
-import type { UserDocument } from '../users/schemas/user.schema';
+import type { UserEntity } from '../users/entities/user.entity';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 export declare class DashboardsController {
     private readonly dashboardsService;
     constructor(dashboardsService: DashboardsService);
-    create(user: UserDocument, dto: CreateDashboardDto): Promise<import("mongoose").Document<unknown, {}, import("./schemas/dashboard.schema").Dashboard, {}, {}> & import("./schemas/dashboard.schema").Dashboard & {
-        _id: import("mongoose").Types.ObjectId;
-    } & {
-        __v: number;
-    }>;
-    findAll(user: UserDocument, page?: number, limit?: number): Promise<{
-        data: (import("mongoose").Document<unknown, {}, import("./schemas/dashboard.schema").Dashboard, {}, {}> & import("./schemas/dashboard.schema").Dashboard & {
-            _id: import("mongoose").Types.ObjectId;
-        } & {
-            __v: number;
-        })[];
+    create(user: Omit<UserEntity, 'passwordHash'>, dto: CreateDashboardDto): Promise<import("./entities/dashboard.entity").DashboardEntity>;
+    findAll(user: Omit<UserEntity, 'passwordHash'>, page?: number, limit?: number): Promise<{
+        data: import("./entities/dashboard.entity").DashboardEntity[];
         total: number;
         page: number;
         limit: number;
     }>;
-    findOne(user: UserDocument, id: string): Promise<import("mongoose").Document<unknown, {}, import("./schemas/dashboard.schema").Dashboard, {}, {}> & import("./schemas/dashboard.schema").Dashboard & {
-        _id: import("mongoose").Types.ObjectId;
-    } & {
-        __v: number;
-    }>;
-    update(user: UserDocument, id: string, dto: UpdateDashboardDto): Promise<import("mongoose").Document<unknown, {}, import("./schemas/dashboard.schema").Dashboard, {}, {}> & import("./schemas/dashboard.schema").Dashboard & {
-        _id: import("mongoose").Types.ObjectId;
-    } & {
-        __v: number;
-    }>;
-    share(user: UserDocument, id: string, dto: {
+    findOne(user: Omit<UserEntity, 'passwordHash'>, id: string): Promise<import("./entities/dashboard.entity").DashboardEntity>;
+    update(user: Omit<UserEntity, 'passwordHash'>, id: string, dto: UpdateDashboardDto): Promise<import("./entities/dashboard.entity").DashboardEntity>;
+    share(user: Omit<UserEntity, 'passwordHash'>, id: string, dto: {
         isPublic: boolean;
-    }): Promise<import("mongoose").Document<unknown, {}, import("./schemas/dashboard.schema").Dashboard, {}, {}> & import("./schemas/dashboard.schema").Dashboard & {
-        _id: import("mongoose").Types.ObjectId;
-    } & {
-        __v: number;
-    }>;
-    remove(user: UserDocument, id: string): Promise<void>;
+    }): Promise<import("./entities/dashboard.entity").DashboardEntity>;
+    remove(user: Omit<UserEntity, 'passwordHash'>, id: string): Promise<void>;
 }

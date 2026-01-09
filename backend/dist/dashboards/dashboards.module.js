@@ -8,17 +8,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardsModule = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
 const dashboards_service_1 = require("./dashboards.service");
 const dashboards_controller_1 = require("./dashboards.controller");
-const dashboard_schema_1 = require("./schemas/dashboard.schema");
 const datasets_module_1 = require("../datasets/datasets.module");
+const supabase_module_1 = require("../database/supabase.module");
 let DashboardsModule = class DashboardsModule {
 };
 exports.DashboardsModule = DashboardsModule;
 exports.DashboardsModule = DashboardsModule = __decorate([
     (0, common_1.Module)({
-        imports: [mongoose_1.MongooseModule.forFeature([{ name: dashboard_schema_1.Dashboard.name, schema: dashboard_schema_1.DashboardSchema }]), datasets_module_1.DatasetsModule],
+        imports: [supabase_module_1.SupabaseModule, datasets_module_1.DatasetsModule],
         controllers: [dashboards_controller_1.DashboardsController],
         providers: [dashboards_service_1.DashboardsService],
         exports: [dashboards_service_1.DashboardsService],

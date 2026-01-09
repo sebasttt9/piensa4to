@@ -5,16 +5,16 @@ Backend de la plataforma **DataPulse**. Expone un API REST modular para autentic
 ### Características principales
 
 - **JWT + roles (admin/analista)** mediante Passport y estrategias personalizadas.
-- **Carga de datasets** con Multer en memoria, parsing con PapaParse/XLSX y persistencia en MongoDB.
+- **Carga de datasets** con Multer en memoria, parsing con PapaParse/XLSX y persistencia en Supabase Postgres.
 - **Servicio de análisis** que detecta tipos de columnas, calcula estadísticas y propone visualizaciones.
-- **Gestión de dashboards** guardados por usuario con validaciones de ownership.
+- **Gestión de dashboards** guardados por usuario con validaciones de ownership respaldadas en Supabase.
 - **Configuración centralizada** con `@nestjs/config` y `ConfigService`.
 - **Capa común** con decoradores (`@CurrentUser`, `@Roles`), guards y utilidades de detección de tipos.
 
 ### Requisitos
 
 - Node.js >= 18
-- MongoDB (local o MongoDB Atlas)
+- Cuenta de Supabase con base de datos Postgres
 
 ### Variables de entorno
 
@@ -22,7 +22,8 @@ Duplicar `.env.example` como `.env` y ajustar valores:
 
 ```
 PORT=3000
-MONGODB_URI=mongodb://localhost:27017/datapulse
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=super-secret
 JWT_SECRET=superchangeme
 JWT_EXPIRATION=1h
 FILE_MAX_SIZE=5242880
@@ -68,4 +69,4 @@ Los tests unitarios cubren controladores y servicios clave. Los e2e validan el h
 
 ### Despliegue sugerido
 
-La aplicación está lista para ejecutarse en **Railway** o cualquier plataforma Node. Recuerda configurar variables de entorno, habilitar SSL/TLS para MongoDB Atlas y revisar límites de tamaño en Multer según tus necesidades.
+La aplicación está lista para ejecutarse en **Railway** o cualquier plataforma Node. Recuerda configurar variables de entorno, proteger las claves de servicio de Supabase y revisar límites de tamaño en Multer según tus necesidades.

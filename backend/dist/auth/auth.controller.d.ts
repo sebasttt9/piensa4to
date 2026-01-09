@@ -1,7 +1,7 @@
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import type { UserDocument } from '../users/schemas/user.schema';
+import type { UserEntity } from '../users/entities/user.entity';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
@@ -13,9 +13,5 @@ export declare class AuthController {
         accessToken: string;
         user: Record<string, unknown>;
     }>;
-    me(user: UserDocument): import("mongoose").Document<unknown, {}, import("../users/schemas/user.schema").User, {}, {}> & import("../users/schemas/user.schema").User & {
-        _id: import("mongoose").Types.ObjectId;
-    } & {
-        __v: number;
-    };
+    me(user: Omit<UserEntity, 'passwordHash'>): Omit<UserEntity, "passwordHash">;
 }

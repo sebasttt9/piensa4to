@@ -1,17 +1,16 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { memoryStorage } from 'multer';
 import { DatasetsController } from './datasets.controller';
 import { DatasetsService } from './datasets.service';
-import { Dataset, DatasetSchema } from './schemas/dataset.schema';
 import { AnalysisService } from './analysis.service';
+import { SupabaseModule } from '../database/supabase.module';
 
 @Module({
   imports: [
     ConfigModule,
-    MongooseModule.forFeature([{ name: Dataset.name, schema: DatasetSchema }]),
+    SupabaseModule,
     MulterModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

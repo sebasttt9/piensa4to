@@ -4,7 +4,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import type { UserDocument } from '../users/schemas/user.schema';
+import type { UserEntity } from '../users/entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
@@ -22,7 +22,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: UserDocument) {
+  me(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
     return user;
   }
 }

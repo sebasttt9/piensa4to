@@ -29,7 +29,7 @@ __decorate([
 ], CreateDashboardDto.prototype, "description", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsMongoId)({ each: true }),
+    (0, class_validator_1.IsUUID)('4', { each: true }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], CreateDashboardDto.prototype, "datasetIds", void 0);

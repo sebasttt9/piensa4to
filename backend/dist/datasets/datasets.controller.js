@@ -25,16 +25,18 @@ let DatasetsController = class DatasetsController {
         this.datasetsService = datasetsService;
     }
     async findAll(user, page = 1, limit = 10) {
-        const skip = (page - 1) * limit;
+        const parsedPage = Number(page) || 1;
+        const parsedLimit = Number(limit) || 10;
+        const skip = (parsedPage - 1) * parsedLimit;
         const [datasets, total] = await Promise.all([
-            this.datasetsService.findAll(user.id, skip, limit),
+            this.datasetsService.findAll(user.id, skip, parsedLimit),
             this.datasetsService.countByUser(user.id),
         ]);
         return {
             data: datasets,
             total,
-            page: Number(page),
-            limit: Number(limit),
+            page: parsedPage,
+            limit: parsedLimit,
         };
     }
     findOne(user, id) {

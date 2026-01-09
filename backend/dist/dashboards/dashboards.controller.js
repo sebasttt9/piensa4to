@@ -28,16 +28,18 @@ let DashboardsController = class DashboardsController {
         return this.dashboardsService.create(user.id, dto);
     }
     async findAll(user, page = 1, limit = 10) {
-        const skip = (page - 1) * limit;
+        const parsedPage = Number(page) || 1;
+        const parsedLimit = Number(limit) || 10;
+        const skip = (parsedPage - 1) * parsedLimit;
         const [dashboards, total] = await Promise.all([
-            this.dashboardsService.findAll(user.id, skip, limit),
+            this.dashboardsService.findAll(user.id, skip, parsedLimit),
             this.dashboardsService.countByUser(user.id),
         ]);
         return {
             data: dashboards,
             total,
-            page: Number(page),
-            limit: Number(limit),
+            page: parsedPage,
+            limit: parsedLimit,
         };
     }
     findOne(user, id) {
