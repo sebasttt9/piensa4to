@@ -6,7 +6,8 @@
 :root {
   color-scheme: dark;
   perspective: 1000px;
-  --app-background: radial-gradient(
+  --app-background:
+    radial-gradient(
       circle at top left,
       rgba(118, 80, 255, 0.38),
       transparent 52%
@@ -20,8 +21,54 @@
     linear-gradient(135deg, #030617 0%, #161b44 48%, #432a87 100%);
 }
 
+@layer base {
+  input,
+  textarea,
+  select {
+    background: transparent;
+    color: #ffffff;
+    caret-color: #ffffff;
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
+
+  input::placeholder,
+  textarea::placeholder,
+  select::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px rgba(148, 163, 184, 0.25),
+      0 0 0 4px rgba(168, 85, 247, 0.35);
+  }
+
+  button {
+    outline: none;
+  }
+
+  button:focus-visible {
+    box-shadow:
+      0 0 0 2px rgba(15, 23, 42, 0.6),
+      0 0 0 4px rgba(168, 85, 247, 0.4);
+  }
+
+  input:-webkit-autofill,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    transition: background-color 9999s ease-out;
+    -webkit-text-fill-color: #ffffff;
+  }
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui,
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui,
     sans-serif;
   background: var(
     --app-background,
@@ -31,11 +78,12 @@ body {
   color: #e2e8f0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "rlig" 1, "calt" 1;
+  font-feature-settings:
+    "rlig" 1,
+    "calt" 1;
   min-height: 100vh;
 }
 
-/* Smooth scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -62,13 +110,11 @@ body {
   );
 }
 
-/* Custom selections */
 ::selection {
   background: linear-gradient(90deg, #a78bfa, #3b82f6);
   color: #ffffff;
 }
 
-/* Glass morphism effect */
 @layer components {
   .glass {
     background: rgba(255, 255, 255, 0.1);
@@ -115,7 +161,6 @@ body {
   }
 }
 
-/* Smooth animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -176,11 +221,13 @@ body {
 @keyframes glow {
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(167, 139, 250, 0.3),
+    box-shadow:
+      0 0 20px rgba(167, 139, 250, 0.3),
       0 0 40px rgba(59, 130, 246, 0.2);
   }
   50% {
-    box-shadow: 0 0 30px rgba(167, 139, 250, 0.5),
+    box-shadow:
+      0 0 30px rgba(167, 139, 250, 0.5),
       0 0 60px rgba(59, 130, 246, 0.3);
   }
 }

@@ -6,7 +6,8 @@
   "outputDirectory": "dist",
   "regions": ["iad1"],
   "env": {
-    "MONGODB_URI": "@mongodb_uri",
+    "SUPABASE_URL": "@supabase_url",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
     "JWT_SECRET": "@jwt_secret",
     "JWT_EXPIRATION": "@jwt_expiration",
     "CORS_ORIGIN": "@cors_origin"
