@@ -30,19 +30,19 @@ export class UsersController {
   }
 
   @Get()
-  @Roles(UserRole.Admin)
+  @Roles(UserRole.SuperAdmin)
   findAll() {
     return this.usersService.findAll();
   }
 
   @Get(':id')
-  @Roles(UserRole.Admin)
+  @Roles(UserRole.SuperAdmin)
   findOne(@Param('id') id: string) {
     return this.usersService.findById(id);
   }
 
   @Patch(':id')
-  @Roles(UserRole.Admin)
+  @Roles(UserRole.SuperAdmin)
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }

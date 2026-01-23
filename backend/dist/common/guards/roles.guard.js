@@ -20,6 +20,11 @@ let RolesGuard = class RolesGuard {
         this.reflector = reflector;
     }
     canActivate(context) {
+        const rolePriority = {
+            [roles_enum_1.UserRole.User]: 1,
+            [roles_enum_1.UserRole.Admin]: 2,
+            [roles_enum_1.UserRole.SuperAdmin]: 3,
+        };
         const requiredRoles = this.reflector.getAllAndOverride(roles_decorator_1.ROLES_KEY, [
             context.getHandler(),
             context.getClass(),
@@ -32,7 +37,12 @@ let RolesGuard = class RolesGuard {
         if (!user) {
             return false;
         }
-        return requiredRoles.includes(user.role ?? roles_enum_1.UserRole.User);
+        const userRole = user.role ?? roles_enum_1.UserRole.User;
+        const userPriority = rolePriority[userRole] ?? 0;
+        return requiredRoles.some((role) => {
+            const requiredPriority = rolePriority[role] ?? Number.MAX_SAFE_INTEGER;
+            return userPriority >= requiredPriority;
+        });
     }
 };
 exports.RolesGuard = RolesGuard;

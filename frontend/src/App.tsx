@@ -10,6 +10,7 @@ import { DatasetDetailPage } from './pages/DatasetDetailPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import SimpleLayoutDemo from './pages/SimpleLayoutDemo';
+import { AccountsPage } from './pages/admin/AccountsPage';
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           </Route>
           <Route element={<ProtectedRoute allowedRoles="superadmin" />}>
             <Route path="insights" element={<InsightsPage />} />
+            <Route path="admin/accounts" element={<AccountsPage />} />
           </Route>
         </Route>
       </Route>

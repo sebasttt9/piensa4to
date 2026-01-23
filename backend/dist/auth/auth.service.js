@@ -48,6 +48,7 @@ const jwt_1 = require("@nestjs/jwt");
 const config_1 = require("@nestjs/config");
 const bcrypt = __importStar(require("bcrypt"));
 const users_service_1 = require("../users/users.service");
+const roles_enum_1 = require("../common/constants/roles.enum");
 let AuthService = class AuthService {
     usersService;
     jwtService;
@@ -58,7 +59,10 @@ let AuthService = class AuthService {
         this.jwtExpiration = (configService.get('auth.jwtExpiration') ?? '1h');
     }
     async register(dto) {
-        const user = await this.usersService.create(dto);
+        const user = await this.usersService.create({
+            ...dto,
+            role: roles_enum_1.UserRole.User,
+        });
         const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
         return { accessToken, user };
     }

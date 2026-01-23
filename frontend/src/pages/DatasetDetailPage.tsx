@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Download, Share2, TrendingUp, Database, FileText, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Download, Share2, TrendingUp, Database, FileText, Clock, AlertTriangle, CheckCircle, Edit2, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { datasetsAPI, type Dataset } from '../lib/services';
+import { useAuth } from '../context/AuthContext';
 
 type PreviewState = {
   columns: string[];
@@ -75,10 +76,16 @@ const resolveStatus = (status?: Dataset['status']) => {
 
 export function DatasetDetailPage() {
   const { datasetId } = useParams();
+  const navigate = useNavigate();
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [preview, setPreview] = useState<PreviewState>({ columns: [], rows: [], total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const { roleAtLeast } = useAuth();
+  const canManageDataset = roleAtLeast('admin');
 
   const loadDataset = useCallback(async () => {
     if (!datasetId) {
@@ -104,6 +111,7 @@ export function DatasetDetailPage() {
         rows: previewData.data,
         total: previewData.total ?? details.rowCount ?? 0,
       });
+      setFeedback(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No pudimos obtener la información del dataset.';
       setError(message);
@@ -117,6 +125,107 @@ export function DatasetDetailPage() {
   useEffect(() => {
     void loadDataset();
   }, [loadDataset]);
+
+  const handleRename = useCallback(async () => {
+    if (!datasetId || !dataset) {
+      return;
+    }
+
+    const nextName = window.prompt('Nuevo nombre del dataset', dataset.name);
+    if (!nextName || nextName.trim() === '' || nextName.trim() === dataset.name) {
+      return;
+    }
+
+    setActionLoading(true);
+    setFeedback(null);
+
+    try {
+      await datasetsAPI.update(datasetId, { name: nextName.trim() });
+      setFeedback({ type: 'success', message: 'Dataset actualizado correctamente.' });
+      await loadDataset();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No pudimos actualizar el dataset.';
+      setFeedback({ type: 'error', message });
+    } finally {
+      setActionLoading(false);
+    }
+  }, [dataset, datasetId, loadDataset]);
+
+  const handleDelete = useCallback(async () => {
+    if (!datasetId || !dataset) {
+      return;
+    }
+
+    const confirmed = window.confirm(`¿Eliminar el dataset "${dataset.name}"? Esta acción no se puede deshacer.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setActionLoading(true);
+    setFeedback(null);
+
+    try {
+      await datasetsAPI.delete(datasetId);
+      setFeedback({ type: 'success', message: 'Dataset eliminado.' });
+      navigate('/app/datasets');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No pudimos eliminar el dataset.';
+      setFeedback({ type: 'error', message });
+    } finally {
+      setActionLoading(false);
+    }
+  }, [dataset, datasetId, navigate]);
+
+  const handleExport = useCallback(async () => {
+    if (!datasetId) {
+      return;
+    }
+
+    setExporting(true);
+    setFeedback(null);
+
+    try {
+      const estimatedTotal = dataset?.rowCount ?? preview.total ?? 100;
+      const exportData = await datasetsAPI.getPreview(datasetId, Math.max(estimatedTotal, 100));
+      const rows = exportData.data;
+      if (!rows || rows.length === 0) {
+        throw new Error('No hay datos disponibles para exportar.');
+      }
+
+      const headers = exportData.columns.length > 0 ? exportData.columns : Object.keys(rows[0] ?? {});
+      const csvRows = [headers.join(',')];
+
+      for (const row of rows) {
+        const values = headers.map((header) => {
+          const value = row[header];
+          if (value === null || value === undefined) {
+            return '';
+          }
+          const stringValue = String(value).replace(/"/g, '""');
+          return /[",\n]/.test(stringValue) ? `"${stringValue}"` : stringValue;
+        });
+        csvRows.push(values.join(','));
+      }
+
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeName = dataset?.name ? dataset.name.replace(/[^a-z0-9_-]+/gi, '_').toLowerCase() : 'dataset';
+      link.download = `${safeName}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setFeedback({ type: 'success', message: 'Exportación completada exitosamente.' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No pudimos exportar el dataset.';
+      setFeedback({ type: 'error', message });
+    } finally {
+      setExporting(false);
+    }
+  }, [dataset?.name, dataset?.rowCount, datasetId, preview.total]);
 
   const summaryCards = useMemo(() => {
     if (!dataset) {
@@ -173,6 +282,13 @@ export function DatasetDetailPage() {
 
   return (
     <div className="space-y-8">
+      {feedback && (
+        <div
+          className={`rounded-xl border px-4 py-3 ${feedback.type === 'success' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200' : 'border-red-500/40 bg-red-500/10 text-red-200'}`}
+        >
+          {feedback.message}
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between animate-slideIn">
         <div className="flex items-start gap-4">
@@ -202,14 +318,45 @@ export function DatasetDetailPage() {
           </div>
         </div>
         <div className="flex gap-3 flex-wrap animate-slideInRight">
-          <Button variant="secondary" className="flex items-center gap-2 hover:shadow-[0_10px_30px_rgba(99,102,241,0.15)]" onClick={() => {}}>
+          <Button
+            variant="secondary"
+            className="flex items-center gap-2 hover:shadow-[0_10px_30px_rgba(99,102,241,0.15)]"
+            onClick={() => void handleExport()}
+            disabled={exporting || actionLoading}
+          >
             <Download className="w-4 h-4" />
-            Exportar datos
+            {exporting ? 'Exportando…' : 'Exportar datos'}
           </Button>
-          <Button className="flex items-center gap-2 hover:shadow-[0_15px_40px_rgba(167,139,250,0.3)]" onClick={() => {}}>
+          <Button
+            className="flex items-center gap-2 hover:shadow-[0_15px_40px_rgba(167,139,250,0.3)]"
+            onClick={() => { setFeedback({ type: 'success', message: 'En breve podrás compartir datasets con tu equipo.' }); }}
+            disabled={actionLoading}
+          >
             <Share2 className="w-4 h-4" />
             Compartir
           </Button>
+          {canManageDataset && (
+            <>
+              <Button
+                variant="secondary"
+                className="flex items-center gap-2 hover:shadow-[0_10px_30px_rgba(99,102,241,0.15)]"
+                onClick={() => void handleRename()}
+                disabled={actionLoading}
+              >
+                <Edit2 className="w-4 h-4" />
+                Renombrar
+              </Button>
+              <Button
+                variant="danger"
+                className="flex items-center gap-2"
+                onClick={() => void handleDelete()}
+                disabled={actionLoading}
+              >
+                <Trash2 className="w-4 h-4" />
+                Eliminar
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

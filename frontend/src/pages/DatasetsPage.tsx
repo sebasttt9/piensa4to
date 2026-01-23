@@ -6,11 +6,14 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table';
 import { datasetsAPI, type Dataset } from '../lib/services';
+import { useAuth } from '../context/AuthContext';
 
 export function DatasetsPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { roleAtLeast } = useAuth();
+  const canManageDatasets = roleAtLeast('admin');
 
   const loadDatasets = useCallback(async () => {
     setLoading(true);
@@ -87,12 +90,14 @@ export function DatasetsPage() {
           </div>
           <p className="text-white/50 hover:text-white/70 transition-all duration-300">Administra tus fuentes de datos y visualiza análisis automáticos</p>
         </div>
-        <Link to="/app/upload">
-          <Button size="lg" className="flex items-center gap-2 animate-slideInRight">
-            <PlusCircle className="w-5 h-5" />
-            Cargar Nuevo Dataset
-          </Button>
-        </Link>
+        {canManageDatasets && (
+          <Link to="/app/upload">
+            <Button size="lg" className="flex items-center gap-2 animate-slideInRight">
+              <PlusCircle className="w-5 h-5" />
+              Cargar Nuevo Dataset
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Stats Cards */}

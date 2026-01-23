@@ -32,7 +32,13 @@ JWT_SECRET=superchangeme
 JWT_EXPIRATION=1h
 FILE_MAX_SIZE=5242880
 FILE_PREVIEW_LIMIT=50
+SEED_EXPERIMENTAL_USERS=true
+SEED_EXPERIMENTAL_USER_PASSWORD=DemoUser123!
+SEED_EXPERIMENTAL_ADMIN_PASSWORD=DemoAdmin123!
+SEED_EXPERIMENTAL_SUPERADMIN_PASSWORD=DemoRoot123!
 ```
+
+> Las variables `SEED_EXPERIMENTAL_*` son opcionales y se usan únicamente en entornos de desarrollo. Desactiva la siembra automática definiendo `SEED_EXPERIMENTAL_USERS=false` en despliegues productivos.
 
 ### Instalación
 
@@ -66,6 +72,16 @@ npm run build       # genera artefactos en dist/
 - `GET /api/datasets` · Listado de datasets del usuario
 - `POST /api/dashboards` · Guardar dashboards personalizados
 - `GET /api/health` · Health check simple del servicio
+
+### Cuentas demo
+
+Cuando `SEED_EXPERIMENTAL_USERS` está habilitado (por defecto en desarrollo) se aprovisionan automáticamente tres cuentas desechables:
+
+- Usuario: `demo.user@datapulse.local` · contraseña `DemoUser123!`
+- Administrador: `demo.admin@datapulse.local` · contraseña `DemoAdmin123!`
+- Superadmin: `demo.superadmin@datapulse.local` · contraseña `DemoRoot123!`
+
+Estas cuentas se crean en el arranque del backend y se omite su siembra si ya existen. Elimina o deshabilita estas credenciales antes de cualquier despliegue real.
 
 ### Tests
 

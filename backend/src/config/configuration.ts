@@ -9,7 +9,9 @@ export default () => ({
       (process.env.SUPABASE_PROJECT_ID
         ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co`
         : 'https://nqkodrksdcmzhxoeuidj.supabase.co'),
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    serviceRoleKey:
+      process.env.SUPABASE_SERVICE_ROLE_KEY ??
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnZ3NxYnZycGVuYWhjcHB2dXljIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Nzc0NzI4MiwiZXhwIjoyMDgzMzIzMjgyfQ.j32e8oZwZDSgXOGbVRqnVcqdkGyclPIFTzmy29cb8Hw',
     datasets: {
       projectId:
         process.env.SUPABASE_DATA_PROJECT_ID ??
@@ -24,7 +26,7 @@ export default () => ({
             : 'https://nqkodrksdcmzhxoeuidj.supabase.co'),
       serviceRoleKey:
         process.env.SUPABASE_DATA_SERVICE_ROLE_KEY ??
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xa29kcmtzZGNtemh4b2V1aWRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTEyNzgxOSwiZXhwIjoyMDg0NzAzODE5fQ.DK8cTAE7ovECixgdZLFw2frKWn2fh1n2GFhllzBd30c',
     },
   },
 
@@ -40,6 +42,34 @@ export default () => ({
       password: process.env.DEFAULT_ADMIN_PASSWORD,
       name: process.env.DEFAULT_ADMIN_NAME ?? 'DataPulse Admin',
       role: process.env.DEFAULT_ADMIN_ROLE ?? 'admin',
+    },
+    experimentalUsers: {
+      enabled:
+        process.env.SEED_EXPERIMENTAL_USERS === 'true'
+          ? true
+          : process.env.SEED_EXPERIMENTAL_USERS === 'false'
+            ? false
+            : (process.env.NODE_ENV ?? 'development') !== 'production',
+      users: [
+        {
+          email: process.env.SEED_EXPERIMENTAL_USER_EMAIL ?? 'demo.user@datapulse.local',
+          password: process.env.SEED_EXPERIMENTAL_USER_PASSWORD ?? 'DemoUser123!',
+          name: process.env.SEED_EXPERIMENTAL_USER_NAME ?? 'Demo Usuario',
+          role: 'user',
+        },
+        {
+          email: process.env.SEED_EXPERIMENTAL_ADMIN_EMAIL ?? 'demo.admin@datapulse.local',
+          password: process.env.SEED_EXPERIMENTAL_ADMIN_PASSWORD ?? 'DemoAdmin123!',
+          name: process.env.SEED_EXPERIMENTAL_ADMIN_NAME ?? 'Demo Administrador',
+          role: 'admin',
+        },
+        {
+          email: process.env.SEED_EXPERIMENTAL_SUPERADMIN_EMAIL ?? 'demo.superadmin@datapulse.local',
+          password: process.env.SEED_EXPERIMENTAL_SUPERADMIN_PASSWORD ?? 'DemoRoot123!',
+          name: process.env.SEED_EXPERIMENTAL_SUPERADMIN_NAME ?? 'Demo Superadmin',
+          role: 'superadmin',
+        },
+      ],
     },
   },
 

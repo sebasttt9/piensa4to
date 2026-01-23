@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Database, UploadCloud, LineChart, LayoutGrid } from 'lucide-react';
+import { BarChart3, Database, UploadCloud, LineChart, LayoutGrid, ShieldCheck } from 'lucide-react';
 
 export type AppRole = 'user' | 'admin' | 'superadmin';
 
@@ -17,6 +17,7 @@ export const appNavigation: AppNavigationItem[] = [
   { label: 'Subir archivo', to: '/app/upload', icon: UploadCloud, minRole: 'admin' },
   { label: 'Dashboards guardados', to: '/app/saved', icon: LayoutGrid, minRole: 'admin' },
   { label: 'IA Insights', to: '/app/insights', icon: LineChart, minRole: 'superadmin' },
+  { label: 'Cuentas y roles', to: '/app/admin/accounts', icon: ShieldCheck, minRole: 'superadmin' },
 ];
 
 // Overview sub-navigation (used inside the Overview page and SimpleLayoutDemo)

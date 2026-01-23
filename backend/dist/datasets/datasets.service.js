@@ -284,7 +284,7 @@ let DatasetsService = class DatasetsService {
 exports.DatasetsService = DatasetsService;
 exports.DatasetsService = DatasetsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_DATA_CLIENT)),
     __metadata("design:paramtypes", [supabase_js_1.SupabaseClient,
         analysis_service_1.AnalysisService,
         config_1.ConfigService])

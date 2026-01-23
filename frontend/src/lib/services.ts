@@ -236,3 +236,28 @@ export const usersAPI = {
         });
     },
 };
+
+export interface ManagedUser {
+    id: string;
+    name: string;
+    email: string;
+    role: 'user' | 'admin' | 'superadmin';
+    createdAt: string;
+    updatedAt: string;
+}
+
+export const adminUsersAPI = {
+    list: async () => {
+        const response = await api.get<ManagedUser[]>('/users');
+        return response.data;
+    },
+
+    update: async (id: string, input: Partial<Pick<ManagedUser, 'role' | 'name'>>) => {
+        const response = await api.patch<ManagedUser>(`/users/${id}`, input);
+        return response.data;
+    },
+
+    remove: async (id: string) => {
+        await api.delete(`/users/${id}`);
+    },
+};

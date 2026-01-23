@@ -9,7 +9,7 @@ const resolveBaseURL = () => {
     const env = (import.meta as { env?: Record<string, string> }).env;
     candidates.push(env?.VITE_API_URL);
   } catch {
-    // import.meta is not defined outside the browser build; fall back to other sources.
+    
   }
 
   if (typeof process !== 'undefined') {
@@ -22,7 +22,11 @@ const resolveBaseURL = () => {
   }
 
   const normalized = raw.trim().replace(/\/+$/, '');
-  return normalized.length > 0 ? normalized : '/api';
+  if (normalized.length === 0) {
+    return '/api';
+  }
+
+  return normalized.toLowerCase().endsWith('/api') ? normalized : `${normalized}/api`;
 };
 
 const api = axios.create({

@@ -1,8 +1,14 @@
 declare const _default: () => {
     port: number;
     supabase: {
+        projectId: string;
         url: string;
         serviceRoleKey: string;
+        datasets: {
+            projectId: string;
+            url: string;
+            serviceRoleKey: string;
+        };
     };
     auth: {
         jwtSecret: string;
@@ -14,6 +20,15 @@ declare const _default: () => {
             password: string | undefined;
             name: string;
             role: string;
+        };
+        experimentalUsers: {
+            enabled: boolean;
+            users: {
+                email: string;
+                password: string;
+                name: string;
+                role: string;
+            }[];
         };
     };
     uploads: {

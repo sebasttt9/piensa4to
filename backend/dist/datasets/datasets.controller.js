@@ -19,6 +19,9 @@ const datasets_service_1 = require("./datasets.service");
 const jwt_auth_guard_1 = require("../common/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
 const upload_dataset_dto_1 = require("./dto/upload-dataset.dto");
+const roles_guard_1 = require("../common/guards/roles.guard");
+const roles_decorator_1 = require("../common/decorators/roles.decorator");
+const roles_enum_1 = require("../common/constants/roles.enum");
 let DatasetsController = class DatasetsController {
     datasetsService;
     constructor(datasetsService) {
@@ -101,6 +104,7 @@ __decorate([
 ], DatasetsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -109,6 +113,7 @@ __decorate([
 ], DatasetsController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
@@ -118,6 +123,7 @@ __decorate([
 ], DatasetsController.prototype, "update", null);
 __decorate([
     (0, common_1.Post)(':id/upload'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
@@ -162,6 +168,7 @@ __decorate([
 ], DatasetsController.prototype, "generateReport", null);
 __decorate([
     (0, common_1.Delete)(':id'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -170,7 +177,7 @@ __decorate([
 ], DatasetsController.prototype, "remove", null);
 exports.DatasetsController = DatasetsController = __decorate([
     (0, common_1.Controller)('datasets'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     __metadata("design:paramtypes", [datasets_service_1.DatasetsService])
 ], DatasetsController);
 //# sourceMappingURL=datasets.controller.js.map

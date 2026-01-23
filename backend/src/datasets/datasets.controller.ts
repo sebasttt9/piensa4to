@@ -18,9 +18,12 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { UserEntity } from '../users/entities/user.entity';
 import { UploadDatasetDto } from './dto/upload-dataset.dto';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../common/constants/roles.enum';
 
 @Controller('datasets')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class DatasetsController {
   constructor(
     private readonly datasetsService: DatasetsService,
@@ -53,6 +56,7 @@ export class DatasetsController {
   }
 
   @Post()
+  @Roles(UserRole.Admin)
   create(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Body() dto: UploadDatasetDto,
@@ -61,6 +65,7 @@ export class DatasetsController {
   }
 
   @Put(':id')
+  @Roles(UserRole.Admin)
   update(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
@@ -70,6 +75,7 @@ export class DatasetsController {
   }
 
   @Post(':id/upload')
+  @Roles(UserRole.Admin)
   @UseInterceptors(FileInterceptor('file'))
   uploadFile(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
@@ -134,6 +140,7 @@ export class DatasetsController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.Admin)
   remove(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
     return this.datasetsService.remove(user.id, id);
   }

@@ -60,14 +60,14 @@ __decorate([
 ], UsersController.prototype, "getProfile", null);
 __decorate([
     (0, common_1.Get)(),
-    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -75,7 +75,7 @@ __decorate([
 ], UsersController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -84,7 +84,7 @@ __decorate([
 ], UsersController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -92,7 +92,7 @@ __decorate([
 ], UsersController.prototype, "remove", null);
 __decorate([
     (0, common_1.Patch)(':id/reset-password'),
-    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -101,7 +101,7 @@ __decorate([
 ], UsersController.prototype, "resetPassword", null);
 __decorate([
     (0, common_1.Post)(),
-    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [create_user_dto_1.CreateUserDto]),
