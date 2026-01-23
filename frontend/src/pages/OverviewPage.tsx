@@ -1,113 +1,202 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { TrendingUp, TrendingDown, Package, ShoppingCart, DollarSign, AlertCircle } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { getInventory, getSales, getPurchases } from '../lib/storage';
+import { analyticsAPI, type OverviewAnalytics } from '../lib/services';
 import './OverviewPage.css';
 
-interface Stats {
-  totalRevenue: number;
-  totalExpenses: number;
-  netProfit: number;
-  inventoryValue: number;
-  lowStockItems: number;
-  salesCount: number;
+interface StatCard {
+  title: string;
+  value: string;
+  icon: typeof DollarSign;
+  accent: string;
+  accentSoft: string;
+  meta: string;
+}
+
+interface QuickStat {
+  label: string;
+  value: string;
+  progress: number;
+  helper: string;
 }
 
 export function OverviewPage() {
-  const [stats, setStats] = useState<Stats>({
-    totalRevenue: 0,
-    totalExpenses: 0,
-    netProfit: 0,
-    inventoryValue: 0,
-    lowStockItems: 0,
-    salesCount: 0,
-  });
-
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [overview, setOverview] = useState<OverviewAnalytics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadStats();
+    let active = true;
+
+    const fetchOverview = async () => {
+      setIsLoading(true);
+      try {
+        const data = await analyticsAPI.getOverview();
+        if (!active) {
+          return;
+        }
+        setOverview(data);
+        setError(null);
+      } catch (err: unknown) {
+        if (!active) {
+          return;
+        }
+        const message =
+          typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message?: unknown }).message ?? 'Error desconocido')
+            : 'No se pudo cargar el resumen';
+        setError(message);
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchOverview();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const loadStats = () => {
-    const inventory = getInventory();
-    const sales = getSales();
-    const purchases = getPurchases();
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(value);
 
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
-    const totalExpenses = purchases.reduce((sum, purchase) => sum + purchase.total, 0);
-    const inventoryValue = inventory.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    const lowStockItems = inventory.filter(item => item.quantity < 10).length;
+  const statCards: StatCard[] = useMemo(() => {
+    const revenue = overview?.financial.totalRevenue ?? 0;
+    const costs = overview?.financial.totalCosts ?? 0;
+    const netProfit = overview?.financial.netProfit ?? 0;
+    const totalDatasets = overview?.summary.totalDatasets ?? 0;
 
-    setStats({
-      totalRevenue,
-      totalExpenses,
-      netProfit: totalRevenue - totalExpenses,
-      inventoryValue,
-      lowStockItems,
-      salesCount: sales.length,
-    });
+    return [
+      {
+        title: 'Ingresos Totales',
+        value: formatCurrency(revenue),
+        icon: DollarSign,
+        accent: '#10b981',
+        accentSoft: 'rgba(16, 185, 129, 0.15)',
+        meta: 'Período fiscal reciente',
+      },
+      {
+        title: 'Costos Totales',
+        value: formatCurrency(costs),
+        icon: ShoppingCart,
+        accent: '#ef4444',
+        accentSoft: 'rgba(239, 68, 68, 0.18)',
+        meta: 'Gastos operativos',
+      },
+      {
+        title: 'Ganancia Neta',
+        value: formatCurrency(netProfit),
+        icon: netProfit >= 0 ? TrendingUp : TrendingDown,
+        accent: netProfit >= 0 ? '#3b82f6' : '#f97316',
+        accentSoft: netProfit >= 0 ? 'rgba(59, 130, 246, 0.18)' : 'rgba(249, 115, 22, 0.18)',
+        meta: netProfit >= 0 ? 'Tendencia positiva' : 'Revisar costos',
+      },
+      {
+        title: 'Datasets Totales',
+        value: totalDatasets.toLocaleString('es-ES'),
+        icon: Package,
+        accent: '#a855f7',
+        accentSoft: 'rgba(168, 85, 247, 0.18)',
+        meta: 'Inventario analítico',
+      },
+    ];
+  }, [overview]);
 
-    // Generate chart data for last 7 days
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      const daySales = sales.filter(s => s.date.startsWith(dateStr));
-      const dayPurchases = purchases.filter(p => p.date.startsWith(dateStr));
-      
-      last7Days.push({
-        name: date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }),
-        ventas: daySales.reduce((sum, s) => sum + s.total, 0),
-        compras: dayPurchases.reduce((sum, p) => sum + p.total, 0),
-      });
+  const lineChartData = useMemo(
+    () =>
+      (overview?.financial.monthlySeries ?? []).map((entry) => ({
+        name: entry.month,
+        ingresos: entry.revenue,
+        costos: entry.costs,
+      })),
+    [overview?.financial.monthlySeries],
+  );
+
+  const datasetHealthData = useMemo(() => {
+    if (!overview) {
+      return [];
     }
-    
-    setChartData(last7Days);
-  };
 
-  const statCards = [
-    {
-      title: 'Ingresos Totales',
-      value: `$${stats.totalRevenue.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
-      icon: DollarSign,
-      accent: '#10b981',
-      accentSoft: 'rgba(16, 185, 129, 0.15)',
-    },
-    {
-      title: 'Gastos Totales',
-      value: `$${stats.totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
-      icon: ShoppingCart,
-      accent: '#ef4444',
-      accentSoft: 'rgba(239, 68, 68, 0.18)',
-    },
-    {
-      title: 'Ganancia Neta',
-      value: `$${stats.netProfit.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
-      icon: stats.netProfit >= 0 ? TrendingUp : TrendingDown,
-      accent: stats.netProfit >= 0 ? '#3b82f6' : '#f97316',
-      accentSoft: stats.netProfit >= 0 ? 'rgba(59, 130, 246, 0.18)' : 'rgba(249, 115, 22, 0.18)',
-    },
-    {
-      title: 'Valor Inventario',
-      value: `$${stats.inventoryValue.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
-      icon: Package,
-      accent: '#a855f7',
-      accentSoft: 'rgba(168, 85, 247, 0.18)',
-    },
-  ];
+    return [
+      { name: 'Procesados', valor: overview.datasetHealth.processed },
+      { name: 'Pendientes', valor: overview.datasetHealth.pending },
+      { name: 'Con error', valor: overview.datasetHealth.error },
+    ];
+  }, [overview]);
+
+  const quickStats: QuickStat[] = useMemo(() => {
+    if (!overview) {
+      return [];
+    }
+
+    const totalDatasets = Math.max(overview.summary.totalDatasets, 1);
+    const processedPercent = Math.min(100, (overview.datasetHealth.processed / totalDatasets) * 100);
+    const pendingPercent = Math.min(100, (overview.datasetHealth.pending / totalDatasets) * 100);
+    const storagePercent = Math.min(100, overview.storage.usagePercentage);
+
+    return [
+      {
+        label: 'Datasets procesados',
+        value: overview.datasetHealth.processed.toLocaleString('es-ES'),
+        progress: processedPercent,
+        helper: `${processedPercent.toFixed(0)}% del total`,
+      },
+      {
+        label: 'Pendientes de análisis',
+        value: overview.datasetHealth.pending.toLocaleString('es-ES'),
+        progress: pendingPercent,
+        helper: `${pendingPercent.toFixed(0)}% en cola`,
+      },
+      {
+        label: 'Uso de almacenamiento',
+        value: `${overview.storage.usedMb.toFixed(1)} MB`,
+        progress: storagePercent,
+        helper: `${storagePercent.toFixed(0)}% de ${overview.storage.capacityMb} MB`,
+      },
+    ];
+  }, [overview]);
+
+  const pendingOrErrorDatasets =
+    (overview?.datasetHealth.pending ?? 0) + (overview?.datasetHealth.error ?? 0);
+
+  if (isLoading) {
+    return (
+      <div className="overview-page overview-page--loading">
+        <div className="overview-state overview-loading">Cargando panorama general...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="overview-page overview-page--error">
+        <div className="overview-state overview-error">
+          <p className="overview-error__title">No se pudo cargar el resumen</p>
+          <p className="overview-error__message">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!overview) {
+    return null;
+  }
 
   return (
     <div className="overview-page">
-      {/* Stats Grid - Professional Cards */}
       <div className="overview-stats">
-        {statCards.map((stat, index) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
             <div
-              key={index}
+              key={stat.title}
               className="overview-stat-card"
               style={{
                 '--dp-card-accent': stat.accent,
@@ -121,43 +210,43 @@ export function OverviewPage() {
                 </div>
               </div>
               <p className="overview-stat-card__value">{stat.value}</p>
-              <p className="overview-stat-card__meta">Últimos 30 días</p>
+              <p className="overview-stat-card__meta">{stat.meta}</p>
             </div>
           );
         })}
       </div>
 
-      {/* Alerts - Professional Alert Box */}
-      {stats.lowStockItems > 0 && (
+      {pendingOrErrorDatasets > 0 && (
         <div className="overview-alert">
           <div className="overview-alert__icon">
             <AlertCircle className="w-5 h-5" />
           </div>
           <div className="overview-alert__content">
-            <h4 className="overview-alert__title">Alerta de Stock Bajo</h4>
+            <h4 className="overview-alert__title">
+              {overview.datasetHealth.error > 0 ? 'Incidencias detectadas' : 'Procesamiento en curso'}
+            </h4>
             <p className="overview-alert__message">
-              Tienes {stats.lowStockItems} producto{stats.lowStockItems > 1 ? 's' : ''} con stock por debajo del mínimo. Considera realizar un reabastecimiento.
+              Hay {pendingOrErrorDatasets} dataset{pendingOrErrorDatasets !== 1 ? 's' : ''} que requieren atención. Revisa el módulo de datasets para dar seguimiento.
             </p>
           </div>
         </div>
       )}
 
-      {/* Charts Section */}
       <div className="overview-charts">
         <div className="overview-chart-card">
           <div className="overview-chart-card__header">
-            <h3 className="overview-chart-card__title">Ventas vs Compras</h3>
-            <p className="overview-chart-card__subtitle">Últimos 7 días - Análisis de tendencias</p>
+            <h3 className="overview-chart-card__title">Ingresos vs Costos</h3>
+            <p className="overview-chart-card__subtitle">Serie mensual - últimos periodos</p>
           </div>
           <div className="overview-chart-card__content">
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+              <LineChart data={lineChartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                 <defs>
-                  <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="colorCompras" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorCostos" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                   </linearGradient>
@@ -165,13 +254,13 @@ export function OverviewPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '12px' }} />
                 <YAxis stroke="#94a3b8" style={{ fontSize: '12px' }} />
-                <Tooltip 
-                  formatter={(value: number) => `$${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
+                <Tooltip
+                  formatter={(value: number) => formatCurrency(value)}
                   contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="ventas" stroke="#10b981" strokeWidth={3} name="Ventas" dot={{ fill: '#10b981', r: 5 }} />
-                <Line type="monotone" dataKey="compras" stroke="#ef4444" strokeWidth={3} name="Compras" dot={{ fill: '#ef4444', r: 5 }} />
+                <Line type="monotone" dataKey="ingresos" stroke="#10b981" strokeWidth={3} name="Ingresos" dot={{ fill: '#10b981', r: 5 }} />
+                <Line type="monotone" dataKey="costos" stroke="#ef4444" strokeWidth={3} name="Costos" dot={{ fill: '#ef4444', r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -179,74 +268,45 @@ export function OverviewPage() {
 
         <div className="overview-chart-card">
           <div className="overview-chart-card__header">
-            <h3 className="overview-chart-card__title">Comparativa Semanal</h3>
-            <p className="overview-chart-card__subtitle">Distribución de ventas y compras</p>
+            <h3 className="overview-chart-card__title">Estado de datasets</h3>
+            <p className="overview-chart-card__subtitle">Seguimiento del flujo de procesamiento</p>
           </div>
           <div className="overview-chart-card__content">
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+              <BarChart data={datasetHealthData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                 <defs>
-                  <linearGradient id="gradVentas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#1d4ed8" />
-                  </linearGradient>
-                  <linearGradient id="gradCompras" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f59e0b" />
-                    <stop offset="100%" stopColor="#d97706" />
+                  <linearGradient id="gradDatasets" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#312e81" />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#94a3b8" style={{ fontSize: '12px' }} />
-                <Tooltip 
-                  formatter={(value: number) => `$${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
+                <YAxis stroke="#94a3b8" style={{ fontSize: '12px' }} allowDecimals={false} />
+                <Tooltip
+                  formatter={(value: number) => `${value} dataset${value === 1 ? '' : 's'}`}
                   contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
                 />
-                <Legend />
-                <Bar dataKey="ventas" fill="url(#gradVentas)" name="Ventas" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="compras" fill="url(#gradCompras)" name="Compras" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="valor" fill="url(#gradDatasets)" name="Total" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Quick Stats - Key Metrics */}
       <div className="overview-quick-stats">
-        <div className="overview-quick-stat">
-          <p className="overview-quick-stat__label">Total de Ventas</p>
-          <p className="overview-quick-stat__value">{stats.salesCount}</p>
-          <div className="overview-quick-stat__progress">
-            <div className="overview-quick-stat__progress-bar">
-              <div className="overview-quick-stat__progress-fill" style={{ width: '75%' }} />
+        {quickStats.map((stat) => (
+          <div className="overview-quick-stat" key={stat.label}>
+            <p className="overview-quick-stat__label">{stat.label}</p>
+            <p className="overview-quick-stat__value">{stat.value}</p>
+            <div className="overview-quick-stat__progress">
+              <div className="overview-quick-stat__progress-bar">
+                <div className="overview-quick-stat__progress-fill" style={{ width: `${stat.progress}%` }} />
+              </div>
+              <span className="overview-quick-stat__progress-text">{stat.helper}</span>
             </div>
-            <span className="overview-quick-stat__progress-text">75%</span>
           </div>
-        </div>
-        <div className="overview-quick-stat">
-          <p className="overview-quick-stat__label">Productos en Stock</p>
-          <p className="overview-quick-stat__value">{getInventory().length}</p>
-          <div className="overview-quick-stat__progress">
-            <div className="overview-quick-stat__progress-bar">
-              <div className="overview-quick-stat__progress-fill" style={{ width: '90%' }} />
-            </div>
-            <span className="overview-quick-stat__progress-text">90%</span>
-          </div>
-        </div>
-        <div className="overview-quick-stat">
-          <p className="overview-quick-stat__label">Margen de Ganancia</p>
-          <p className="overview-quick-stat__value">
-            {stats.totalRevenue > 0 
-              ? `${((stats.netProfit / stats.totalRevenue) * 100).toFixed(1)}%`
-              : '0%'}
-          </p>
-          <div className="overview-quick-stat__progress">
-            <div className="overview-quick-stat__progress-bar">
-              <div className="overview-quick-stat__progress-fill" style={{ width: `${Math.min(100, (stats.netProfit / stats.totalRevenue) * 100)}%` }} />
-            </div>
-            <span className="overview-quick-stat__progress-text">Meta</span>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

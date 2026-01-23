@@ -3,11 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = () => ({
     port: parseInt(process.env.PORT ?? '3000', 10),
     supabase: {
-        projectId: process.env.SUPABASE_PROJECT_ID ?? 'nqkodrksdcmzhxoeuidj',
+        projectId: process.env.SUPABASE_PROJECT_ID ?? 'bggsqbvrpenahcppvuyc',
         url: process.env.SUPABASE_URL ??
             (process.env.SUPABASE_PROJECT_ID
                 ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co`
-                : 'https://nqkodrksdcmzhxoeuidj.supabase.co'),
+                : 'https://bggsqbvrpenahcppvuyc.supabase.co'),
         serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ??
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnZ3NxYnZycGVuYWhjcHB2dXljIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Nzc0NzI4MiwiZXhwIjoyMDgzMzIzMjgyfQ.j32e8oZwZDSgXOGbVRqnVcqdkGyclPIFTzmy29cb8Hw',
         datasets: {

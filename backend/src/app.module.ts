@@ -9,6 +9,7 @@ import { SharedModule } from './common/shared.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SupabaseModule } from './database/supabase.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { SupabaseModule } from './database/supabase.module';
     AuthModule,
     DatasetsModule,
     DashboardsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

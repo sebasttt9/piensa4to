@@ -1,12 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Filter, PlusCircle, Database, Calendar, CheckCircle, Clock, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table';
 import { datasetsAPI, type Dataset } from '../lib/services';
 import { useAuth } from '../context/AuthContext';
+import './DatasetsPage.css';
+
+interface StatCard {
+  label: string;
+  value: string;
+  helper: string;
+  icon: typeof Database;
+  accent: string;
+  accentSoft: string;
+}
 
 export function DatasetsPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -19,7 +25,8 @@ export function DatasetsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await datasetsAPI.list();
+      // Fetch datasets from the Supabase-backed API
+      const response = await datasetsAPI.list(1, 25);
       setDatasets(response.data);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No pudimos recuperar los datasets.';
@@ -39,13 +46,43 @@ export function DatasetsPage() {
     const processed = datasets.filter((dataset) => dataset.status === 'processed').length;
     const pending = datasets.filter((dataset) => dataset.status === 'pending').length;
     const totalRows = datasets.reduce((acc, dataset) => acc + (dataset.rowCount ?? 0), 0);
+    const processedPercent = totalDatasets > 0 ? Math.round((processed / totalDatasets) * 100) : 0;
+    const pendingPercent = totalDatasets > 0 ? Math.round((pending / totalDatasets) * 100) : 0;
 
     return [
-      { label: 'Datasets Totales', value: totalDatasets.toString(), icon: Database },
-      { label: 'Procesados', value: processed.toString(), icon: CheckCircle },
-      { label: 'Filas Registradas', value: totalRows.toLocaleString('es-ES'), icon: Clock },
-      { label: 'Pendientes', value: pending.toString(), icon: AlertTriangle },
-    ];
+      {
+        label: 'Datasets totales',
+        value: totalDatasets.toLocaleString('es-ES'),
+        helper: 'Registrados en la plataforma',
+        icon: Database,
+        accent: '#818cf8',
+        accentSoft: 'rgba(129, 140, 248, 0.18)',
+      },
+      {
+        label: 'Procesados',
+        value: processed.toLocaleString('es-ES'),
+        helper: `${processedPercent}% listos para análisis`,
+        icon: CheckCircle,
+        accent: '#34d399',
+        accentSoft: 'rgba(52, 211, 153, 0.18)',
+      },
+      {
+        label: 'Filas registradas',
+        value: totalRows.toLocaleString('es-ES'),
+        helper: 'Datos almacenados para consulta',
+        icon: Calendar,
+        accent: '#38bdf8',
+        accentSoft: 'rgba(56, 189, 248, 0.18)',
+      },
+      {
+        label: 'Pendientes',
+        value: pending.toLocaleString('es-ES'),
+        helper: `${pendingPercent}% en cola de procesamiento`,
+        icon: AlertTriangle,
+        accent: '#f97316',
+        accentSoft: 'rgba(249, 115, 22, 0.18)',
+      },
+    ] satisfies StatCard[];
   }, [datasets]);
 
   const formatDate = (value?: string) => {
@@ -68,162 +105,185 @@ export function DatasetsPage() {
   const getStatusConfig = (status: Dataset['status']) => {
     switch (status) {
       case 'processed':
-        return { variant: 'success' as const, icon: CheckCircle, label: 'Procesado' };
+        return {
+          label: 'Procesado',
+          className: 'datasets-status datasets-status--processed',
+          icon: CheckCircle,
+        } as const;
       case 'pending':
-        return { variant: 'warning' as const, icon: Clock, label: 'Pendiente' };
+        return {
+          label: 'Pendiente',
+          className: 'datasets-status datasets-status--pending',
+          icon: Clock,
+        } as const;
       case 'error':
       default:
-        return { variant: 'error' as const, icon: AlertTriangle, label: 'Error' };
+        return {
+          label: 'Error',
+          className: 'datasets-status datasets-status--error',
+          icon: AlertTriangle,
+        } as const;
     }
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header con acciones */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between animate-slideIn">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-3 rounded-lg bg-white/10">
-              <Database className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-white">Datasets</h1>
+    <div className="datasets-page">
+      <header className="datasets-header">
+        <div className="datasets-header__info">
+          <span className="datasets-header__icon">
+            <Database className="w-6 h-6" />
+          </span>
+          <div className="datasets-header__meta">
+            <h1 className="datasets-header__title">Datasets</h1>
+            <p className="datasets-header__subtitle">
+              Administra tus fuentes de datos, sincroniza tus archivos y accede al avance del procesamiento en tiempo real.
+            </p>
           </div>
-          <p className="text-white/50 hover:text-white/70 transition-all duration-300">Administra tus fuentes de datos y visualiza análisis automáticos</p>
         </div>
         {canManageDatasets && (
-          <Link to="/app/upload">
-            <Button size="lg" className="flex items-center gap-2 animate-slideInRight">
+          <div className="datasets-header__actions">
+            <Link to="/app/upload" className="datasets-upload-button">
               <PlusCircle className="w-5 h-5" />
-              Cargar Nuevo Dataset
-            </Button>
-          </Link>
+              Cargar nuevo dataset
+            </Link>
+          </div>
         )}
-      </div>
+      </header>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {stats.map((stat, idx) => {
+      <section className="datasets-stats">
+        {stats.map((stat) => {
           const Icon = stat.icon;
+          const iconStyle: CSSProperties = {
+            background: stat.accentSoft,
+            color: stat.accent,
+          };
+
           return (
-            <Card
-              key={stat.label}
-              style={{ animation: `slideIn 0.5s ease-out ${idx * 0.1}s backwards` }}
-            >
-              <CardContent className="pt-0 flex items-start justify-between">
-                <div>
-                  <p className="text-white/60 text-sm font-medium mb-1">{stat.label}</p>
-                  <p className="text-3xl font-bold text-white">{stat.value}</p>
-                </div>
-                <div className="w-8 h-8 rounded-lg p-1 flex items-center justify-center bg-white/10">
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-              </CardContent>
-            </Card>
+            <article key={stat.label} className="datasets-stat-card">
+              <span className="datasets-stat-card__icon" style={iconStyle}>
+                <Icon className="w-5 h-5" />
+              </span>
+              <p className="datasets-stat-card__label">{stat.label}</p>
+              <p className="datasets-stat-card__value">{stat.value}</p>
+              <p className="datasets-stat-card__helper">{stat.helper}</p>
+            </article>
           );
         })}
-      </div>
+      </section>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center animate-slideInRight">
-        <Button variant="secondary" size="md" className="flex items-center gap-2 hover:shadow-[0_10px_30px_rgba(99,102,241,0.15)]">
+      <section className="datasets-filters">
+        <button type="button" className="datasets-filters__primary">
           <Filter className="w-4 h-4" />
-          Filtros Avanzados
-        </Button>
-        <div className="flex gap-2 flex-wrap">
-          <Badge variant="info" size="sm" className="hover:scale-105 transition-transform duration-300">Últimos 7 días</Badge>
-          <Badge variant="default" size="sm" className="hover:scale-105 transition-transform duration-300">CSV</Badge>
-          <Badge variant="default" size="sm" className="hover:scale-105 transition-transform duration-300">Excel</Badge>
+          Filtros avanzados
+        </button>
+        <div className="datasets-filters__chips">
+          <span className="datasets-filters__chip">Últimos 7 días</span>
+          <span className="datasets-filters__chip">CSV</span>
+          <span className="datasets-filters__chip">Excel</span>
         </div>
-      </div>
+      </section>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-2xl border border-white/10">
-        <Table>
-          <TableHeader className="border-b border-white/10 bg-white/5">
-            <TableRow>
-              <TableHead className="text-white/70 font-semibold">Nombre Dataset</TableHead>
-              <TableHead className="text-white/70 font-semibold">Registros</TableHead>
-              <TableHead className="text-white/70 font-semibold">Última Actualización</TableHead>
-              <TableHead className="text-white/70 font-semibold">Estado</TableHead>
-              <TableHead className="text-right text-white/70 font-semibold">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <section className="datasets-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre dataset</th>
+              <th>Registros</th>
+              <th>Última actualización</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
             {loading && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-white/70">
-                  Cargando datasets…
-                </TableCell>
-              </TableRow>
+              <tr>
+                <td colSpan={5}>
+                  <div className="datasets-table__state">
+                    <Clock className="w-5 h-5" />
+                    <span>Cargando datasets…</span>
+                  </div>
+                </td>
+              </tr>
             )}
 
             {error && !loading && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-8">
-                  <div className="flex flex-col items-center justify-center gap-3 text-white/70">
-                    <AlertTriangle className="w-6 h-6 text-red-400" />
-                    <p>{error}</p>
-                    <Button size="sm" variant="secondary" onClick={() => void loadDatasets()}>
+              <tr>
+                <td colSpan={5}>
+                  <div className="datasets-table__state">
+                    <AlertTriangle className="w-5 h-5" />
+                    <span>{error}</span>
+                    <button type="button" className="datasets-table__retry" onClick={() => void loadDatasets()}>
                       Reintentar
-                    </Button>
+                    </button>
                   </div>
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
 
             {!loading && !error && datasets.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-white/70">
-                  Aún no has creado datasets. Importa tu primer archivo para comenzar.
-                </TableCell>
-              </TableRow>
+              <tr>
+                <td colSpan={5}>
+                  <div className="datasets-table__state">
+                    <Database className="w-5 h-5" />
+                    <span>Aún no has creado datasets. Importa tu primer archivo para comenzar.</span>
+                  </div>
+                </td>
+              </tr>
             )}
 
-            {!loading && !error && datasets.map((dataset, index) => {
-              const statusConfig = getStatusConfig(dataset.status);
-              const StatusIcon = statusConfig.icon;
+            {!loading && !error && datasets.map((dataset) => {
+              const status = getStatusConfig(dataset.status);
+              const StatusIcon = status.icon;
+
               return (
-                <TableRow
-                  key={dataset.id}
-                  className="border-b border-white/5 hover:bg-white/10 transition-colors duration-300 group/row animate-fadeIn"
-                  style={{
-                    animation: `fadeIn 0.4s ease-out ${index * 0.05}s backwards`
-                  }}
-                >
-                  <TableCell className="font-medium text-white flex items-center gap-3 transition-colors duration-300 group-hover/row:text-white">
-                    <div className="p-1 rounded bg-white/10">
-                      <Database className="w-4 h-4 text-white flex-shrink-0" />
+                <tr key={dataset.id}>
+                  <td>
+                    <div className="datasets-name-cell">
+                      <span className="datasets-name-cell__icon">
+                        <Database className="w-4 h-4" />
+                      </span>
+                      <div className="datasets-meta">
+                        <span className="datasets-meta__value">{dataset.name}</span>
+                        <span className="datasets-meta__description">
+                          {dataset.description ?? 'Sin descripción proporcionada'}
+                        </span>
+                      </div>
                     </div>
-                    {dataset.name}
-                  </TableCell>
-                  <TableCell className="text-white/70">{(dataset.rowCount ?? 0).toLocaleString('es-ES')}</TableCell>
-                  <TableCell className="text-white/60">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 opacity-70" />
-                      {formatDate(dataset.updatedAt ?? dataset.createdAt)}
+                  </td>
+                  <td>
+                    <div className="datasets-meta">
+                      <span className="datasets-meta__value">{(dataset.rowCount ?? 0).toLocaleString('es-ES')}</span>
+                      <span className="datasets-meta__label">
+                        {dataset.columnCount ? `${dataset.columnCount} columnas` : 'Dimensión no disponible'}
+                      </span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusConfig.variant} size="sm" className="flex items-center gap-2 w-fit hover:scale-105 transition-transform duration-300">
+                  </td>
+                  <td>
+                    <div className="datasets-meta">
+                      <span className="datasets-meta__value">{formatDate(dataset.updatedAt ?? dataset.createdAt)}</span>
+                      <span className="datasets-meta__label">
+                        {dataset.fileType ? dataset.fileType.toUpperCase() : 'Sin archivo' }
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={status.className}>
                       <StatusIcon className="w-3 h-3" />
-                      {statusConfig.label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link
-                      to={`/app/datasets/${dataset.id}`}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 text-white border border-white/20 transition-colors duration-300 font-medium text-sm group/link"
-                    >
+                      {status.label}
+                    </span>
+                  </td>
+                  <td>
+                    <Link to={`/app/datasets/${dataset.id}`} className="datasets-row-action">
                       Ver detalle
-                      <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+                      <ArrowRight className="w-4 h-4" />
                     </Link>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               );
             })}
-          </TableBody>
-        </Table>
-      </div>
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }
