@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { DashboardsService } from './dashboards.service';
@@ -16,6 +17,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { UserEntity } from '../users/entities/user.entity';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
+import { ShareDashboardDto } from './dto/share-dashboard.dto';
+import type { Response } from 'express';
 
 @Controller('dashboards')
 @UseGuards(JwtAuthGuard)
@@ -71,8 +74,38 @@ export class DashboardsController {
     return this.dashboardsService.share(user.id, id, dto.isPublic);
   }
 
+  @Post(':id/share/invite')
+  shareWithContact(
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+    @Param('id') id: string,
+    @Body() dto: ShareDashboardDto,
+  ) {
+    return this.dashboardsService.shareWithContact(user.id, id, dto);
+  }
+
   @Delete(':id')
   remove(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
     return this.dashboardsService.remove(user.id, id);
+  }
+
+  @Get(':id/export')
+  async export(
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+    @Param('id') id: string,
+    @Query('format') format = 'json',
+    @Res() res: Response,
+  ) {
+    const normalizedFormat = format === 'pdf' ? 'pdf' : 'json';
+    if (normalizedFormat === 'json') {
+      const dashboard = await this.dashboardsService.export(user.id, id, 'json');
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.json"`);
+      return res.send(JSON.stringify(dashboard, null, 2));
+    }
+
+    const pdfBuffer = await this.dashboardsService.export(user.id, id, 'pdf');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.pdf"`);
+    return res.send(pdfBuffer);
   }
 }

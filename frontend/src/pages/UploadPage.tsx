@@ -1,22 +1,24 @@
-import { useState } from 'react';
-import type { ChangeEvent } from 'react';
-import { CloudUpload, FileSpreadsheet, ShieldCheck, Zap, CheckCircle, AlertCircle } from 'lucide-react';
+import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { AlertCircle, CheckCircle, CloudUpload, FileSpreadsheet, RefreshCw, ShieldCheck, Zap } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
-import api from '../lib/api';
-import { Card, CardContent } from '../components/ui/card';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
+import { datasetsAPI } from '../lib/services';
+import './UploadPage.css';
 
 export function UploadPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
+  const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
 
   const mutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const { data } = await api.post('/datasets/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+    mutationFn: async ({ file, name, details }: { file: File; name: string; details?: { description?: string; tags?: string[] } }) => {
+      const dataset = await datasetsAPI.create({
+        name,
+        description: details?.description?.trim() ? details?.description?.trim() : undefined,
+        tags: details?.tags?.length ? details.tags : undefined,
       });
-      return data;
+      await datasetsAPI.uploadFile(dataset.id, file);
+      return dataset;
     },
   });
 
@@ -28,13 +30,36 @@ export function UploadPage() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!selectedFile || !fileName.trim()) return;
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('name', fileName);
+  const resetForm = () => {
+    setSelectedFile(null);
+    setFileName('');
+    setDescription('');
+    setTags('');
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedFile || !fileName.trim()) {
+      return;
+    }
+
+    mutation.reset();
+
+    const normalizedTags = tags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
     try {
-      await mutation.mutateAsync(formData);
+      await mutation.mutateAsync({
+        file: selectedFile,
+        name: fileName.trim(),
+        details: {
+          description,
+          tags: normalizedTags,
+        },
+      });
+      resetForm();
     } catch (error) {
       console.warn('Upload error:', error);
     }
@@ -46,145 +71,179 @@ export function UploadPage() {
     { icon: FileSpreadsheet, title: 'CSV, Excel, JSON', desc: 'Soporta múltiples formatos de datos' },
   ];
 
+  const fileSummary = useMemo(() => {
+    if (!selectedFile) {
+      return null;
+    }
+
+    const extension = selectedFile.name.split('.').pop()?.toUpperCase() ?? 'Archivo';
+    const sizeMb = (selectedFile.size / 1024 / 1024).toFixed(2);
+
+    return { extension, sizeMb };
+  }, [selectedFile]);
+
   return (
-    <div className="min-h-screen px-4 py-8">
-      <div className="mx-auto max-w-7xl">
-        {/* Header with Animation */}
-        <div className="mb-8 flex items-center gap-3 animate-slideIn">
-          <div className="p-2 rounded-lg bg-white/10">
-            <CloudUpload className="w-6 h-6 text-white" />
+    <div className="upload-page">
+      <header className="upload-header">
+        <div className="upload-header__info">
+          <span className="upload-header__icon">
+            <CloudUpload className="w-6 h-6" />
+          </span>
+          <div className="upload-header__meta">
+            <h1 className="upload-header__title">Cargar dataset</h1>
+            <p className="upload-header__subtitle">
+              Sube tus archivos, agrega metadatos y deja que la plataforma prepare los análisis en segundos.
+            </p>
           </div>
-          <h1 className="text-4xl font-bold text-white">Cargar Dataset</h1>
         </div>
+        <div className="upload-header__progress">
+          <CheckCircle className={mutation.isSuccess ? 'upload-header__progress-icon upload-header__progress-icon--active' : 'upload-header__progress-icon'} />
+          <span>{mutation.isSuccess ? 'Última carga completada' : 'Listo para cargar'}</span>
+        </div>
+      </header>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Upload Card - Main Area */}
-          <Card variant="elevated" className="lg:col-span-2 animate-slideIn">
-            <CardContent className="pt-0 space-y-6">
-              {/* Drop Zone */}
-              <div className="border-2 border-dashed rounded-2xl p-12 text-center transition-colors border-white/20 hover:border-white/40 bg-white/5">
-                <input
-                  type="file"
-                  id="file-upload"
-                  className="hidden"
-                  onChange={handleFileChange}
-                  accept=".csv,.xlsx,.xls,.json"
-                />
-                <label htmlFor="file-upload" className="cursor-pointer block">
-                  <div className="animate-float mb-4">
-                    <CloudUpload className="mx-auto h-12 w-12 text-white" />
-                  </div>
-                  <p className="text-xl font-semibold text-white">Arrastra tu archivo aquí</p>
-                  <p className="text-white/50 text-sm mt-2">o haz clic para seleccionar</p>
-                  <p className="text-white/30 text-xs mt-4">CSV, Excel (.xlsx) o JSON - Máx. 100MB</p>
-                </label>
-              </div>
+      <div className="upload-layout">
+        <section className="upload-panel">
+          <form className="upload-form" onSubmit={handleSubmit}>
+            <div className="upload-dropzone">
+              <input
+                type="file"
+                id="dataset-file"
+                className="upload-dropzone__input"
+                onChange={handleFileChange}
+                accept=".csv,.xlsx,.xls,.json"
+              />
+              <label htmlFor="dataset-file" className="upload-dropzone__label">
+                <CloudUpload className="upload-dropzone__icon" />
+                <p className="upload-dropzone__title">Arrastra tu archivo o haz clic para seleccionar</p>
+                <p className="upload-dropzone__meta">Formatos admitidos: CSV, XLSX, JSON • Límite 100&nbsp;MB</p>
+              </label>
+            </div>
 
-              {/* Selected File Info */}
-              {selectedFile && (
-                <div className="p-4 bg-white/10 border border-white/20 rounded-xl flex items-center gap-3 animate-bounceIn">
-                  <FileSpreadsheet className="w-5 h-5 text-white flex-shrink-0 animate-pulse" />
-                  <div className="flex-1">
-                    <p className="text-white font-medium text-sm">{selectedFile.name}</p>
-                    <p className="text-white/50 text-xs mt-1">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
+            {selectedFile && fileSummary && (
+              <div className="upload-file">
+                <div className="upload-file__icon">
+                  <FileSpreadsheet className="w-5 h-5" />
                 </div>
-              )}
-
-              {/* Dataset Name Input */}
-              {selectedFile && (
-                <div className="animate-slideInRight">
-                  <Input
-                    type="text"
-                    placeholder="ej: Ventas Q4 2024"
-                    value={fileName}
-                    onChange={(e) => setFileName(e.target.value)}
-                    label="Nombre del Dataset"
-                    helperText="Este nombre aparecerá en tu biblioteca"
-                  />
+                <div className="upload-file__details">
+                  <p className="upload-file__name">{selectedFile.name}</p>
+                  <p className="upload-file__meta">{fileSummary.extension} • {fileSummary.sizeMb} MB</p>
                 </div>
-              )}
-
-              {/* Upload Button */}
-              {selectedFile && (
-                <Button
-                  onClick={handleSubmit}
-                  isLoading={mutation.isPending}
-                  disabled={mutation.isPending || !fileName.trim()}
-                  size="lg"
-                  className="w-full animate-slideInRight"
-                >
-                  {mutation.isPending ? 'Procesando...' : 'Analizar con IA'}
-                </Button>
-              )}
-
-              {/* Success Message */}
-              {mutation.isSuccess && (
-                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl flex items-start gap-3 animate-bounceIn">
-                  <CheckCircle className="w-5 h-5 text-green-300 flex-shrink-0 mt-0.5 animate-pulse" />
-                  <div>
-                    <p className="text-green-200 font-medium">¡Dataset cargado exitosamente!</p>
-                    <p className="text-green-300/70 text-sm mt-1">Tu análisis estará listo en unos segundos</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Error Message */}
-              {mutation.isError && (
-                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3 animate-bounceIn">
-                  <AlertCircle className="w-5 h-5 text-red-300 flex-shrink-0 mt-0.5 animate-pulse" />
-                  <div>
-                    <p className="text-red-200 font-medium">Error al cargar</p>
-                    <p className="text-red-300/70 text-sm mt-1">Intenta nuevamente con otro archivo</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Features Sidebar */}
-          <div className="space-y-4">
-            {features.map((feature, idx) => {
-              const Icon = feature.icon;
-              return (
-                <Card
-                  key={idx}
-                  variant="elevated"
-                  className="animate-slideInRight"
-                  style={{
-                    animation: `slideInRight 0.5s ease-out ${idx * 0.15}s backwards`
+                <button
+                  type="button"
+                  className="upload-file__reset"
+                  onClick={() => {
+                    resetForm();
+                    mutation.reset();
                   }}
                 >
-                  <CardContent className="pt-0 flex items-start gap-3">
-                    <div className="p-2 rounded-lg flex-shrink-0 bg-white/10">
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium text-sm">{feature.title}</p>
-                      <p className="text-white/50 text-xs mt-1">{feature.desc}</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <RefreshCw className="w-4 h-4" />
+                  Limpiar
+                </button>
+              </div>
+            )}
+
+            {selectedFile && (
+              <>
+                <div className="upload-field">
+                  <label htmlFor="dataset-name" className="upload-field__label">Nombre del dataset</label>
+                  <input
+                    id="dataset-name"
+                    type="text"
+                    className="upload-field__input"
+                    placeholder="Ej. Ventas retail Q4 2025"
+                    value={fileName}
+                    onChange={(event) => setFileName(event.target.value)}
+                  />
+                  <p className="upload-field__helper">El nombre se mostrará en tu biblioteca y en los dashboards.</p>
+                </div>
+
+                <div className="upload-field">
+                  <label htmlFor="dataset-description" className="upload-field__label">Descripción (opcional)</label>
+                  <textarea
+                    id="dataset-description"
+                    className="upload-field__textarea"
+                    placeholder="Agrega contexto, métricas incluidas o el objetivo del dataset"
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="upload-field">
+                  <label htmlFor="dataset-tags" className="upload-field__label">Etiquetas (opcional)</label>
+                  <input
+                    id="dataset-tags"
+                    type="text"
+                    className="upload-field__input"
+                    placeholder="Finanzas, Ventas, LATAM"
+                    value={tags}
+                    onChange={(event) => setTags(event.target.value)}
+                  />
+                  <p className="upload-field__helper">Separa las etiquetas con coma para facilitar la búsqueda.</p>
+                </div>
+
+                <div className="upload-actions">
+                  <button
+                    type="submit"
+                    className="upload-primary"
+                    disabled={mutation.isPending || !fileName.trim()}
+                  >
+                    {mutation.isPending ? 'Procesando...' : 'Subir y analizar'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {mutation.isSuccess && (
+              <div className="upload-feedback upload-feedback--success">
+                <CheckCircle className="upload-feedback__icon" />
+                <div>
+                  <p className="upload-feedback__title">Dataset cargado correctamente</p>
+                  <p className="upload-feedback__message">Encontrarás el nuevo recurso en la sección de datasets en pocos instantes.</p>
+                </div>
+              </div>
+            )}
+
+            {mutation.isError && (
+              <div className="upload-feedback upload-feedback--error">
+                <AlertCircle className="upload-feedback__icon" />
+                <div>
+                  <p className="upload-feedback__title">No pudimos completar la carga</p>
+                  <p className="upload-feedback__message">Revisa el formato del archivo e inténtalo nuevamente.</p>
+                </div>
+              </div>
+            )}
+          </form>
+        </section>
+
+        <aside className="upload-sidebar">
+          <div className="upload-sidebar__list">
+            {features.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <article key={feature.title} className="upload-sidebar__card">
+                  <span className="upload-sidebar__card-icon">
+                    <Icon className="w-5 h-5" />
+                  </span>
+                  <div>
+                    <p className="upload-sidebar__card-title">{feature.title}</p>
+                    <p className="upload-sidebar__card-text">{feature.desc}</p>
+                  </div>
+                </article>
               );
             })}
-
-            {/* Info Card */}
-            <Card variant="outlined" className="animate-slideInRight" style={{ animationDelay: '0.45s' }}>
-              <CardContent className="pt-0">
-                <p className="text-white/80 text-xs font-medium mb-2 flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 bg-white rounded-full"></span>
-                  Proceso Automático
-                </p>
-                <p className="text-white/60 text-xs leading-relaxed">
-                  Nuestro sistema analiza automáticamente la estructura de datos, detecta anomalías y genera visualizaciones recomendadas.
-                </p>
-              </CardContent>
-            </Card>
           </div>
-        </div>
+
+          <div className="upload-guidelines">
+            <p className="upload-guidelines__title">Guías de preparación</p>
+            <ul className="upload-guidelines__list">
+              <li>Asegúrate que cada columna tenga un encabezado descriptivo.</li>
+              <li>Normaliza fechas y valores numéricos para facilitar el análisis.</li>
+              <li>Los archivos grandes se procesan en segundo plano; recibirás una notificación.</li>
+            </ul>
+          </div>
+        </aside>
       </div>
     </div>
   );

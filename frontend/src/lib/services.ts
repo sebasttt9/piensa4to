@@ -149,6 +149,13 @@ export interface UpdateDashboardInput extends Partial<CreateDashboardInput> {
     charts?: Dashboard['charts'];
 }
 
+export interface ShareDashboardInput {
+    channel: 'email' | 'sms';
+    contact: string;
+    message?: string;
+    makePublic?: boolean;
+}
+
 export const dashboardsAPI = {
     // Listar todos los dashboards del usuario
     list: async (page = 1, limit = 10) => {
@@ -188,6 +195,28 @@ export const dashboardsAPI = {
     share: async (id: string, isPublic: boolean) => {
         const response = await api.patch<Dashboard>(`/dashboards/${id}/share`, {
             isPublic,
+        });
+        return response.data;
+    },
+
+    shareWithContact: async (id: string, input: ShareDashboardInput) => {
+        const response = await api.post(`/dashboards/${id}/share/invite`, input);
+        return response.data as {
+            id: string;
+            dashboardId: string;
+            ownerId: string;
+            channel: ShareDashboardInput['channel'];
+            contact: string;
+            message?: string;
+            status: 'pending' | 'sent' | 'failed';
+            createdAt: string;
+        };
+    },
+
+    export: async (id: string, format: 'pdf' | 'json') => {
+        const response = await api.get(`/dashboards/${id}/export`, {
+            params: { format },
+            responseType: format === 'pdf' ? 'blob' : 'json',
         });
         return response.data;
     },
