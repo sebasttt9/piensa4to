@@ -8,6 +8,12 @@ export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
+    const rolePriority: Record<UserRole, number> = {
+      [UserRole.User]: 1,
+      [UserRole.Admin]: 2,
+      [UserRole.SuperAdmin]: 3,
+    };
+
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -23,6 +29,12 @@ export class RolesGuard implements CanActivate {
       return false;
     }
 
-    return requiredRoles.includes(user.role ?? UserRole.User);
+    const userRole = user.role ?? UserRole.User;
+    const userPriority = rolePriority[userRole] ?? 0;
+
+    return requiredRoles.some((role) => {
+      const requiredPriority = rolePriority[role] ?? Number.MAX_SAFE_INTEGER;
+      return userPriority >= requiredPriority;
+    });
   }
 }

@@ -18,7 +18,10 @@ export class UsersInitializer implements OnApplicationBootstrap {
         const password = this.configService.get<string>('seed.admin.password');
         const name = this.configService.get<string>('seed.admin.name') ?? 'DataPulse Admin';
         const configuredRole = this.configService.get<string>('seed.admin.role');
-        const role = configuredRole === UserRole.User ? UserRole.User : UserRole.Admin;
+        const normalizedRole = configuredRole?.toLowerCase() as UserRole | undefined;
+        const role = normalizedRole && Object.values(UserRole).includes(normalizedRole)
+            ? normalizedRole
+            : UserRole.Admin;
 
         if (!email || !password) {
             this.logger.warn('Default admin credentials are not configured. Skipping bootstrap user creation.');

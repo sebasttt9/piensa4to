@@ -25,9 +25,13 @@ export default function App() {
           <Route path="overview" element={<OverviewPage />} />
           <Route path="datasets" element={<DatasetsPage />} />
           <Route path="datasets/:datasetId" element={<DatasetDetailPage />} />
-          <Route path="upload" element={<UploadPage />} />
-          <Route path="saved" element={<SavedDashboardsPage />} />
-          <Route path="insights" element={<InsightsPage />} />
+          <Route element={<ProtectedRoute allowedRoles={['admin', 'superadmin']} />}>
+            <Route path="upload" element={<UploadPage />} />
+            <Route path="saved" element={<SavedDashboardsPage />} />
+          </Route>
+          <Route element={<ProtectedRoute allowedRoles="superadmin" />}>
+            <Route path="insights" element={<InsightsPage />} />
+          </Route>
         </Route>
       </Route>
 

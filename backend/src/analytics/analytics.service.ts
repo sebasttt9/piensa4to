@@ -1,6 +1,6 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { DashboardChartEntity } from '../dashboards/entities/dashboard.entity';
 
 export interface OverviewAnalytics {
@@ -44,7 +44,7 @@ interface DashboardSummary {
 @Injectable()
 export class AnalyticsService {
     constructor(
-        @Inject(SUPABASE_CLIENT)
+        @Inject(SUPABASE_DATA_CLIENT)
         private readonly supabase: SupabaseClient,
     ) { }
 

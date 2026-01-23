@@ -6,7 +6,7 @@ import { appNavigation } from '../../lib/navigation';
 import './AppShell.css';
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, hasRole } = useAuth();
   const location = useLocation();
   const navWidth = 280;
   const initialDesktop = typeof window !== 'undefined' ? window.innerWidth >= 1024 : false;
@@ -95,6 +95,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     [navWidth],
   );
 
+  const navigationItems = useMemo(
+    () => appNavigation.filter((item) => !item.minRole || hasRole(item.minRole)),
+    [hasRole],
+  );
+
   const contentClasses = useMemo(() => {
     const classes = ['app-shell__content'];
     if (navOpen) {
@@ -169,7 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="app-shell__nav">
-          {appNavigation.map((item) => {
+          {navigationItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -198,6 +203,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="app-shell__account-data">
                 <span className="app-shell__account-name">{user?.name ?? 'Admin User'}</span>
                 <span className="app-shell__account-email">{user?.email ?? 'admin@datapulse.com'}</span>
+                <span className="app-shell__account-role">{user?.role?.toUpperCase()}</span>
               </div>
             )}
           </div>

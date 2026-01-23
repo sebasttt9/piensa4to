@@ -3,23 +3,27 @@ import api from './api';
 /* ==================== DATASETS API ==================== */
 
 export interface Dataset {
-    _id: string;
+    id: string;
+    ownerId: string;
     name: string;
     description?: string;
-    filename: string;
-    fileSize: number;
+    filename?: string;
+    fileSize?: number;
+    fileType?: 'csv' | 'xlsx';
     rowCount?: number;
     columnCount?: number;
-    uploadedAt: string;
-    updatedAt: string;
-    userId: string;
+    analysis?: Record<string, any>;
+    preview: Record<string, any>[];
     status: 'pending' | 'processed' | 'error';
-    preview?: Record<string, any>[];
+    tags: string[];
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface CreateDatasetInput {
     name: string;
     description?: string;
+    tags?: string[];
 }
 
 export const datasetsAPI = {
@@ -204,7 +208,7 @@ export interface UserProfile {
     _id: string;
     name: string;
     email: string;
-    role: 'admin' | 'user';
+    role: 'user' | 'admin' | 'superadmin';
     createdAt: string;
 }
 

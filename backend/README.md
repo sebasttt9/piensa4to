@@ -22,8 +22,12 @@ Duplicar `.env.example` como `.env` y ajustar valores:
 
 ```
 PORT=3000
-SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_PROJECT_ID=nqkodrksdcmzhxoeuidj
+SUPABASE_URL=https://nqkodrksdcmzhxoeuidj.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=super-secret
+SUPABASE_DATA_PROJECT_ID=nqkodrksdcmzhxoeuidj
+SUPABASE_DATA_URL=https://nqkodrksdcmzhxoeuidj.supabase.co
+SUPABASE_DATA_SERVICE_ROLE_KEY=super-secret
 JWT_SECRET=superchangeme
 JWT_EXPIRATION=1h
 FILE_MAX_SIZE=5242880
@@ -65,7 +69,7 @@ npm run build       # genera artefactos en dist/
 
 ### Tests
 
-Los tests unitarios cubren controladores y servicios clave. Los e2e validan el health check base; extiéndelos para cubrir flujos auth/datasets cuando conectes la base real.
+Los tests unitarios cubren controladores y servicios clave. Los e2e validan el health check base; extiéndelos para cubrir flujos auth/datasets cuando conectes la base real. Si inicias un nuevo proyecto de Supabase, limpia cualquier dato previo desde el panel (`Table editor` → `Delete data`) antes de importar tus tablas para mantener el entorno despejado. Recuerda definir tanto las credenciales primarias (`SUPABASE_*`) para usuarios/autenticación como las de datasets (`SUPABASE_DATA_*`) si deseas separar ambas bases.
 
 ### Despliegue sugerido
 

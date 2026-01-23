@@ -1,10 +1,23 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, type Role } from '../context/AuthContext';
 
-export function ProtectedRoute() {
-  const { user, loading } = useAuth();
+type ProtectedRouteProps = {
+  allowedRoles?: Role | Role[];
+  redirectTo?: string;
+};
 
-  if (loading) {
+const normalizeRoles = (input?: Role | Role[]): Role[] | undefined => {
+  if (!input) {
+    return undefined;
+  }
+  return Array.isArray(input) ? input : [input];
+};
+
+export function ProtectedRoute({ allowedRoles, redirectTo = '/app/overview' }: ProtectedRouteProps = {}) {
+  const { user, isAuthenticating, hasRole } = useAuth();
+  const normalizedRoles = normalizeRoles(allowedRoles);
+
+  if (isAuthenticating) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
         <div className="text-center space-y-4">
@@ -17,6 +30,10 @@ export function ProtectedRoute() {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (normalizedRoles && !hasRole(normalizedRoles)) {
+    return <Navigate to={redirectTo} replace />;
   }
 
   return <Outlet />;

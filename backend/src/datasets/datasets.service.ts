@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { UploadDatasetDto } from './dto/upload-dataset.dto';
 import { AnalysisService } from './analysis.service';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { DatasetAnalysis } from './interfaces/dataset-analysis.interface';
 import { DatasetEntity } from './entities/dataset.entity';
 
@@ -33,7 +33,7 @@ export class DatasetsService {
   private dataCache = new Map<string, Record<string, unknown>[]>();
 
   constructor(
-    @Inject(SUPABASE_CLIENT)
+    @Inject(SUPABASE_DATA_CLIENT)
     private readonly supabase: SupabaseClient,
     private readonly analysisService: AnalysisService,
     private readonly configService: ConfigService,

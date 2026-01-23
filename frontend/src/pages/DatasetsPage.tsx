@@ -1,20 +1,76 @@
-import { Filter, PlusCircle, Database, Calendar, CheckCircle, Clock, ArrowRight } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Filter, PlusCircle, Database, Calendar, CheckCircle, Clock, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { mockDatasets } from '../data/mockAnalytics';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table';
+import { datasetsAPI, type Dataset } from '../lib/services';
 
 export function DatasetsPage() {
-  const getStatusConfig = (status: string) => {
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadDatasets = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await datasetsAPI.list();
+      setDatasets(response.data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No pudimos recuperar los datasets.';
+      setError(message);
+      setDatasets([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDatasets();
+  }, [loadDatasets]);
+
+  const stats = useMemo(() => {
+    const totalDatasets = datasets.length;
+    const processed = datasets.filter((dataset) => dataset.status === 'processed').length;
+    const pending = datasets.filter((dataset) => dataset.status === 'pending').length;
+    const totalRows = datasets.reduce((acc, dataset) => acc + (dataset.rowCount ?? 0), 0);
+
+    return [
+      { label: 'Datasets Totales', value: totalDatasets.toString(), icon: Database },
+      { label: 'Procesados', value: processed.toString(), icon: CheckCircle },
+      { label: 'Filas Registradas', value: totalRows.toLocaleString('es-ES'), icon: Clock },
+      { label: 'Pendientes', value: pending.toString(), icon: AlertTriangle },
+    ];
+  }, [datasets]);
+
+  const formatDate = (value?: string) => {
+    if (!value) {
+      return 'Sin actualizar';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return date.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getStatusConfig = (status: Dataset['status']) => {
     switch (status) {
-      case 'Activo':
-        return { variant: 'success' as const, icon: CheckCircle };
-      case 'Procesando':
-        return { variant: 'warning' as const, icon: Clock };
+      case 'processed':
+        return { variant: 'success' as const, icon: CheckCircle, label: 'Procesado' };
+      case 'pending':
+        return { variant: 'warning' as const, icon: Clock, label: 'Pendiente' };
+      case 'error':
       default:
-        return { variant: 'default' as const, icon: Database };
+        return { variant: 'error' as const, icon: AlertTriangle, label: 'Error' };
     }
   };
 
@@ -40,12 +96,8 @@ export function DatasetsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { label: 'Datasets Totales', value: mockDatasets.length, icon: Database },
-          { label: 'Activos Ahora', value: mockDatasets.filter((dataset) => dataset.status === 'Activo').length, icon: CheckCircle },
-          { label: 'Total de Registros', value: `${Math.round(mockDatasets.reduce((sum, dataset) => sum + dataset.rows, 0) / 1000)}k`, icon: Clock },
-        ].map((stat, idx) => {
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {stats.map((stat, idx) => {
           const Icon = stat.icon;
           return (
             <Card
@@ -92,7 +144,37 @@ export function DatasetsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockDatasets.map((dataset, index) => {
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-white/70">
+                  Cargando datasets…
+                </TableCell>
+              </TableRow>
+            )}
+
+            {error && !loading && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-8">
+                  <div className="flex flex-col items-center justify-center gap-3 text-white/70">
+                    <AlertTriangle className="w-6 h-6 text-red-400" />
+                    <p>{error}</p>
+                    <Button size="sm" variant="secondary" onClick={() => void loadDatasets()}>
+                      Reintentar
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+
+            {!loading && !error && datasets.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-8 text-center text-white/70">
+                  Aún no has creado datasets. Importa tu primer archivo para comenzar.
+                </TableCell>
+              </TableRow>
+            )}
+
+            {!loading && !error && datasets.map((dataset, index) => {
               const statusConfig = getStatusConfig(dataset.status);
               const StatusIcon = statusConfig.icon;
               return (
@@ -109,17 +191,17 @@ export function DatasetsPage() {
                     </div>
                     {dataset.name}
                   </TableCell>
-                  <TableCell className="text-white/70">{dataset.rows.toLocaleString()}</TableCell>
+                  <TableCell className="text-white/70">{(dataset.rowCount ?? 0).toLocaleString('es-ES')}</TableCell>
                   <TableCell className="text-white/60">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 opacity-70" />
-                      {dataset.updatedAt}
+                      {formatDate(dataset.updatedAt ?? dataset.createdAt)}
                     </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusConfig.variant} size="sm" className="flex items-center gap-2 w-fit hover:scale-105 transition-transform duration-300">
-                      <StatusIcon className="w-3 h-3 animate-pulse" />
-                      {dataset.status}
+                      <StatusIcon className="w-3 h-3" />
+                      {statusConfig.label}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -127,7 +209,7 @@ export function DatasetsPage() {
                       to={`/app/datasets/${dataset.id}`}
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 text-white border border-white/20 transition-colors duration-300 font-medium text-sm group/link"
                     >
-                      Ver Análisis
+                      Ver detalle
                       <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
                     </Link>
                   </TableCell>

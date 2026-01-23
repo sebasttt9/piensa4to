@@ -3,8 +3,29 @@ export default () => ({
 
   // Supabase Configuration
   supabase: {
-    url: process.env.SUPABASE_URL ?? 'https://bggsqbvrpenahcppvuyc.supabase.co',
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'contraseña',
+    projectId: process.env.SUPABASE_PROJECT_ID ?? 'nqkodrksdcmzhxoeuidj',
+    url:
+      process.env.SUPABASE_URL ??
+      (process.env.SUPABASE_PROJECT_ID
+        ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co`
+        : 'https://nqkodrksdcmzhxoeuidj.supabase.co'),
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    datasets: {
+      projectId:
+        process.env.SUPABASE_DATA_PROJECT_ID ??
+        process.env.SUPABASE_PROJECT_ID ??
+        'nqkodrksdcmzhxoeuidj',
+      url:
+        process.env.SUPABASE_DATA_URL ??
+        (process.env.SUPABASE_DATA_PROJECT_ID
+          ? `https://${process.env.SUPABASE_DATA_PROJECT_ID}.supabase.co`
+          : process.env.SUPABASE_PROJECT_ID
+            ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co`
+            : 'https://nqkodrksdcmzhxoeuidj.supabase.co'),
+      serviceRoleKey:
+        process.env.SUPABASE_DATA_SERVICE_ROLE_KEY ??
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+    },
   },
 
   // JWT Authentication

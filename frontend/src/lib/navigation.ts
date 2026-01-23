@@ -1,12 +1,22 @@
+import type { LucideIcon } from 'lucide-react';
 import { BarChart3, Database, UploadCloud, LineChart, LayoutGrid } from 'lucide-react';
 
+export type AppRole = 'user' | 'admin' | 'superadmin';
+
+type AppNavigationItem = {
+  label: string;
+  to: string;
+  icon: LucideIcon;
+  minRole?: AppRole;
+};
+
 // Main application navigation (used by AppShell)
-export const appNavigation = [
-  { label: 'Dashboard', to: '/app/overview', icon: BarChart3 },
-  { label: 'Datasets', to: '/app/datasets', icon: Database },
-  { label: 'Subir archivo', to: '/app/upload', icon: UploadCloud },
-  { label: 'Dashboards guardados', to: '/app/saved', icon: LayoutGrid },
-  { label: 'IA Insights', to: '/app/insights', icon: LineChart },
+export const appNavigation: AppNavigationItem[] = [
+  { label: 'Dashboard', to: '/app/overview', icon: BarChart3, minRole: 'user' },
+  { label: 'Datasets', to: '/app/datasets', icon: Database, minRole: 'user' },
+  { label: 'Subir archivo', to: '/app/upload', icon: UploadCloud, minRole: 'admin' },
+  { label: 'Dashboards guardados', to: '/app/saved', icon: LayoutGrid, minRole: 'admin' },
+  { label: 'IA Insights', to: '/app/insights', icon: LineChart, minRole: 'superadmin' },
 ];
 
 // Overview sub-navigation (used inside the Overview page and SimpleLayoutDemo)

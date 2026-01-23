@@ -48,19 +48,19 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.Admin)
+  @Roles(UserRole.SuperAdmin)
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
 
   @Patch(':id/reset-password')
-  @Roles(UserRole.Admin)
+  @Roles(UserRole.SuperAdmin)
   resetPassword(@Param('id') id: string, @Body() dto: ResetPasswordDto) {
     return this.usersService.update(id, { password: dto.password });
   }
 
   @Post()
-  @Roles(UserRole.Admin)
+  @Roles(UserRole.SuperAdmin)
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
   }

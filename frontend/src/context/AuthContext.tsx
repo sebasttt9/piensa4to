@@ -3,7 +3,15 @@ import type { ReactNode } from 'react';
 import { isAxiosError } from 'axios';
 import api from '../lib/api';
 
-type Role = 'admin' | 'user';
+export type Role = 'user' | 'admin' | 'superadmin';
+
+const ROLE_PRIORITY: Record<Role, number> = {
+  user: 1,
+  admin: 2,
+  superadmin: 3,
+};
+
+const isRole = (value: unknown): value is Role => typeof value === 'string' && value in ROLE_PRIORITY;
 
 type AuthUser = {
   id: string;
@@ -19,6 +27,8 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<void>;
   register: (input: { name: string; email: string; password: string }) => Promise<void>;
   signOut: () => void;
+  hasRole: (roles: Role | Role[]) => boolean;
+  roleAtLeast: (role: Role) => boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -30,7 +40,7 @@ const mapApiUser = (payload: any): AuthUser => ({
   id: payload.id ?? payload._id ?? payload.sub ?? 'current',
   name: payload.name ?? 'Usuario',
   email: payload.email,
-  role: (payload.role as Role) ?? 'user',
+  role: isRole(payload.role) ? payload.role : 'user',
 });
 
 const resolveErrorMessage = (error: unknown): string => {
@@ -128,6 +138,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [persistUser]);
 
+  const roleAtLeast = useCallback((required: Role) => {
+    if (!user) {
+      return false;
+    }
+    const userPriority = ROLE_PRIORITY[user.role] ?? 0;
+    const requiredPriority = ROLE_PRIORITY[required] ?? Number.MAX_SAFE_INTEGER;
+    return userPriority >= requiredPriority;
+  }, [user]);
+
+  const hasRole = useCallback((roles: Role | Role[]) => {
+    const list = Array.isArray(roles) ? roles : [roles];
+    return list.some((role) => roleAtLeast(role));
+  }, [roleAtLeast]);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       setIsAuthenticating(false);
@@ -177,8 +201,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       register,
       signOut,
+      hasRole,
+      roleAtLeast,
     }),
-    [isAuthenticating, loading, register, signIn, signOut, user],
+    [hasRole, isAuthenticating, loading, register, roleAtLeast, signIn, signOut, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

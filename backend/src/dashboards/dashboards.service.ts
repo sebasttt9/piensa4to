@@ -2,7 +2,7 @@ import { Inject, Injectable, NotFoundException, InternalServerErrorException } f
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { DatasetsService } from '../datasets/datasets.service';
-import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { DashboardEntity, DashboardChartEntity } from './entities/dashboard.entity';
 
@@ -22,7 +22,7 @@ interface DashboardRow {
 @Injectable()
 export class DashboardsService {
   constructor(
-    @Inject(SUPABASE_CLIENT)
+    @Inject(SUPABASE_DATA_CLIENT)
     private readonly supabase: SupabaseClient,
     private readonly datasetsService: DatasetsService,
   ) { }

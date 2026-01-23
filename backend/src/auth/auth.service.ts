@@ -7,6 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import type { SignOptions } from 'jsonwebtoken';
 import { UserEntity } from '../users/entities/user.entity';
+import { UserRole } from '../common/constants/roles.enum';
 
 @Injectable()
 export class AuthService {
@@ -21,7 +22,10 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto): Promise<{ accessToken: string; user: Record<string, unknown> }> {
-    const user = await this.usersService.create(dto);
+    const user = await this.usersService.create({
+      ...dto,
+      role: UserRole.User,
+    });
     const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
     return { accessToken, user };
   }
