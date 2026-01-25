@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ShieldCheck, RefreshCcw, UserPlus, Trash2 } from 'lucide-react';
-import { Card, CardContent } from '../../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
-import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
+import { ShieldCheck, RefreshCcw, UserPlus, Trash2, Users, Crown, Lock } from 'lucide-react';
 import { adminUsersAPI, type ManagedUser } from '../../lib/services';
 import { useAuth, type Role } from '../../context/AuthContext';
+import './AccountsPage.css';
 
 const ROLE_LABEL: Record<Role, string> = {
   user: 'Usuario',
@@ -66,6 +63,20 @@ export function AccountsPage() {
     [accounts],
   );
 
+  const summary = useMemo(() => {
+    const total = accounts.length;
+    const admins = accounts.filter((account) => account.role === 'admin').length;
+    const superadmins = accounts.filter((account) => account.role === 'superadmin').length;
+    const standardUsers = Math.max(total - admins - superadmins, 0);
+
+    return {
+      total,
+      admins,
+      superadmins,
+      standardUsers,
+    };
+  }, [accounts]);
+
   const handleRoleChange = useCallback(async (accountId: string, role: Role) => {
     setProcessingId(accountId);
     setFeedback(null);
@@ -107,130 +118,170 @@ export function AccountsPage() {
   }, [user?.id]);
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between animate-slideIn">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-lg bg-white/10 text-white">
-            <ShieldCheck className="w-6 h-6" />
+    <div className="accounts-page">
+      <section className="accounts-hero">
+        <div className="accounts-hero__icon">
+          <ShieldCheck size={28} />
+        </div>
+        <div className="accounts-hero__content">
+          <span className="accounts-hero__eyebrow">Administración central</span>
+          <h1 className="accounts-hero__title">Control de cuentas y roles</h1>
+          <p className="accounts-hero__subtitle">
+            Supervisa accesos, reasigna permisos y mantén la gobernanza de tu organización en un solo lugar.
+          </p>
+        </div>
+        <div className="accounts-hero__actions">
+          <button type="button" className="accounts-button accounts-button--ghost" onClick={() => void loadAccounts()} disabled={loading}>
+            <RefreshCcw size={16} />
+            Recargar
+          </button>
+          <button type="button" className="accounts-button" disabled>
+            <UserPlus size={16} />
+            Invitar usuario
+          </button>
+        </div>
+      </section>
+
+      <section className="accounts-metrics">
+        <article className="accounts-metric">
+          <div className="accounts-metric__icon accounts-metric__icon--accent">
+            <Users size={20} />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">Control de cuentas</h1>
-            <p className="text-white/60">Autoriza roles, provisiona accesos y mantiene la gobernanza centralizada.</p>
+            <p className="accounts-metric__label">Cuentas activas</p>
+            <p className="accounts-metric__value">{summary.total.toLocaleString('es-ES')}</p>
+            <span className="accounts-metric__helper">Total provisionado</span>
           </div>
-        </div>
-        <div className="flex gap-3">
-          <Button
-            variant="secondary"
-            className="flex items-center gap-2"
-            onClick={() => void loadAccounts()}
-            disabled={loading}
-          >
-            <RefreshCcw className="w-4 h-4" />
-            Recargar
-          </Button>
-          <Button variant="primary" className="flex items-center gap-2" disabled>
-            <UserPlus className="w-4 h-4" />
-            Invitar usuario
-          </Button>
-        </div>
-      </div>
+        </article>
+        <article className="accounts-metric">
+          <div className="accounts-metric__icon">
+            <Crown size={20} />
+          </div>
+          <div>
+            <p className="accounts-metric__label">Superadmins</p>
+            <p className="accounts-metric__value">{summary.superadmins.toLocaleString('es-ES')}</p>
+            <span className="accounts-metric__helper">Gobierno total</span>
+          </div>
+        </article>
+        <article className="accounts-metric">
+          <div className="accounts-metric__icon">
+            <ShieldCheck size={20} />
+          </div>
+          <div>
+            <p className="accounts-metric__label">Administradores</p>
+            <p className="accounts-metric__value">{summary.admins.toLocaleString('es-ES')}</p>
+            <span className="accounts-metric__helper">Gestión operativa</span>
+          </div>
+        </article>
+        <article className="accounts-metric">
+          <div className="accounts-metric__icon">
+            <Lock size={20} />
+          </div>
+          <div>
+            <p className="accounts-metric__label">Usuarios estándar</p>
+            <p className="accounts-metric__value">{summary.standardUsers.toLocaleString('es-ES')}</p>
+            <span className="accounts-metric__helper">Acceso limitado</span>
+          </div>
+        </article>
+      </section>
 
       {feedback && (
-        <div
-          className={`rounded-xl border px-4 py-3 ${feedback.type === 'success' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200' : 'border-red-500/40 bg-red-500/10 text-red-200'}`}
-        >
+        <div className={`accounts-toast ${feedback.type === 'success' ? 'accounts-toast--success' : 'accounts-toast--error'}`}>
           {feedback.message}
         </div>
       )}
 
-      {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 text-red-200 px-4 py-3">
-          {error}
-        </div>
-      )}
+      {error && <div className="accounts-toast accounts-toast--error">{error}</div>}
 
-      <Card variant="elevated" className="overflow-hidden">
-        <CardContent className="pt-0">
-          <div className="overflow-x-auto rounded-2xl border border-white/10">
-            <Table>
-              <TableHeader className="border-b border-white/10 bg-white/5">
-                <TableRow>
-                  <TableHead className="text-white/70 font-semibold">Nombre</TableHead>
-                  <TableHead className="text-white/70 font-semibold">Correo</TableHead>
-                  <TableHead className="text-white/70 font-semibold">Rol</TableHead>
-                  <TableHead className="text-white/70 font-semibold">Creado</TableHead>
-                  <TableHead className="text-right text-white/70 font-semibold">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+      <section className="accounts-table-card">
+        <header className="accounts-table-card__header">
+          <div>
+            <h2 className="accounts-table-card__title">Usuarios registrados</h2>
+            <p className="accounts-table-card__subtitle">Gestiona roles, revoca accesos y controla la seguridad en tiempo real.</p>
+          </div>
+          <span className="accounts-table-card__badge">{summary.total.toLocaleString('es-ES')} cuentas</span>
+        </header>
+
+        <div className="accounts-table-card__content">
+          <div className="accounts-table__scroll">
+            <table className="accounts-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Correo</th>
+                  <th>Rol</th>
+                  <th>Creado</th>
+                  <th className="accounts-table__actions">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
                 {loading && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="py-10 text-center text-white/70">
+                  <tr>
+                    <td colSpan={5} className="accounts-table__empty accounts-table__empty--loading">
                       Cargando cuentas…
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 )}
 
                 {!loading && sortedAccounts.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-white/60">
+                  <tr>
+                    <td colSpan={5} className="accounts-table__empty">
                       No hay cuentas registradas todavía.
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 )}
 
                 {!loading && sortedAccounts.map((account) => {
                   const isProcessing = processingId === account.id;
                   return (
-                    <TableRow key={account.id} className="border-b border-white/5 hover:bg-white/10 transition-colors duration-300">
-                      <TableCell className="text-white font-medium">
-                        {account.name}
-                      </TableCell>
-                      <TableCell className="text-white/70">
-                        {account.email}
-                      </TableCell>
-                      <TableCell className="text-white/70">
-                        <div className="flex items-center gap-3">
-                          <Badge variant={account.role === 'superadmin' ? 'info' : account.role === 'admin' ? 'warning' : 'default'} size="sm">
+                    <tr key={account.id}>
+                      <td>
+                        <span className="accounts-table__name">{account.name}</span>
+                      </td>
+                      <td>
+                        <span className="accounts-table__email">{account.email}</span>
+                      </td>
+                      <td>
+                        <div className="accounts-role">
+                          <span className={`accounts-role__badge accounts-role__badge--${account.role}`}>
                             {ROLE_LABEL[account.role]}
-                          </Badge>
+                          </span>
                           <select
-                            className="rounded-lg bg-white/10 border border-white/20 text-white/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            className="accounts-role__select"
                             value={account.role}
                             onChange={(event) => handleRoleChange(account.id, event.target.value as Role)}
                             disabled={isProcessing}
                           >
                             {roleOptions.map((option) => (
-                              <option key={option.value} value={option.value} className="text-slate-900">
+                              <option key={option.value} value={option.value}>
                                 {option.label}
                               </option>
                             ))}
                           </select>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-white/60">
-                        {formatDate(account.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          className="inline-flex items-center gap-2"
+                      </td>
+                      <td>
+                        <span className="accounts-table__date">{formatDate(account.createdAt)}</span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="accounts-delete"
                           onClick={() => void handleDelete(account)}
                           disabled={isProcessing}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 size={14} />
                           Eliminar
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                        </button>
+                      </td>
+                    </tr>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

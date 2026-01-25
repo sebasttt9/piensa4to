@@ -19,6 +19,7 @@ const jwt_auth_guard_1 = require("../common/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
 const create_dashboard_dto_1 = require("./dto/create-dashboard.dto");
 const update_dashboard_dto_1 = require("./dto/update-dashboard.dto");
+const share_dashboard_dto_1 = require("./dto/share-dashboard.dto");
 let DashboardsController = class DashboardsController {
     dashboardsService;
     constructor(dashboardsService) {
@@ -51,8 +52,24 @@ let DashboardsController = class DashboardsController {
     share(user, id, dto) {
         return this.dashboardsService.share(user.id, id, dto.isPublic);
     }
+    shareWithContact(user, id, dto) {
+        return this.dashboardsService.shareWithContact(user.id, id, dto);
+    }
     remove(user, id) {
         return this.dashboardsService.remove(user.id, id);
+    }
+    async export(user, id, format = 'json', res) {
+        const normalizedFormat = format === 'pdf' ? 'pdf' : 'json';
+        if (normalizedFormat === 'json') {
+            const dashboard = await this.dashboardsService.export(user.id, id, 'json');
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.json"`);
+            return res.send(JSON.stringify(dashboard, null, 2));
+        }
+        const pdfBuffer = await this.dashboardsService.export(user.id, id, 'pdf');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.pdf"`);
+        return res.send(pdfBuffer);
     }
 };
 exports.DashboardsController = DashboardsController;
@@ -100,6 +117,15 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], DashboardsController.prototype, "share", null);
 __decorate([
+    (0, common_1.Post)(':id/share/invite'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, share_dashboard_dto_1.ShareDashboardDto]),
+    __metadata("design:returntype", void 0)
+], DashboardsController.prototype, "shareWithContact", null);
+__decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
@@ -107,6 +133,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], DashboardsController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Get)(':id/export'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Query)('format')),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], DashboardsController.prototype, "export", null);
 exports.DashboardsController = DashboardsController = __decorate([
     (0, common_1.Controller)('dashboards'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

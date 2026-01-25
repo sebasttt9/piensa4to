@@ -9,11 +9,15 @@ const resolveBaseURL = () => {
     const env = (import.meta as { env?: Record<string, string> }).env;
     candidates.push(env?.VITE_API_URL);
   } catch {
-    
+
   }
 
-  if (typeof process !== 'undefined') {
-    candidates.push(process.env?.VITE_API_URL as string | undefined);
+  const globalProcess = typeof globalThis === 'object' && 'process' in globalThis
+    ? (globalThis as { process?: { env?: Record<string, string> } }).process
+    : undefined;
+
+  if (globalProcess?.env) {
+    candidates.push(globalProcess.env.VITE_API_URL);
   }
 
   const raw = candidates.find((value): value is string => typeof value === 'string' && value.length > 0);

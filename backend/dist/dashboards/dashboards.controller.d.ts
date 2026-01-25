@@ -2,6 +2,8 @@ import { DashboardsService } from './dashboards.service';
 import type { UserEntity } from '../users/entities/user.entity';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
+import { ShareDashboardDto } from './dto/share-dashboard.dto';
+import type { Response } from 'express';
 export declare class DashboardsController {
     private readonly dashboardsService;
     constructor(dashboardsService: DashboardsService);
@@ -17,5 +19,7 @@ export declare class DashboardsController {
     share(user: Omit<UserEntity, 'passwordHash'>, id: string, dto: {
         isPublic: boolean;
     }): Promise<import("./entities/dashboard.entity").DashboardEntity>;
+    shareWithContact(user: Omit<UserEntity, 'passwordHash'>, id: string, dto: ShareDashboardDto): Promise<import("./dashboards.service").DashboardShareEntity>;
     remove(user: Omit<UserEntity, 'passwordHash'>, id: string): Promise<void>;
+    export(user: Omit<UserEntity, 'passwordHash'>, id: string, format: string | undefined, res: Response): Promise<Response<any, Record<string, any>>>;
 }

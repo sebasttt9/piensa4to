@@ -112,9 +112,42 @@ export interface OverviewAnalytics {
     lastUpdated: string;
 }
 
+export interface AiInsightsChatRequest {
+    message: string;
+    datasetId?: string;
+}
+
+export interface AiInsightsHighlight {
+    label: string;
+    value: string;
+    helper: string;
+}
+
+export interface AiInsightsChatResponse {
+    reply: string;
+    highlights: AiInsightsHighlight[];
+    suggestions: string[];
+    dataset?: {
+        id: string;
+        name: string;
+        status: 'pending' | 'processed' | 'error';
+        rowCount: number | null;
+        columnCount: number | null;
+        tags: string[];
+        updatedAt: string;
+    };
+}
+
 export const analyticsAPI = {
     getOverview: async () => {
         const response = await api.get<OverviewAnalytics>('/analytics/overview');
+        return response.data;
+    },
+    askAssistant: async (input: AiInsightsChatRequest) => {
+        const response = await api.post<AiInsightsChatResponse>(
+            '/analytics/insights/chat',
+            input,
+        );
         return response.data;
     },
 };

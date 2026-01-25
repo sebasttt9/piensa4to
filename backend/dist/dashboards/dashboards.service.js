@@ -11,12 +11,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardsService = void 0;
 const common_1 = require("@nestjs/common");
 const datasets_service_1 = require("../datasets/datasets.service");
 const supabase_constants_1 = require("../database/supabase.constants");
 const supabase_js_1 = require("@supabase/supabase-js");
+const share_dashboard_dto_1 = require("./dto/share-dashboard.dto");
+const pdfkit_1 = __importDefault(require("pdfkit"));
 let DashboardsService = class DashboardsService {
     supabase;
     datasetsService;
@@ -25,6 +30,7 @@ let DashboardsService = class DashboardsService {
         this.datasetsService = datasetsService;
     }
     tableName = 'dashboards';
+    shareTableName = 'dashboard_shares';
     async create(ownerId, dto) {
         if (dto.datasetIds && dto.datasetIds.length > 0) {
             for (const datasetId of dto.datasetIds) {
@@ -148,6 +154,91 @@ let DashboardsService = class DashboardsService {
             throw new common_1.NotFoundException('Dashboard no encontrado');
         }
     }
+    async shareWithContact(ownerId, id, dto) {
+        const dashboard = await this.findOne(ownerId, id);
+        const contact = dto.contact.trim();
+        if (dto.channel === share_dashboard_dto_1.ShareChannel.EMAIL) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(contact)) {
+                throw new common_1.BadRequestException('El correo electrónico no es válido');
+            }
+        }
+        if (dto.channel === share_dashboard_dto_1.ShareChannel.SMS) {
+            const phoneRegex = /^[+]?\d[\d\s-]{7,15}$/;
+            if (!phoneRegex.test(contact)) {
+                throw new common_1.BadRequestException('El número de teléfono no es válido');
+            }
+        }
+        const { data, error } = await this.supabase
+            .from(this.shareTableName)
+            .insert({
+            dashboard_id: dashboard.id,
+            owner_id: ownerId,
+            channel: dto.channel,
+            contact,
+            message: dto.message ?? null,
+            status: 'pending',
+        })
+            .select('*')
+            .single();
+        if (error || !data) {
+            throw new common_1.InternalServerErrorException('No se pudo registrar la invitación de compartido');
+        }
+        if (dto.makePublic === true && !dashboard.isPublic) {
+            await this.share(ownerId, id, true);
+        }
+        return this.toShareEntity(data);
+    }
+    async export(ownerId, id, format) {
+        const dashboard = await this.findOne(ownerId, id);
+        if (format === 'json') {
+            return dashboard;
+        }
+        const doc = new pdfkit_1.default({ margin: 48, size: 'A4' });
+        const chunks = [];
+        doc.on('data', (chunk) => chunks.push(chunk));
+        const completion = new Promise((resolve, reject) => {
+            doc.on('end', () => resolve(Buffer.concat(chunks)));
+            doc.on('error', (error) => reject(error));
+        });
+        doc.fontSize(20).text(dashboard.name, { underline: false });
+        doc.moveDown(0.5);
+        doc.fontSize(12).fillColor('#4b5563').text(`Última actualización: ${new Date(dashboard.updatedAt).toLocaleString('es-ES')}`);
+        doc.moveDown(1);
+        if (dashboard.description) {
+            doc.fontSize(12).fillColor('#0f172a').text(dashboard.description, {
+                align: 'left',
+            });
+            doc.moveDown(1);
+        }
+        doc.fillColor('#1f2937').fontSize(14).text('Datasets asociados', { underline: true });
+        doc.moveDown(0.5);
+        if (dashboard.datasetIds.length === 0) {
+            doc.fontSize(12).fillColor('#475569').text('Sin datasets vinculados.');
+        }
+        else {
+            dashboard.datasetIds.forEach((datasetId, index) => {
+                doc.fontSize(12).fillColor('#1f2937').text(`${index + 1}. ${datasetId}`);
+            });
+        }
+        doc.moveDown(1);
+        doc.fillColor('#1f2937').fontSize(14).text('Visualizaciones', { underline: true });
+        doc.moveDown(0.5);
+        if (dashboard.charts.length === 0) {
+            doc.fontSize(12).fillColor('#475569').text('Sin visualizaciones registradas.');
+        }
+        else {
+            dashboard.charts.forEach((chart, index) => {
+                doc.fontSize(12).fillColor('#1f2937').text(`${index + 1}. ${chart.type}`);
+                doc.fontSize(10).fillColor('#475569').text(JSON.stringify(chart.config ?? {}, null, 2), {
+                    align: 'left',
+                });
+                doc.moveDown(0.5);
+            });
+        }
+        doc.end();
+        return completion;
+    }
     toEntity(row) {
         return {
             id: row.id,
@@ -160,6 +251,18 @@ let DashboardsService = class DashboardsService {
             isPublic: row.is_public,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
+        };
+    }
+    toShareEntity(row) {
+        return {
+            id: row.id,
+            dashboardId: row.dashboard_id,
+            ownerId: row.owner_id,
+            channel: row.channel,
+            contact: row.contact,
+            message: row.message ?? undefined,
+            status: row.status,
+            createdAt: row.created_at,
         };
     }
 };
