@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
+import type { AiChatPayload, OverviewAnalytics } from './analytics.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -12,7 +13,7 @@ export class AnalyticsController {
     constructor(private readonly analyticsService: AnalyticsService) { }
 
     @Get('overview')
-    getOverview(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
+    getOverview(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>): Promise<OverviewAnalytics> {
         return this.analyticsService.getOverview(user.id);
     }
 
@@ -20,7 +21,7 @@ export class AnalyticsController {
     generateAiChat(
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Body() input: AiChatRequestDto,
-    ) {
+    ): Promise<AiChatPayload> {
         return this.analyticsService.generateAiInsightsChat(user.id, input);
     }
 }

@@ -76,6 +76,33 @@ let AnalyticsService = class AnalyticsService {
             lastUpdated: new Date().toISOString(),
         };
     }
+    async generateAiInsightsChat(ownerId, input) {
+        const message = input.message?.trim() ?? '';
+        if (!message) {
+            throw new common_1.BadRequestException('El mensaje no puede estar vacío');
+        }
+        const overview = await this.getOverview(ownerId);
+        const datasetContext = input.datasetId
+            ? await this.fetchDatasetContext(ownerId, input.datasetId)
+            : null;
+        const { reply, highlights, suggestions } = this.buildChatResponse(message, overview, datasetContext);
+        return {
+            reply,
+            highlights,
+            suggestions,
+            dataset: datasetContext
+                ? {
+                    id: datasetContext.id,
+                    name: datasetContext.name,
+                    status: datasetContext.status,
+                    rowCount: datasetContext.rowCount,
+                    columnCount: datasetContext.columnCount,
+                    tags: datasetContext.tags,
+                    updatedAt: datasetContext.updatedAt,
+                }
+                : undefined,
+        };
+    }
     buildMonthlySeries() {
         return [
             { month: 'Ene', revenue: 42000, costs: 26000 },
@@ -144,6 +171,166 @@ let AnalyticsService = class AnalyticsService {
             name,
             value: Number(((value / total) * 100).toFixed(1)),
         }));
+    }
+    async fetchDatasetContext(ownerId, datasetId) {
+        const { data, error } = await this.supabase
+            .from('datasets')
+            .select('id, name, status, row_count, column_count, tags, updated_at, analysis')
+            .eq('id', datasetId)
+            .eq('owner_id', ownerId)
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo obtener la información del dataset solicitado');
+        }
+        if (!data) {
+            return null;
+        }
+        return {
+            id: data.id,
+            name: data.name ?? 'Dataset sin nombre',
+            status: data.status,
+            rowCount: data.row_count ?? null,
+            columnCount: data.column_count ?? null,
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            updatedAt: data.updated_at ?? new Date().toISOString(),
+            analysis: data.analysis ?? null,
+        };
+    }
+    buildChatResponse(message, overview, dataset) {
+        const normalizedMessage = message.toLowerCase();
+        const segments = [];
+        if (dataset) {
+            const rowInfo = dataset.rowCount !== null
+                ? `${this.formatNumber(dataset.rowCount)} registros`
+                : 'sin registros contabilizados';
+            const columnInfo = dataset.columnCount !== null
+                ? `${dataset.columnCount} columnas`
+                : 'columnas no especificadas';
+            segments.push(`He revisado el dataset "${dataset.name}": contiene ${rowInfo} y ${columnInfo}. ` +
+                `Su estado actual es ${this.describeDatasetStatus(dataset.status)}.`);
+            if (dataset.tags.length > 0) {
+                const tagList = dataset.tags.slice(0, 4).join(', ');
+                segments.push(`Etiquetas principales: ${tagList}.`);
+            }
+        }
+        else {
+            segments.push('He revisado tu estado analítico general.');
+        }
+        const { processed, pending, error } = overview.datasetHealth;
+        const totalDatasets = processed + pending + error;
+        const processedRatio = totalDatasets === 0 ? 0 : (processed / totalDatasets) * 100;
+        segments.push(`Actualmente tienes ${processed} datasets procesados${totalDatasets > 0 ? ` (${Math.round(processedRatio)}% del total)` : ''}, ` +
+            `${pending} pendientes y ${error} marcados con errores.`);
+        segments.push(`La ganancia neta acumulada es ${this.formatCurrency(overview.financial.netProfit)} ` +
+            `con un crecimiento de ${this.formatPercentage(overview.summary.growthPercentage)} durante el período evaluado.`);
+        if (overview.summary.growthPercentage < 0) {
+            segments.push('El crecimiento está en terreno negativo, conviene revisar costos y campañas activas.');
+        }
+        else if (overview.summary.growthPercentage > 12) {
+            segments.push('El crecimiento es sólido; aprovecha para planificar nuevas iniciativas comerciales.');
+        }
+        if (error > 0 || normalizedMessage.includes('alert') || normalizedMessage.includes('riesg')) {
+            segments.push(`Hay ${error} dataset(s) con errores; te sugiero priorizar su corrección para evitar sesgos en los reportes.`);
+        }
+        if (normalizedMessage.includes('anom')) {
+            segments.push('No detecto anomalías significativas en la tendencia principal, pero monitorea las métricas con variaciones bruscas.');
+        }
+        if (normalizedMessage.includes('recom') || normalizedMessage.includes('accion')) {
+            segments.push('Puedes transformar estos hallazgos en acciones concretas activando campañas segmentadas o creando tableros temáticos.');
+        }
+        if (dataset?.analysis?.chartSuggestions?.length) {
+            const suggestion = dataset.analysis.chartSuggestions[0];
+            const yAxis = Array.isArray(suggestion.yAxis)
+                ? suggestion.yAxis.join(' y ')
+                : suggestion.yAxis;
+            segments.push(`Te recomiendo explorar un gráfico ${suggestion.type} para ${suggestion.label.toLowerCase()}, ` +
+                `relacionando ${suggestion.xAxis} con ${yAxis}.`);
+        }
+        const reply = segments.join(' ');
+        const highlights = this.buildHighlights(overview, dataset);
+        const suggestions = this.buildSuggestions(normalizedMessage, overview, dataset);
+        return { reply, highlights, suggestions };
+    }
+    buildHighlights(overview, dataset) {
+        const { processed, pending, error } = overview.datasetHealth;
+        const totalDatasets = processed + pending + error;
+        const processedRatio = totalDatasets === 0 ? 0 : (processed / totalDatasets) * 100;
+        const highlights = [
+            {
+                label: 'Ganancia neta',
+                value: this.formatCurrency(overview.financial.netProfit),
+                helper: `Crecimiento ${this.formatPercentage(overview.summary.growthPercentage)}`,
+            },
+            {
+                label: 'Datasets listos',
+                value: `${processed}/${totalDatasets}`,
+                helper: `${Math.round(processedRatio)}% procesados`,
+            },
+        ];
+        if (dataset) {
+            const rowInfo = dataset.rowCount !== null ? this.formatNumber(dataset.rowCount) : 'Sin datos';
+            const columnInfo = dataset.columnCount !== null ? `${dataset.columnCount} columnas` : 'Columnas sin definir';
+            highlights.unshift({
+                label: dataset.name,
+                value: `${rowInfo} registros`,
+                helper: columnInfo,
+            });
+        }
+        else {
+            highlights.push({
+                label: 'Pendientes',
+                value: `${pending}`,
+                helper: error > 0 ? `${error} con errores` : 'Sin errores registrados',
+            });
+        }
+        return highlights.slice(0, 3);
+    }
+    buildSuggestions(normalizedMessage, overview, dataset) {
+        const suggestions = new Set();
+        suggestions.add('Resume el desempeño financiero');
+        suggestions.add('Muestra los datasets que requieren atención');
+        if (dataset) {
+            suggestions.add(`¿Qué métricas clave tiene ${dataset.name}?`);
+        }
+        if (overview.datasetHealth.pending > 0) {
+            suggestions.add('Prioriza el análisis de los datasets pendientes');
+        }
+        if (overview.datasetHealth.error > 0) {
+            suggestions.add('Ayúdame a corregir los datasets con errores');
+        }
+        if (normalizedMessage.includes('recom')) {
+            suggestions.add('Genera un plan de acción por área');
+        }
+        if (normalizedMessage.includes('anom')) {
+            suggestions.add('¿Qué anomalías debería vigilar?');
+        }
+        return Array.from(suggestions).slice(0, 4);
+    }
+    describeDatasetStatus(status) {
+        switch (status) {
+            case 'processed':
+                return 'procesado';
+            case 'pending':
+                return 'pendiente de análisis';
+            case 'error':
+                return 'con errores';
+            default:
+                return status;
+        }
+    }
+    formatCurrency(value) {
+        return new Intl.NumberFormat('es-ES', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(value);
+    }
+    formatNumber(value) {
+        return value.toLocaleString('es-ES');
+    }
+    formatPercentage(value) {
+        return `${Number.isFinite(value) ? value.toFixed(1) : '0.0'}%`;
     }
 };
 exports.AnalyticsService = AnalyticsService;

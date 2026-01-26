@@ -43,7 +43,7 @@ interface DashboardSummary {
     charts?: DashboardChartEntity[] | null;
 }
 
-interface AiChatHighlight {
+export interface AiChatHighlight {
     label: string;
     value: string;
     helper: string;
@@ -60,7 +60,7 @@ interface DatasetContext {
     analysis?: DatasetAnalysis | null;
 }
 
-interface AiChatPayload {
+export interface AiChatPayload {
     reply: string;
     highlights: AiChatHighlight[];
     suggestions: string[];

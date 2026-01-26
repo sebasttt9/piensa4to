@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import type { AiChatRequestDto } from './dto/ai-chat-request.dto';
 export interface OverviewAnalytics {
     summary: {
         totalDatasets: number;
@@ -36,13 +37,41 @@ export interface OverviewAnalytics {
     };
     lastUpdated: string;
 }
+export interface AiChatHighlight {
+    label: string;
+    value: string;
+    helper: string;
+}
+export interface AiChatPayload {
+    reply: string;
+    highlights: AiChatHighlight[];
+    suggestions: string[];
+    dataset?: {
+        id: string;
+        name: string;
+        status: 'pending' | 'processed' | 'error';
+        rowCount: number | null;
+        columnCount: number | null;
+        tags: string[];
+        updatedAt: string;
+    };
+}
 export declare class AnalyticsService {
     private readonly supabase;
     constructor(supabase: SupabaseClient);
     getOverview(ownerId: string): Promise<OverviewAnalytics>;
+    generateAiInsightsChat(ownerId: string, input: AiChatRequestDto): Promise<AiChatPayload>;
     private buildMonthlySeries;
     private calculateGrowth;
     private buildQuarterlyRevenue;
     private calculateStorage;
     private buildCategoryDistribution;
+    private fetchDatasetContext;
+    private buildChatResponse;
+    private buildHighlights;
+    private buildSuggestions;
+    private describeDatasetStatus;
+    private formatCurrency;
+    private formatNumber;
+    private formatPercentage;
 }
