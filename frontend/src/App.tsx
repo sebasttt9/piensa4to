@@ -6,6 +6,7 @@ import { DatasetsPage } from './pages/DatasetsPage';
 import { UploadPage } from './pages/UploadPage';
 import { SavedDashboardsPage } from './pages/SavedDashboardsPage';
 import { InsightsPage } from './pages/InsightsPage';
+import { InventoryPage } from './pages/InventoryPage';
 import { DatasetDetailPage } from './pages/DatasetDetailPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
@@ -26,12 +27,14 @@ export default function App() {
           <Route path="overview" element={<OverviewPage />} />
           <Route path="datasets" element={<DatasetsPage />} />
           <Route path="datasets/:datasetId" element={<DatasetDetailPage />} />
+          <Route path="insights" element={<InsightsPage />} />
+          <Route path="inventory" element={<InventoryPage />} />
+
           <Route element={<ProtectedRoute allowedRoles={['admin', 'superadmin']} />}>
             <Route path="upload" element={<UploadPage />} />
             <Route path="saved" element={<SavedDashboardsPage />} />
           </Route>
           <Route element={<ProtectedRoute allowedRoles="superadmin" />}>
-            <Route path="insights" element={<InsightsPage />} />
             <Route path="admin/accounts" element={<AccountsPage />} />
           </Route>
         </Route>

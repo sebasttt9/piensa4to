@@ -11,13 +11,14 @@ const common_1 = require("@nestjs/common");
 const storage_service_1 = require("./services/storage.service");
 const email_service_1 = require("./services/email.service");
 const cache_service_1 = require("./services/cache.service");
+const openai_service_1 = require("./services/openai.service");
 let SharedModule = class SharedModule {
 };
 exports.SharedModule = SharedModule;
 exports.SharedModule = SharedModule = __decorate([
     (0, common_1.Module)({
-        providers: [storage_service_1.StorageService, email_service_1.EmailService, cache_service_1.CacheService],
-        exports: [storage_service_1.StorageService, email_service_1.EmailService, cache_service_1.CacheService],
+        providers: [storage_service_1.StorageService, email_service_1.EmailService, cache_service_1.CacheService, openai_service_1.OpenAiService],
+        exports: [storage_service_1.StorageService, email_service_1.EmailService, cache_service_1.CacheService, openai_service_1.OpenAiService],
     })
 ], SharedModule);
 //# sourceMappingURL=shared.module.js.map

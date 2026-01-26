@@ -14,7 +14,7 @@ export default defineConfig({
     port: 5173,
     proxy: process.env.NODE_ENV === 'development' ? {
       '/api': {
-        target: process.env.API_URL || 'http://localhost:3100',
+        target: process.env.API_URL || 'http://localhost:43110',
         changeOrigin: true,
       },
     } : undefined,
@@ -34,7 +34,7 @@ export default defineConfig({
   },
   define: {
     'process.env.VITE_API_URL': JSON.stringify(
-      process.env.VITE_API_URL || 'http://localhost:3100'
+      process.env.VITE_API_URL || 'http://localhost:43110'
     ),
   },
 });

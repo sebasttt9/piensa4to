@@ -16,10 +16,13 @@ exports.AnalyticsService = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_js_1 = require("@supabase/supabase-js");
 const supabase_constants_1 = require("../database/supabase.constants");
+const openai_service_1 = require("../common/services/openai.service");
 let AnalyticsService = class AnalyticsService {
     supabase;
-    constructor(supabase) {
+    openAi;
+    constructor(supabase, openAi) {
         this.supabase = supabase;
+        this.openAi = openAi;
     }
     async getOverview(ownerId) {
         const [datasetsResponse, dashboardsResponse] = await Promise.all([
@@ -85,9 +88,10 @@ let AnalyticsService = class AnalyticsService {
         const datasetContext = input.datasetId
             ? await this.fetchDatasetContext(ownerId, input.datasetId)
             : null;
-        const { reply, highlights, suggestions } = this.buildChatResponse(message, overview, datasetContext);
+        const { reply: fallbackReply, highlights, suggestions } = this.buildChatResponse(message, overview, datasetContext);
+        const aiReply = await this.generateWithOpenAi(message, overview, datasetContext, fallbackReply);
         return {
-            reply,
+            reply: aiReply,
             highlights,
             suggestions,
             dataset: datasetContext
@@ -251,6 +255,30 @@ let AnalyticsService = class AnalyticsService {
         const suggestions = this.buildSuggestions(normalizedMessage, overview, dataset);
         return { reply, highlights, suggestions };
     }
+    async generateWithOpenAi(message, overview, dataset, fallback) {
+        const systemPrompt = 'Eres un analista de datos que responde en español con tono profesional y claro.';
+        const context = this.buildAiContext(overview, dataset);
+        const userPrompt = `${context}\n\nPregunta del usuario: ${message}`;
+        const result = await this.openAi.generateText(systemPrompt, userPrompt);
+        if (!result) {
+            return fallback;
+        }
+        return `${result}\n\nResumen clave: ${fallback}`.trim();
+    }
+    buildAiContext(overview, dataset) {
+        const summary = [
+            `Resumen general: ${overview.summary.totalDatasets} datasets, ${overview.summary.activeReports} reportes activos, ` +
+                `${overview.summary.createdCharts} gráficos creados, crecimiento ${this.formatPercentage(overview.summary.growthPercentage)}.`,
+            `Finanzas: ingresos ${this.formatCurrency(overview.financial.totalRevenue)}, costos ${this.formatCurrency(overview.financial.totalCosts)}, ` +
+                `ganancia ${this.formatCurrency(overview.financial.netProfit)}.`,
+            `Salud de datasets: procesados ${overview.datasetHealth.processed}, pendientes ${overview.datasetHealth.pending}, errores ${overview.datasetHealth.error}.`,
+        ];
+        if (dataset) {
+            summary.push(`Dataset enfocado: ${dataset.name} (${dataset.status}) con ${dataset.rowCount ?? 0} filas y ${dataset.columnCount ?? 0} columnas. ` +
+                `Etiquetas: ${dataset.tags.slice(0, 5).join(', ') || 'sin etiquetas'}.`);
+        }
+        return summary.join('\n');
+    }
     buildHighlights(overview, dataset) {
         const { processed, pending, error } = overview.datasetHealth;
         const totalDatasets = processed + pending + error;
@@ -337,6 +365,7 @@ exports.AnalyticsService = AnalyticsService;
 exports.AnalyticsService = AnalyticsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_DATA_CLIENT)),
-    __metadata("design:paramtypes", [supabase_js_1.SupabaseClient])
+    __metadata("design:paramtypes", [supabase_js_1.SupabaseClient,
+        openai_service_1.OpenAiService])
 ], AnalyticsService);
 //# sourceMappingURL=analytics.service.js.map

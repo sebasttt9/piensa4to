@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Database, UploadCloud, LineChart, LayoutGrid, ShieldCheck } from 'lucide-react';
+import { BarChart3, Database, UploadCloud, LineChart, LayoutGrid, ShieldCheck, Boxes } from 'lucide-react';
 
 export type AppRole = 'user' | 'admin' | 'superadmin';
 
@@ -14,9 +14,10 @@ type AppNavigationItem = {
 export const appNavigation: AppNavigationItem[] = [
   { label: 'Dashboard', to: '/app/overview', icon: BarChart3, minRole: 'user' },
   { label: 'Datasets', to: '/app/datasets', icon: Database, minRole: 'user' },
+  { label: 'Inventario', to: '/app/inventory', icon: Boxes, minRole: 'user' },
   { label: 'Subir archivo', to: '/app/upload', icon: UploadCloud, minRole: 'admin' },
   { label: 'Dashboards guardados', to: '/app/saved', icon: LayoutGrid, minRole: 'admin' },
-  { label: 'IA Insights', to: '/app/insights', icon: LineChart, minRole: 'superadmin' },
+  { label: 'IA Insights', to: '/app/insights', icon: LineChart, minRole: 'user' },
   { label: 'Cuentas y roles', to: '/app/admin/accounts', icon: ShieldCheck, minRole: 'superadmin' },
 ];
 

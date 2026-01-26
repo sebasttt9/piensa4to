@@ -1,4 +1,24 @@
+import { isAxiosError } from 'axios';
 import api from './api';
+
+const resolveApiError = (error: unknown, fallbackMessage: string): string => {
+    if (isAxiosError(error)) {
+        const responseMessage = error.response?.data?.message;
+        if (Array.isArray(responseMessage) && responseMessage.length > 0) {
+            return String(responseMessage[0]);
+        }
+        if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
+            return responseMessage.trim();
+        }
+        if (error.message) {
+            return error.message;
+        }
+    }
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+    return fallbackMessage;
+};
 
 /* ==================== DATASETS API ==================== */
 
@@ -46,14 +66,22 @@ export const datasetsAPI = {
 
     // Crear un nuevo dataset
     create: async (input: CreateDatasetInput) => {
-        const response = await api.post<Dataset>('/datasets', input);
-        return response.data;
+        try {
+            const response = await api.post<Dataset>('/datasets', input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo crear el dataset.'));
+        }
     },
 
     // Actualizar dataset (metadata)
     update: async (id: string, input: Partial<CreateDatasetInput>) => {
-        const response = await api.put<Dataset>(`/datasets/${id}`, input);
-        return response.data;
+        try {
+            const response = await api.put<Dataset>(`/datasets/${id}`, input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo actualizar el dataset.'));
+        }
     },
 
     // Eliminar dataset
@@ -209,14 +237,22 @@ export const dashboardsAPI = {
 
     // Crear nuevo dashboard
     create: async (input: CreateDashboardInput) => {
-        const response = await api.post<Dashboard>('/dashboards', input);
-        return response.data;
+        try {
+            const response = await api.post<Dashboard>('/dashboards', input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo crear el dashboard.'));
+        }
     },
 
     // Actualizar dashboard
     update: async (id: string, input: UpdateDashboardInput) => {
-        const response = await api.put<Dashboard>(`/dashboards/${id}`, input);
-        return response.data;
+        try {
+            const response = await api.put<Dashboard>(`/dashboards/${id}`, input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo actualizar el dashboard.'));
+        }
     },
 
     // Eliminar dashboard

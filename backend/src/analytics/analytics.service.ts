@@ -4,6 +4,7 @@ import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { DashboardChartEntity } from '../dashboards/entities/dashboard.entity';
 import type { AiChatRequestDto } from './dto/ai-chat-request.dto';
 import type { DatasetAnalysis } from '../datasets/interfaces/dataset-analysis.interface';
+import { OpenAiService } from '../common/services/openai.service';
 
 export interface OverviewAnalytics {
     summary: {
@@ -80,6 +81,7 @@ export class AnalyticsService {
     constructor(
         @Inject(SUPABASE_DATA_CLIENT)
         private readonly supabase: SupabaseClient,
+        private readonly openAi: OpenAiService,
     ) { }
 
     async getOverview(ownerId: string): Promise<OverviewAnalytics> {
@@ -162,14 +164,16 @@ export class AnalyticsService {
             ? await this.fetchDatasetContext(ownerId, input.datasetId)
             : null;
 
-        const { reply, highlights, suggestions } = this.buildChatResponse(
+        const { reply: fallbackReply, highlights, suggestions } = this.buildChatResponse(
             message,
             overview,
             datasetContext,
         );
 
+        const aiReply = await this.generateWithOpenAi(message, overview, datasetContext, fallbackReply);
+
         return {
-            reply,
+            reply: aiReply,
             highlights,
             suggestions,
             dataset: datasetContext
@@ -380,6 +384,43 @@ export class AnalyticsService {
         const suggestions = this.buildSuggestions(normalizedMessage, overview, dataset);
 
         return { reply, highlights, suggestions };
+    }
+
+    private async generateWithOpenAi(
+        message: string,
+        overview: OverviewAnalytics,
+        dataset: DatasetContext | null,
+        fallback: string,
+    ): Promise<string> {
+        const systemPrompt = 'Eres un analista de datos que responde en español con tono profesional y claro.';
+        const context = this.buildAiContext(overview, dataset);
+        const userPrompt = `${context}\n\nPregunta del usuario: ${message}`;
+        const result = await this.openAi.generateText(systemPrompt, userPrompt);
+
+        if (!result) {
+            return fallback;
+        }
+
+        return `${result}\n\nResumen clave: ${fallback}`.trim();
+    }
+
+    private buildAiContext(overview: OverviewAnalytics, dataset: DatasetContext | null): string {
+        const summary = [
+            `Resumen general: ${overview.summary.totalDatasets} datasets, ${overview.summary.activeReports} reportes activos, ` +
+            `${overview.summary.createdCharts} gráficos creados, crecimiento ${this.formatPercentage(overview.summary.growthPercentage)}.`,
+            `Finanzas: ingresos ${this.formatCurrency(overview.financial.totalRevenue)}, costos ${this.formatCurrency(overview.financial.totalCosts)}, ` +
+            `ganancia ${this.formatCurrency(overview.financial.netProfit)}.`,
+            `Salud de datasets: procesados ${overview.datasetHealth.processed}, pendientes ${overview.datasetHealth.pending}, errores ${overview.datasetHealth.error}.`,
+        ];
+
+        if (dataset) {
+            summary.push(
+                `Dataset enfocado: ${dataset.name} (${dataset.status}) con ${dataset.rowCount ?? 0} filas y ${dataset.columnCount ?? 0} columnas. ` +
+                `Etiquetas: ${dataset.tags.slice(0, 5).join(', ') || 'sin etiquetas'}.`,
+            );
+        }
+
+        return summary.join('\n');
     }
 
     private buildHighlights(overview: OverviewAnalytics, dataset: DatasetContext | null): AiChatHighlight[] {

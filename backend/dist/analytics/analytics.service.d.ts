@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { AiChatRequestDto } from './dto/ai-chat-request.dto';
+import { OpenAiService } from '../common/services/openai.service';
 export interface OverviewAnalytics {
     summary: {
         totalDatasets: number;
@@ -58,7 +59,8 @@ export interface AiChatPayload {
 }
 export declare class AnalyticsService {
     private readonly supabase;
-    constructor(supabase: SupabaseClient);
+    private readonly openAi;
+    constructor(supabase: SupabaseClient, openAi: OpenAiService);
     getOverview(ownerId: string): Promise<OverviewAnalytics>;
     generateAiInsightsChat(ownerId: string, input: AiChatRequestDto): Promise<AiChatPayload>;
     private buildMonthlySeries;
@@ -68,6 +70,8 @@ export declare class AnalyticsService {
     private buildCategoryDistribution;
     private fetchDatasetContext;
     private buildChatResponse;
+    private generateWithOpenAi;
+    private buildAiContext;
     private buildHighlights;
     private buildSuggestions;
     private describeDatasetStatus;
