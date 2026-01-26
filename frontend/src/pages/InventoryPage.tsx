@@ -1,91 +1,60 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Minus, RefreshCw, PackageCheck, Layers3, PieChart } from 'lucide-react';
-import { analyticsAPI, dashboardsAPI, datasetsAPI, type Dashboard, type Dataset, type OverviewAnalytics } from '../lib/services';
+import { inventoryAPI, type InventorySummary } from '../lib/services';
 import { useAuth } from '../context/AuthContext';
-
-interface InventoryRecord {
-  dataset: Dataset;
-  dashboards: Dashboard[];
-  adjustment: number;
-}
-
-const STORAGE_KEY = 'datapulse.inventory.adjustments';
-
-const loadAdjustments = (): Record<string, number> => {
-  if (typeof window === 'undefined') {
-    return {};
-  }
-
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      return {};
-    }
-    const parsed = JSON.parse(stored);
-    if (parsed && typeof parsed === 'object') {
-      return Object.entries(parsed).reduce<Record<string, number>>((acc, [key, value]) => {
-        const asNumber = Number(value);
-        if (!Number.isFinite(asNumber)) {
-          return acc;
-        }
-        acc[key] = asNumber;
-        return acc;
-      }, {});
-    }
-  } catch (error) {
-    console.warn('Failed to parse inventory adjustments', error);
-  }
-  return {};
-};
-
-const persistAdjustments = (next: Record<string, number>) => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch (error) {
-    console.warn('Failed to persist inventory adjustments', error);
-  }
-};
 
 export function InventoryPage() {
   const { roleAtLeast } = useAuth();
-  const [overview, setOverview] = useState<OverviewAnalytics | null>(null);
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
-  const [adjustments, setAdjustments] = useState<Record<string, number>>(() => loadAdjustments());
-  const [pendingAmounts, setPendingAmounts] = useState<Record<string, number>>({});
+  const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingAmounts, setPendingAmounts] = useState<Record<string, number>>({});
+  const [actionLoading, setActionLoading] = useState(false);
 
   const canAdjust = roleAtLeast('admin');
+
+  const syncPendingDefaults = useCallback((records: InventorySummary['records']) => {
+    setPendingAmounts((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      records.forEach((record) => {
+        const current = next[record.dataset.id];
+        if (typeof current !== 'number' || !Number.isFinite(current) || current <= 0) {
+          next[record.dataset.id] = 1;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, []);
 
   useEffect(() => {
     let active = true;
 
-    const bootstrap = async () => {
+    const loadSummary = async () => {
       setLoading(true);
       setError(null);
       try {
-        const [overviewResponse, datasetResponse, dashboardResponse] = await Promise.all([
-          analyticsAPI.getOverview(),
-          datasetsAPI.list(1, 100),
-          dashboardsAPI.list(1, 100),
-        ]);
-
+        const response = await inventoryAPI.getSummary();
         if (!active) {
           return;
         }
 
-        setOverview(overviewResponse);
-        setDatasets(datasetResponse.data ?? []);
-        setDashboards(dashboardResponse.data ?? []);
+        setSummary(response);
+        syncPendingDefaults(response.records);
       } catch (err) {
         if (!active) {
           return;
         }
-        setError('No pudimos cargar el estado de inventario. Intenta nuevamente en unos minutos.');
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'No pudimos cargar el estado de inventario. Intenta nuevamente en unos minutos.';
+        setError(message);
+        setSummary(null);
       } finally {
         if (active) {
           setLoading(false);
@@ -93,87 +62,86 @@ export function InventoryPage() {
       }
     };
 
-    bootstrap();
+    void loadSummary();
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [syncPendingDefaults]);
 
-  useEffect(() => {
-    persistAdjustments(adjustments);
-  }, [adjustments]);
+  const records = summary?.records ?? [];
+  const overview = summary?.overview ?? null;
+  const totals = summary?.totals ?? {
+    baseUnits: 0,
+    adjustedUnits: 0,
+    datasetsWithAlerts: 0,
+    dashboardsLinked: 0,
+  };
 
-  const inventory: InventoryRecord[] = useMemo(() => {
-    if (datasets.length === 0) {
-      return [];
-    }
-
-    const dashboardsByDataset = dashboards.reduce<Record<string, Dashboard[]>>((acc, dashboard) => {
-      const ids = Array.isArray((dashboard as any).datasetIds) ? (dashboard as any).datasetIds as string[] : [];
-      ids.forEach((datasetId) => {
-        acc[datasetId] = acc[datasetId] ?? [];
-        acc[datasetId]!.push(dashboard);
-      });
-      return acc;
-    }, {});
-
-    return datasets.map((dataset) => ({
-      dataset,
-      dashboards: dashboardsByDataset[dataset.id] ?? [],
-      adjustment: adjustments[dataset.id] ?? 0,
-    }));
-  }, [dashboards, datasets, adjustments]);
-
-  const totals = useMemo(() => {
-    const baseUnits = inventory.reduce((acc, record) => acc + (record.dataset.rowCount ?? 0), 0);
-    const adjustedUnits = inventory.reduce(
-      (acc, record) => acc + (record.dataset.rowCount ?? 0) + record.adjustment,
-      0,
-    );
-    const datasetsWithAlerts = inventory.filter((record) => record.dataset.status !== 'processed').length;
-
-    return {
-      baseUnits,
-      adjustedUnits,
-      datasetsWithAlerts,
-      dashboardsLinked: dashboards.length,
-    };
-  }, [dashboards.length, inventory]);
+  const hasAdjustments = useMemo(
+    () => records.some((record) => record.adjustment !== 0),
+    [records],
+  );
 
   const handlePendingAmountChange = (datasetId: string, value: number) => {
+    const normalized = Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
     setPendingAmounts((prev) => ({
       ...prev,
-      [datasetId]: Number.isFinite(value) && value > 0 ? Math.floor(value) : 1,
+      [datasetId]: normalized,
     }));
   };
 
-  const handleAdjust = (datasetId: string, direction: 'add' | 'subtract') => {
-    if (!canAdjust) {
+  const handleAdjust = async (datasetId: string, direction: 'add' | 'subtract') => {
+    if (!canAdjust || actionLoading) {
       return;
     }
+
     const amount = pendingAmounts[datasetId] ?? 1;
-    if (!Number.isFinite(amount) || amount <= 0) {
+    const normalized = Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 1;
+
+    setPendingAmounts((prev) => ({
+      ...prev,
+      [datasetId]: normalized,
+    }));
+
+    setActionError(null);
+    setActionLoading(true);
+
+    try {
+      const delta = direction === 'add' ? normalized : -normalized;
+      const updated = await inventoryAPI.adjust(datasetId, delta);
+      setSummary(updated);
+      syncPendingDefaults(updated.records);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo actualizar el inventario.';
+      setActionError(message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!canAdjust || actionLoading) {
       return;
     }
 
-    const delta = direction === 'add' ? amount : -amount;
-    setAdjustments((prev) => {
-      const nextValue = (prev[datasetId] ?? 0) + delta;
-      const next = { ...prev, [datasetId]: nextValue };
-      if (nextValue === 0) {
-        delete next[datasetId];
-      }
-      return next;
-    });
+    setActionError(null);
+    setActionLoading(true);
+
+    try {
+      const updated = await inventoryAPI.reset();
+      setSummary(updated);
+      setPendingAmounts({});
+      syncPendingDefaults(updated.records);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo reiniciar los ajustes de inventario.';
+      setActionError(message);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleReset = () => {
-    setAdjustments({});
-    setPendingAmounts({});
-  };
-
-  const statusBadge = (status: Dataset['status']) => {
+  const statusBadge = (status: 'pending' | 'processed' | 'error') => {
     const base = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
     switch (status) {
       case 'processed':
@@ -206,8 +174,9 @@ export function InventoryPage() {
         <button
           type="button"
           onClick={() => {
-            setAdjustments(loadAdjustments());
+            setSummary(null);
             setPendingAmounts({});
+            setActionError(null);
             setError(null);
             setLoading(true);
             // force refetch
@@ -312,12 +281,18 @@ export function InventoryPage() {
             type="button"
             onClick={handleReset}
             className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!canAdjust || Object.keys(adjustments).length === 0}
+            disabled={!canAdjust || actionLoading || !hasAdjustments}
           >
             <RefreshCw className="h-4 w-4" />
             Restablecer ajustes
           </button>
         </header>
+
+        {actionError ? (
+          <div className="mx-6 mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
+            {actionError}
+          </div>
+        ) : null}
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
@@ -333,17 +308,16 @@ export function InventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {inventory.length === 0 ? (
+              {records.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                     No hay datasets registrados todavía. Carga datos para comenzar a gestionar inventario.
                   </td>
                 </tr>
               ) : (
-                inventory.map((record) => {
-                  const { dataset, dashboards: linkedDashboards, adjustment } = record;
+                records.map((record) => {
+                  const { dataset, dashboards: linkedDashboards, adjustment, total } = record;
                   const baseCount = dataset.rowCount ?? 0;
-                  const total = baseCount + adjustment;
                   const pendingValue = pendingAmounts[dataset.id] ?? 1;
                   return (
                     <tr key={dataset.id} className="hover:bg-slate-50/60">
@@ -367,7 +341,7 @@ export function InventoryPage() {
                         ) : (
                           <ul className="space-y-1 text-xs text-slate-600">
                             {linkedDashboards.slice(0, 3).map((dashboard) => (
-                              <li key={dashboard._id} className="truncate">
+                              <li key={dashboard.id} className="truncate">
                                 • {dashboard.name}
                               </li>
                             ))}
@@ -391,7 +365,8 @@ export function InventoryPage() {
                               <button
                                 type="button"
                                 onClick={() => handleAdjust(dataset.id, 'add')}
-                                className="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-600"
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={actionLoading}
                               >
                                 <Plus className="h-3 w-3" />
                                 Añadir
@@ -399,7 +374,8 @@ export function InventoryPage() {
                               <button
                                 type="button"
                                 onClick={() => handleAdjust(dataset.id, 'subtract')}
-                                className="inline-flex items-center gap-1 rounded-md bg-rose-500 px-2 py-1 text-xs font-medium text-white hover:bg-rose-600"
+                                className="inline-flex items-center gap-1 rounded-md bg-rose-500 px-2 py-1 text-xs font-medium text-white hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={actionLoading}
                               >
                                 <Minus className="h-3 w-3" />
                                 Restar

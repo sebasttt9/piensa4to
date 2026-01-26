@@ -293,6 +293,64 @@ export const dashboardsAPI = {
 
 /* ==================== ANALYSIS API ==================== */
 
+export interface InventoryDashboardSummary {
+    id: string;
+    name: string;
+    updatedAt: string;
+}
+
+export interface InventoryDatasetSummary {
+    id: string;
+    name: string;
+    status: 'pending' | 'processed' | 'error';
+    rowCount: number;
+    updatedAt: string;
+    tags: string[];
+}
+
+export interface InventoryRecord {
+    dataset: InventoryDatasetSummary;
+    dashboards: InventoryDashboardSummary[];
+    adjustment: number;
+    total: number;
+}
+
+export interface InventorySummary {
+    overview: OverviewAnalytics | null;
+    totals: {
+        baseUnits: number;
+        adjustedUnits: number;
+        datasetsWithAlerts: number;
+        dashboardsLinked: number;
+    };
+    records: InventoryRecord[];
+}
+
+export const inventoryAPI = {
+    getSummary: async () => {
+        const response = await api.get<InventorySummary>('/inventory');
+        return response.data;
+    },
+    adjust: async (datasetId: string, amount: number) => {
+        try {
+            const response = await api.post<InventorySummary>(`/inventory/${datasetId}/adjust`, { amount });
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo actualizar el inventario.'));
+        }
+    },
+    reset: async () => {
+        try {
+            const response = await api.delete<InventorySummary>('/inventory/adjustments');
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo reiniciar los ajustes de inventario.'));
+        }
+    },
+};
+
+/* ==================== ANALYSIS API ==================== */
+
 export interface AnalysisResult {
     datasetId: string;
     summary: string;

@@ -10,6 +10,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SupabaseModule } from './database/supabase.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     DatasetsModule,
     DashboardsModule,
     AnalyticsModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -32,6 +32,11 @@ interface DashboardShareRow {
   created_at: string;
 }
 
+interface DashboardDatasetRow {
+  dashboard_id: string;
+  dataset_id: string;
+}
+
 export interface DashboardShareEntity {
   id: string;
   dashboardId: string;
@@ -53,6 +58,7 @@ export class DashboardsService {
 
   private readonly tableName = 'dashboards';
   private readonly shareTableName = 'dashboard_shares';
+  private readonly datasetsJoinTable = 'dashboard_datasets';
 
   async create(ownerId: string, dto: CreateDashboardDto): Promise<DashboardEntity> {
     if (dto.datasetIds && dto.datasetIds.length > 0) {
@@ -67,7 +73,6 @@ export class DashboardsService {
         owner_id: ownerId,
         name: dto.name,
         description: dto.description ?? null,
-        dataset_ids: dto.datasetIds ?? [],
         layout: {},
         charts: [],
         is_public: false,
@@ -83,7 +88,11 @@ export class DashboardsService {
       throw new InternalServerErrorException('No se pudo crear el dashboard');
     }
 
-    return this.toEntity(data as DashboardRow);
+    await this.replaceDashboardDatasets((data as DashboardRow).id, dto.datasetIds ?? []);
+
+    const datasets = await this.collectDatasetIds([(data as DashboardRow).id]);
+
+    return this.toEntity(data as DashboardRow, datasets.get((data as DashboardRow).id));
   }
 
   async findAll(
@@ -105,7 +114,10 @@ export class DashboardsService {
       throw new InternalServerErrorException('No se pudieron listar los dashboards');
     }
 
-    return ((data ?? []) as DashboardRow[]).map((row) => this.toEntity(row));
+    const rows = (data ?? []) as DashboardRow[];
+    const datasets = await this.collectDatasetIds(rows.map((row) => row.id));
+
+    return rows.map((row) => this.toEntity(row, datasets.get(row.id)));
   }
 
   async countByUser(ownerId: string): Promise<number> {
@@ -137,7 +149,9 @@ export class DashboardsService {
       throw new NotFoundException('Dashboard no encontrado');
     }
 
-    return this.toEntity(data as DashboardRow);
+    const datasets = await this.collectDatasetIds([(data as DashboardRow).id]);
+
+    return this.toEntity(data as DashboardRow, datasets.get((data as DashboardRow).id));
   }
 
   async update(
@@ -154,11 +168,8 @@ export class DashboardsService {
       }
     }
 
-    const updatePayload: Record<string, unknown> = { ...rest };
 
-    if (datasetIds) {
-      updatePayload.dataset_ids = datasetIds;
-    }
+    const updatePayload: Record<string, unknown> = { ...rest };
 
     const { data, error } = await this.supabase
       .from(this.tableName)
@@ -176,7 +187,11 @@ export class DashboardsService {
       throw new NotFoundException('Dashboard no encontrado');
     }
 
-    return this.toEntity(data as DashboardRow);
+    await this.replaceDashboardDatasets(id, datasetIds ?? []);
+
+    const datasets = await this.collectDatasetIds([id]);
+
+    return this.toEntity(data as DashboardRow, datasets.get(id));
   }
 
   async share(
@@ -200,7 +215,9 @@ export class DashboardsService {
       throw new NotFoundException('Dashboard no encontrado');
     }
 
-    return this.toEntity(data as DashboardRow);
+    const datasets = await this.collectDatasetIds([(data as DashboardRow).id]);
+
+    return this.toEntity(data as DashboardRow, datasets.get((data as DashboardRow).id));
   }
 
   async remove(ownerId: string, id: string): Promise<void> {
@@ -331,13 +348,13 @@ export class DashboardsService {
     return completion;
   }
 
-  private toEntity(row: DashboardRow): DashboardEntity {
+  private toEntity(row: DashboardRow, datasetIds?: string[]): DashboardEntity {
     return {
       id: row.id,
       ownerId: row.owner_id,
       name: row.name,
       description: row.description ?? undefined,
-      datasetIds: row.dataset_ids ?? [],
+      datasetIds: datasetIds ?? row.dataset_ids ?? [],
       layout: row.layout ?? {},
       charts: row.charts ?? [],
       isPublic: row.is_public,
@@ -357,5 +374,66 @@ export class DashboardsService {
       status: row.status,
       createdAt: row.created_at,
     };
+  }
+
+  private async replaceDashboardDatasets(dashboardId: string, datasetIds: string[]): Promise<void> {
+    const { error: deleteError } = await this.supabase
+      .from(this.datasetsJoinTable)
+      .delete()
+      .eq('dashboard_id', dashboardId);
+
+    if (deleteError) {
+      throw new InternalServerErrorException('No se pudieron actualizar los datasets del dashboard');
+    }
+
+    if (!datasetIds || datasetIds.length === 0) {
+      return;
+    }
+
+    const records = datasetIds.map((datasetId) => ({
+      dashboard_id: dashboardId,
+      dataset_id: datasetId,
+    }));
+
+    const { error: insertError } = await this.supabase
+      .from(this.datasetsJoinTable)
+      .insert(records);
+
+    if (insertError) {
+      throw new InternalServerErrorException('No se pudieron vincular los datasets al dashboard');
+    }
+  }
+
+  private async collectDatasetIds(dashboardIds: string[]): Promise<Map<string, string[]>> {
+    const result = new Map<string, string[]>();
+
+    if (!dashboardIds || dashboardIds.length === 0) {
+      return result;
+    }
+
+    const { data, error } = await this.supabase
+      .from(this.datasetsJoinTable)
+      .select('dashboard_id, dataset_id')
+      .in('dashboard_id', dashboardIds);
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudieron obtener los datasets asociados al dashboard');
+    }
+
+    (data as DashboardDatasetRow[] | null)?.forEach((row) => {
+      if (!result.has(row.dashboard_id)) {
+        result.set(row.dashboard_id, []);
+      }
+
+      result.get(row.dashboard_id)!.push(row.dataset_id);
+    });
+
+    dashboardIds.forEach((dashboardId) => {
+      if (!result.has(dashboardId)) {
+        result.set(dashboardId, []);
+      }
+    });
+
+    return result;
   }
 }

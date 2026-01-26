@@ -20,6 +20,7 @@ export declare class DashboardsService {
     constructor(supabase: SupabaseClient, datasetsService: DatasetsService);
     private readonly tableName;
     private readonly shareTableName;
+    private readonly datasetsJoinTable;
     create(ownerId: string, dto: CreateDashboardDto): Promise<DashboardEntity>;
     findAll(ownerId: string, skip?: number, limit?: number): Promise<DashboardEntity[]>;
     countByUser(ownerId: string): Promise<number>;
@@ -31,4 +32,6 @@ export declare class DashboardsService {
     export(ownerId: string, id: string, format: 'pdf' | 'json'): Promise<DashboardEntity | Buffer>;
     private toEntity;
     private toShareEntity;
+    private replaceDashboardDatasets;
+    private collectDatasetIds;
 }

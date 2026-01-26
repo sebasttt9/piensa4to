@@ -31,6 +31,7 @@ let DashboardsService = class DashboardsService {
     }
     tableName = 'dashboards';
     shareTableName = 'dashboard_shares';
+    datasetsJoinTable = 'dashboard_datasets';
     async create(ownerId, dto) {
         if (dto.datasetIds && dto.datasetIds.length > 0) {
             for (const datasetId of dto.datasetIds) {
@@ -43,7 +44,6 @@ let DashboardsService = class DashboardsService {
             owner_id: ownerId,
             name: dto.name,
             description: dto.description ?? null,
-            dataset_ids: dto.datasetIds ?? [],
             layout: {},
             charts: [],
             is_public: false,
@@ -56,7 +56,9 @@ let DashboardsService = class DashboardsService {
         if (!data) {
             throw new common_1.InternalServerErrorException('No se pudo crear el dashboard');
         }
-        return this.toEntity(data);
+        await this.replaceDashboardDatasets(data.id, dto.datasetIds ?? []);
+        const datasets = await this.collectDatasetIds([data.id]);
+        return this.toEntity(data, datasets.get(data.id));
     }
     async findAll(ownerId, skip = 0, limit = 10) {
         const rangeStart = skip;
@@ -70,7 +72,9 @@ let DashboardsService = class DashboardsService {
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudieron listar los dashboards');
         }
-        return (data ?? []).map((row) => this.toEntity(row));
+        const rows = (data ?? []);
+        const datasets = await this.collectDatasetIds(rows.map((row) => row.id));
+        return rows.map((row) => this.toEntity(row, datasets.get(row.id)));
     }
     async countByUser(ownerId) {
         const { count, error } = await this.supabase
@@ -95,7 +99,8 @@ let DashboardsService = class DashboardsService {
         if (!data) {
             throw new common_1.NotFoundException('Dashboard no encontrado');
         }
-        return this.toEntity(data);
+        const datasets = await this.collectDatasetIds([data.id]);
+        return this.toEntity(data, datasets.get(data.id));
     }
     async update(ownerId, id, dto) {
         const { datasetIds, ...rest } = dto;
@@ -105,9 +110,6 @@ let DashboardsService = class DashboardsService {
             }
         }
         const updatePayload = { ...rest };
-        if (datasetIds) {
-            updatePayload.dataset_ids = datasetIds;
-        }
         const { data, error } = await this.supabase
             .from(this.tableName)
             .update(updatePayload)
@@ -121,7 +123,9 @@ let DashboardsService = class DashboardsService {
         if (!data) {
             throw new common_1.NotFoundException('Dashboard no encontrado');
         }
-        return this.toEntity(data);
+        await this.replaceDashboardDatasets(id, datasetIds ?? []);
+        const datasets = await this.collectDatasetIds([id]);
+        return this.toEntity(data, datasets.get(id));
     }
     async share(ownerId, id, isPublic) {
         const { data, error } = await this.supabase
@@ -137,7 +141,8 @@ let DashboardsService = class DashboardsService {
         if (!data) {
             throw new common_1.NotFoundException('Dashboard no encontrado');
         }
-        return this.toEntity(data);
+        const datasets = await this.collectDatasetIds([data.id]);
+        return this.toEntity(data, datasets.get(data.id));
     }
     async remove(ownerId, id) {
         const { data, error } = await this.supabase
@@ -239,13 +244,13 @@ let DashboardsService = class DashboardsService {
         doc.end();
         return completion;
     }
-    toEntity(row) {
+    toEntity(row, datasetIds) {
         return {
             id: row.id,
             ownerId: row.owner_id,
             name: row.name,
             description: row.description ?? undefined,
-            datasetIds: row.dataset_ids ?? [],
+            datasetIds: datasetIds ?? row.dataset_ids ?? [],
             layout: row.layout ?? {},
             charts: row.charts ?? [],
             isPublic: row.is_public,
@@ -264,6 +269,53 @@ let DashboardsService = class DashboardsService {
             status: row.status,
             createdAt: row.created_at,
         };
+    }
+    async replaceDashboardDatasets(dashboardId, datasetIds) {
+        const { error: deleteError } = await this.supabase
+            .from(this.datasetsJoinTable)
+            .delete()
+            .eq('dashboard_id', dashboardId);
+        if (deleteError) {
+            throw new common_1.InternalServerErrorException('No se pudieron actualizar los datasets del dashboard');
+        }
+        if (!datasetIds || datasetIds.length === 0) {
+            return;
+        }
+        const records = datasetIds.map((datasetId) => ({
+            dashboard_id: dashboardId,
+            dataset_id: datasetId,
+        }));
+        const { error: insertError } = await this.supabase
+            .from(this.datasetsJoinTable)
+            .insert(records);
+        if (insertError) {
+            throw new common_1.InternalServerErrorException('No se pudieron vincular los datasets al dashboard');
+        }
+    }
+    async collectDatasetIds(dashboardIds) {
+        const result = new Map();
+        if (!dashboardIds || dashboardIds.length === 0) {
+            return result;
+        }
+        const { data, error } = await this.supabase
+            .from(this.datasetsJoinTable)
+            .select('dashboard_id, dataset_id')
+            .in('dashboard_id', dashboardIds);
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudieron obtener los datasets asociados al dashboard');
+        }
+        data?.forEach((row) => {
+            if (!result.has(row.dashboard_id)) {
+                result.set(row.dashboard_id, []);
+            }
+            result.get(row.dashboard_id).push(row.dataset_id);
+        });
+        dashboardIds.forEach((dashboardId) => {
+            if (!result.has(dashboardId)) {
+                result.set(dashboardId, []);
+            }
+        });
+        return result;
     }
 };
 exports.DashboardsService = DashboardsService;
