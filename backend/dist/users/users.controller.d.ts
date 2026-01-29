@@ -12,5 +12,5 @@ export declare class UsersController {
     update(id: string, dto: UpdateUserDto): Promise<Omit<UserEntity, "passwordHash">>;
     remove(id: string): Promise<void>;
     resetPassword(id: string, dto: ResetPasswordDto): Promise<Omit<UserEntity, "passwordHash">>;
-    create(dto: CreateUserDto): Promise<Omit<UserEntity, "passwordHash">>;
+    create(dto: CreateUserDto): Promise<UserEntity>;
 }

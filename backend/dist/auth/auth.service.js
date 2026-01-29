@@ -64,7 +64,7 @@ let AuthService = class AuthService {
             role: roles_enum_1.UserRole.User,
         });
         const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
-        return { accessToken, user };
+        return { accessToken, user: this.sanitizeUser(user) };
     }
     async login({ email, password }) {
         const user = await this.usersService.findByEmail(email);

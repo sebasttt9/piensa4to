@@ -2,6 +2,7 @@ import { Inject, Injectable, InternalServerErrorException, NotFoundException, Ba
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { AnalyticsService, OverviewAnalytics } from '../analytics/analytics.service';
+import { CreateInventoryItemDto, UpdateInventoryItemDto } from './dto/inventory-item.dto';
 
 interface DatasetRow {
     id: string;
@@ -26,6 +27,34 @@ interface InventoryAdjustmentRow {
     owner_id: string;
     adjustment: number;
     updated_at: string;
+}
+
+interface InventoryItemRow {
+    id: string;
+    owner_id: string;
+    dataset_id: string | null;
+    dashboard_id: string | null;
+    name: string;
+    code: string;
+    quantity: number;
+    pvp: number;
+    cost: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface InventoryItem {
+    id: string;
+    ownerId: string;
+    datasetId: string | null;
+    dashboardId: string | null;
+    name: string;
+    code: string;
+    quantity: number;
+    pvp: number;
+    cost: number;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface InventoryDashboardSummary {
@@ -64,6 +93,7 @@ export interface InventorySummary {
 @Injectable()
 export class InventoryService {
     private readonly inventoryTable = 'inventory_adjustments';
+    private readonly itemsTable = 'inventory_items';
     private readonly datasetsTable = 'datasets';
     private readonly dashboardsTable = 'dashboards';
 
@@ -267,6 +297,150 @@ export class InventoryService {
             adjustedUnits,
             datasetsWithAlerts,
             dashboardsLinked: dashboardCount,
+        };
+    }
+
+    // Inventory Items CRUD
+    async createItem(ownerId: string, dto: CreateInventoryItemDto): Promise<InventoryItem> {
+        // Validate dataset/dashboard ownership if provided
+        if (dto.datasetId) {
+            await this.ensureDatasetOwnership(ownerId, dto.datasetId);
+        }
+        if (dto.dashboardId) {
+            await this.ensureDashboardOwnership(ownerId, dto.dashboardId);
+        }
+
+        const { data, error } = await this.supabase
+            .from(this.itemsTable)
+            .insert({
+                owner_id: ownerId,
+                dataset_id: dto.datasetId || null,
+                dashboard_id: dto.dashboardId || null,
+                name: dto.name,
+                code: dto.code,
+                quantity: dto.quantity,
+                pvp: dto.pvp,
+                cost: dto.cost,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            if (error.code === '23505') {
+                throw new BadRequestException('El código ya existe');
+            }
+            throw new InternalServerErrorException('No se pudo crear el item de inventario');
+        }
+
+        return this.mapToInventoryItem(data as InventoryItemRow);
+    }
+
+    async getItems(ownerId: string): Promise<InventoryItem[]> {
+        const { data, error } = await this.supabase
+            .from(this.itemsTable)
+            .select('*')
+            .eq('owner_id', ownerId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            throw new InternalServerErrorException('No se pudieron obtener los items de inventario');
+        }
+
+        return (data as InventoryItemRow[]).map(row => this.mapToInventoryItem(row));
+    }
+
+    async getItem(ownerId: string, itemId: string): Promise<InventoryItem> {
+        const { data, error } = await this.supabase
+            .from(this.itemsTable)
+            .select('*')
+            .eq('id', itemId)
+            .eq('owner_id', ownerId)
+            .single();
+
+        if (error || !data) {
+            throw new NotFoundException('Item de inventario no encontrado');
+        }
+
+        return this.mapToInventoryItem(data as InventoryItemRow);
+    }
+
+    async updateItem(ownerId: string, itemId: string, dto: UpdateInventoryItemDto): Promise<InventoryItem> {
+        // Validate ownership first
+        await this.getItem(ownerId, itemId);
+
+        // Validate new dataset/dashboard ownership if provided
+        if (dto.datasetId) {
+            await this.ensureDatasetOwnership(ownerId, dto.datasetId);
+        }
+        if (dto.dashboardId) {
+            await this.ensureDashboardOwnership(ownerId, dto.dashboardId);
+        }
+
+        const updateData: Record<string, unknown> = {};
+        if (dto.name !== undefined) updateData.name = dto.name;
+        if (dto.code !== undefined) updateData.code = dto.code;
+        if (dto.quantity !== undefined) updateData.quantity = dto.quantity;
+        if (dto.pvp !== undefined) updateData.pvp = dto.pvp;
+        if (dto.cost !== undefined) updateData.cost = dto.cost;
+        if (dto.datasetId !== undefined) updateData.dataset_id = dto.datasetId;
+        if (dto.dashboardId !== undefined) updateData.dashboard_id = dto.dashboardId;
+
+        const { data, error } = await this.supabase
+            .from(this.itemsTable)
+            .update(updateData)
+            .eq('id', itemId)
+            .eq('owner_id', ownerId)
+            .select()
+            .single();
+
+        if (error) {
+            if (error.code === '23505') {
+                throw new BadRequestException('El código ya existe');
+            }
+            throw new InternalServerErrorException('No se pudo actualizar el item de inventario');
+        }
+
+        return this.mapToInventoryItem(data as InventoryItemRow);
+    }
+
+    async deleteItem(ownerId: string, itemId: string): Promise<void> {
+        const { error } = await this.supabase
+            .from(this.itemsTable)
+            .delete()
+            .eq('id', itemId)
+            .eq('owner_id', ownerId);
+
+        if (error) {
+            throw new InternalServerErrorException('No se pudo eliminar el item de inventario');
+        }
+    }
+
+    private async ensureDashboardOwnership(ownerId: string, dashboardId: string): Promise<void> {
+        const { data, error } = await this.supabase
+            .from('dashboards')
+            .select('id')
+            .eq('id', dashboardId)
+            .eq('owner_id', ownerId)
+            .single();
+
+        if (error || !data) {
+            throw new BadRequestException('Dashboard no encontrado o no tienes acceso');
+        }
+    }
+
+    private mapToInventoryItem(row: InventoryItemRow): InventoryItem {
+        return {
+            id: row.id,
+            ownerId: row.owner_id,
+            datasetId: row.dataset_id,
+            dashboardId: row.dashboard_id,
+            name: row.name,
+            code: row.code,
+            quantity: row.quantity,
+            pvp: row.pvp,
+            cost: row.cost,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
         };
     }
 

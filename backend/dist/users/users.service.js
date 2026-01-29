@@ -57,33 +57,41 @@ let UsersService = class UsersService {
         this.supabase = supabase;
     }
     tableName = 'users';
-    async create(input) {
-        const email = input.email.toLowerCase();
-        const existing = await this.findByEmail(email);
-        if (existing) {
-            throw new common_1.ConflictException('El correo ya está registrado');
-        }
-        const hashedPassword = await bcrypt.hash(input.password, 12);
-        const { data, error } = await this.supabase
-            .from(this.tableName)
-            .insert({
-            email,
-            name: input.name,
-            role: input.role ?? roles_enum_1.UserRole.User,
-            password_hash: hashedPassword,
-        })
-            .select()
-            .single();
-        if (error) {
-            if (error.code === '23505') {
+    async create(createUserDto) {
+        try {
+            const email = createUserDto.email.toLowerCase();
+            const existing = await this.findByEmail(email);
+            if (existing) {
                 throw new common_1.ConflictException('El correo ya está registrado');
             }
+            const hashedPassword = await bcrypt.hash(createUserDto.password, 12);
+            const { data, error } = await this.supabase
+                .from(this.tableName)
+                .insert({
+                email,
+                name: createUserDto.name,
+                role: createUserDto.role ?? roles_enum_1.UserRole.User,
+                password_hash: hashedPassword,
+            })
+                .select()
+                .single();
+            if (error) {
+                console.error('Error de Supabase al insertar usuario:', error);
+                if (error.code === '23505') {
+                    throw new common_1.ConflictException('El correo ya está registrado');
+                }
+                throw new common_1.InternalServerErrorException('No se pudo crear el usuario');
+            }
+            if (!data) {
+                throw new common_1.InternalServerErrorException('No se pudo crear el usuario');
+            }
+            return this.toUserEntity(data);
+        }
+        catch (error) {
+            console.error('Error creando usuario:', error);
+            console.error('Detalles del error:', error.message, error.details, error.hint);
             throw new common_1.InternalServerErrorException('No se pudo crear el usuario');
         }
-        if (!data) {
-            throw new common_1.InternalServerErrorException('No se pudo crear el usuario');
-        }
-        return this.toPublicUser(data);
     }
     async findAll() {
         const { data, error } = await this.supabase

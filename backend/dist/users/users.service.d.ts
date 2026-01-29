@@ -6,7 +6,7 @@ export declare class UsersService {
     private readonly supabase;
     constructor(supabase: SupabaseClient);
     private readonly tableName;
-    create(input: CreateUserDto): Promise<Omit<UserEntity, 'passwordHash'>>;
+    create(createUserDto: CreateUserDto): Promise<UserEntity>;
     findAll(): Promise<Array<Omit<UserEntity, 'passwordHash'>>>;
     findById(id: string): Promise<Omit<UserEntity, 'passwordHash'>>;
     findByEmail(email: string): Promise<UserEntity | null>;

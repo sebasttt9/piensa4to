@@ -26,37 +26,44 @@ export class UsersService {
 
   private readonly tableName = 'users';
 
-  async create(input: CreateUserDto): Promise<Omit<UserEntity, 'passwordHash'>> {
-    const email = input.email.toLowerCase();
-    const existing = await this.findByEmail(email);
-    if (existing) {
-      throw new ConflictException('El correo ya está registrado');
-    }
-
-    const hashedPassword = await bcrypt.hash(input.password, 12);
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .insert({
-        email,
-        name: input.name,
-        role: input.role ?? UserRole.User,
-        password_hash: hashedPassword,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === '23505') {
+  async create(createUserDto: CreateUserDto): Promise<UserEntity> {
+    try {
+      const email = createUserDto.email.toLowerCase();
+      const existing = await this.findByEmail(email);
+      if (existing) {
         throw new ConflictException('El correo ya está registrado');
       }
+
+      const hashedPassword = await bcrypt.hash(createUserDto.password, 12);
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .insert({
+          email,
+          name: createUserDto.name,
+          role: createUserDto.role ?? UserRole.User,
+          password_hash: hashedPassword,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error de Supabase al insertar usuario:', error);
+        if (error.code === '23505') {
+          throw new ConflictException('El correo ya está registrado');
+        }
+        throw new InternalServerErrorException('No se pudo crear el usuario');
+      }
+
+      if (!data) {
+        throw new InternalServerErrorException('No se pudo crear el usuario');
+      }
+
+      return this.toUserEntity(data as UserRow);
+    } catch (error) {
+      console.error('Error creando usuario:', error);
+      console.error('Detalles del error:', error.message, error.details, error.hint);
       throw new InternalServerErrorException('No se pudo crear el usuario');
     }
-
-    if (!data) {
-      throw new InternalServerErrorException('No se pudo crear el usuario');
-    }
-
-    return this.toPublicUser(data as UserRow);
   }
 
   async findAll(): Promise<Array<Omit<UserEntity, 'passwordHash'>>> {

@@ -27,7 +27,7 @@ export class AuthService {
       role: UserRole.User,
     });
     const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
-    return { accessToken, user };
+    return { accessToken, user: this.sanitizeUser(user) };
   }
 
   async login({ email, password }: LoginDto): Promise<{ accessToken: string; user: Record<string, unknown> }> {

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -7,6 +7,7 @@ import type { UserEntity } from '../users/entities/user.entity';
 import { AdjustInventoryDto } from './dto/adjust-inventory.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/constants/roles.enum';
+import { CreateInventoryItemDto, UpdateInventoryItemDto } from './dto/inventory-item.dto';
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -19,7 +20,7 @@ export class InventoryController {
     }
 
     @Post(':datasetId/adjust')
-    @Roles(UserRole.Admin)
+    @Roles(UserRole.User)
     adjustInventory(
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Param('datasetId') datasetId: string,
@@ -29,8 +30,52 @@ export class InventoryController {
     }
 
     @Delete('adjustments')
-    @Roles(UserRole.Admin)
+    @Roles(UserRole.User)
     resetAdjustments(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
         return this.inventoryService.resetAdjustments(user.id);
+    }
+
+    // Inventory Items endpoints
+    @Post('items')
+    @Roles(UserRole.User)
+    createItem(
+        @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+        @Body() dto: CreateInventoryItemDto,
+    ) {
+        return this.inventoryService.createItem(user.id, dto);
+    }
+
+    @Get('items')
+    @Roles(UserRole.User)
+    getItems(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
+        return this.inventoryService.getItems(user.id);
+    }
+
+    @Get('items/:id')
+    @Roles(UserRole.User)
+    getItem(
+        @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+        @Param('id') itemId: string,
+    ) {
+        return this.inventoryService.getItem(user.id, itemId);
+    }
+
+    @Put('items/:id')
+    @Roles(UserRole.User)
+    updateItem(
+        @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+        @Param('id') itemId: string,
+        @Body() dto: UpdateInventoryItemDto,
+    ) {
+        return this.inventoryService.updateItem(user.id, itemId, dto);
+    }
+
+    @Delete('items/:id')
+    @Roles(UserRole.User)
+    deleteItem(
+        @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+        @Param('id') itemId: string,
+    ) {
+        return this.inventoryService.deleteItem(user.id, itemId);
     }
 }
