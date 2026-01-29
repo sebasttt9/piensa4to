@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -7,7 +7,7 @@ import type { UserEntity } from '../users/entities/user.entity';
 import { AdjustInventoryDto } from './dto/adjust-inventory.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/constants/roles.enum';
-import { CreateInventoryItemDto, UpdateInventoryItemDto } from './dto/inventory-item.dto';
+import { CreateInventoryItemDto, UpdateInventoryItemDto, ApproveInventoryItemDto } from './dto/inventory-item.dto';
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -42,7 +42,7 @@ export class InventoryController {
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Body() dto: CreateInventoryItemDto,
     ) {
-        return this.inventoryService.createItem(user.id, dto);
+        return this.inventoryService.createItem(user.id, dto, user.role);
     }
 
     @Get('items')
@@ -68,6 +68,16 @@ export class InventoryController {
         @Body() dto: UpdateInventoryItemDto,
     ) {
         return this.inventoryService.updateItem(user.id, itemId, dto);
+    }
+
+    @Patch('items/:id/approve')
+    @Roles(UserRole.Admin)
+    approveItem(
+        @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+        @Param('id') itemId: string,
+        @Body() dto: ApproveInventoryItemDto,
+    ) {
+        return this.inventoryService.approveItem(user.id, itemId, dto.status);
     }
 
     @Delete('items/:id')

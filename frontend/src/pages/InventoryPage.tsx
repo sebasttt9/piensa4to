@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Minus, RefreshCw, PackageCheck, Layers3, PieChart } from 'lucide-react';
-import { inventoryAPI, type InventorySummary } from '../lib/services';
+import { Plus, Minus, RefreshCw, PackageCheck, Layers3, PieChart, Edit, Trash2, X } from 'lucide-react';
+import { inventoryAPI, inventoryItemsAPI, datasetsAPI, dashboardsAPI, type InventorySummary, type InventoryItem, type CreateInventoryItemInput } from '../lib/services';
 import { useAuth } from '../context/AuthContext';
 
 export function InventoryPage() {
@@ -12,24 +12,147 @@ export function InventoryPage() {
   const [pendingAmounts, setPendingAmounts] = useState<Record<string, number>>({});
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Inventory Items state
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [itemsError, setItemsError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'adjustments' | 'items'>('adjustments');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [formData, setFormData] = useState<CreateInventoryItemInput>({
+    name: '',
+    code: '',
+    quantity: 0,
+    pvp: 0,
+    cost: 0,
+    datasetId: undefined,
+    dashboardId: undefined,
+  });
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [dashboards, setDashboards] = useState<any[]>([]);
+
   const canAdjust = roleAtLeast('admin');
+  const canManageItems = roleAtLeast('user');
 
-  const syncPendingDefaults = useCallback((records: InventorySummary['records']) => {
-    setPendingAmounts((prev) => {
-      const next = { ...prev };
-      let changed = false;
+  const loadItems = useCallback(async () => {
+    if (!canManageItems) return;
+    setItemsLoading(true);
+    setItemsError(null);
+    try {
+      const data = await inventoryItemsAPI.list();
+      setItems(data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al cargar items';
+      setItemsError(message);
+    } finally {
+      setItemsLoading(false);
+    }
+  }, [canManageItems]);
 
-      records.forEach((record) => {
-        const current = next[record.dataset.id];
-        if (typeof current !== 'number' || !Number.isFinite(current) || current <= 0) {
-          next[record.dataset.id] = 1;
-          changed = true;
-        }
-      });
-
-      return changed ? next : prev;
-    });
+  const loadDatasets = useCallback(async () => {
+    try {
+      const response = await datasetsAPI.list(1, 100); // Load more datasets
+      setDatasets(response.data);
+    } catch (err) {
+      console.error('Error loading datasets:', err);
+    }
   }, []);
+
+  const loadDashboards = useCallback(async () => {
+    try {
+      const response = await dashboardsAPI.list(1, 100); // Load more dashboards
+      setDashboards(response.data);
+    } catch (err) {
+      console.error('Error loading dashboards:', err);
+    }
+  }, []);
+
+  const handleCreateItem = async () => {
+    try {
+      await inventoryItemsAPI.create(formData);
+      setFormData({ name: '', code: '', quantity: 0, pvp: 0, cost: 0, datasetId: undefined, dashboardId: undefined });
+      setShowCreateForm(false);
+      await loadItems();
+    } catch (err) {
+      setItemsError(err instanceof Error ? err.message : 'Error al crear item');
+    }
+  };
+
+  const handleUpdateItem = async () => {
+    if (!editingItem) return;
+    try {
+      await inventoryItemsAPI.update(editingItem.id, formData);
+      setEditingItem(null);
+      setFormData({ name: '', code: '', quantity: 0, pvp: 0, cost: 0, datasetId: undefined, dashboardId: undefined });
+      await loadItems();
+    } catch (err) {
+      setItemsError(err instanceof Error ? err.message : 'Error al actualizar item');
+    }
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar este item?')) return;
+    try {
+      await inventoryItemsAPI.delete(id);
+      await loadItems();
+    } catch (err) {
+      setItemsError(err instanceof Error ? err.message : 'Error al eliminar item');
+    }
+  };
+
+  const handleApproveItem = async (id: string) => {
+    try {
+      await inventoryItemsAPI.approve(id, 'approved');
+      await loadItems();
+    } catch (err) {
+      setItemsError(err instanceof Error ? err.message : 'Error al aprobar item');
+    }
+  };
+
+  const handleRejectItem = async (id: string) => {
+    try {
+      await inventoryItemsAPI.reject(id, 'rejected');
+      await loadItems();
+    } catch (err) {
+      setItemsError(err instanceof Error ? err.message : 'Error al rechazar item');
+    }
+  };
+
+  const startEdit = (item: InventoryItem) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name,
+      code: item.code,
+      quantity: item.quantity,
+      pvp: item.pvp,
+      cost: item.cost,
+      datasetId: item.datasetId || undefined,
+      dashboardId: item.dashboardId || undefined,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingItem(null);
+    setFormData({ name: '', code: '', quantity: 0, pvp: 0, cost: 0, datasetId: undefined, dashboardId: undefined });
+  };
+
+  const syncPendingDefaults = useCallback((records: any[]) => {
+    const defaults: Record<string, number> = {};
+    records.forEach((record) => {
+      if (!(record.dataset.id in defaults)) {
+        defaults[record.dataset.id] = 1; // Valor por defecto
+      }
+    });
+    setPendingAmounts(defaults);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'items') {
+      loadItems();
+      loadDatasets();
+      loadDashboards();
+    }
+  }, [activeTab]); // Remover las dependencias de los callbacks para evitar loops
 
   useEffect(() => {
     let active = true;
@@ -67,7 +190,7 @@ export function InventoryPage() {
     return () => {
       active = false;
     };
-  }, [syncPendingDefaults]);
+  }, []); // Remover syncPendingDefaults de las dependencias
 
   const records = summary?.records ?? [];
   const overview = summary?.overview ?? null;
@@ -204,7 +327,35 @@ export function InventoryPage() {
         </p>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Tabs */}
+      <div className="border-b border-slate-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('adjustments')}
+            className={`border-b-2 py-2 px-1 text-sm font-medium ${
+              activeTab === 'adjustments'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+            }`}
+          >
+            Ajustes de Datasets
+          </button>
+          <button
+            onClick={() => setActiveTab('items')}
+            className={`border-b-2 py-2 px-1 text-sm font-medium ${
+              activeTab === 'items'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+            }`}
+          >
+            Gestión de Items
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === 'adjustments' ? (
+        <>
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Unidades registradas</span>
@@ -394,6 +545,229 @@ export function InventoryPage() {
           </table>
         </div>
       </section>
+        </>
+      ) : (
+        // Inventory Items Tab
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-slate-900">Gestión de Items de Inventario</h2>
+            {canManageItems && (
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                <Plus className="h-4 w-4" />
+                Nuevo Item
+              </button>
+            )}
+          </div>
+
+          {itemsError && (
+            <div className="rounded-md bg-rose-50 p-4">
+              <p className="text-sm text-rose-700">{itemsError}</p>
+            </div>
+          )}
+
+          {/* Create/Edit Form */}
+          {(showCreateForm || editingItem) && (
+            <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-medium text-slate-900 mb-4">
+                {editingItem ? 'Editar Item' : 'Crear Nuevo Item'}
+              </h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Nombre</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Código</label>
+                  <input
+                    type="text"
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Cantidad</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
+                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">PVP (€)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.pvp}
+                    onChange={(e) => setFormData({ ...formData, pvp: Number(e.target.value) })}
+                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Coste (€)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.cost}
+                    onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
+                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Dataset (opcional)</label>
+                  <select
+                    value={formData.datasetId || ''}
+                    onChange={(e) => setFormData({ ...formData, datasetId: e.target.value || undefined })}
+                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="">Seleccionar dataset...</option>
+                    {datasets.map((dataset) => (
+                      <option key={dataset.id} value={dataset.id}>
+                        {dataset.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Dashboard (opcional)</label>
+                  <select
+                    value={formData.dashboardId || ''}
+                    onChange={(e) => setFormData({ ...formData, dashboardId: e.target.value || undefined })}
+                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="">Seleccionar dashboard...</option>
+                    {dashboards.map((dashboard) => (
+                      <option key={dashboard._id} value={dashboard._id}>
+                        {dashboard.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={editingItem ? cancelEdit : () => setShowCreateForm(false)}
+                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={editingItem ? handleUpdateItem : handleCreateItem}
+                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                >
+                  {editingItem ? 'Actualizar' : 'Crear'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Items List */}
+          {itemsLoading ? (
+            <div className="flex justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
+            </div>
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Nombre</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Cantidad</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">PVP</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Coste</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Dataset</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Dashboard</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Estado</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{item.name}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{item.code}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{item.quantity}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">€{item.pvp.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">€{item.cost.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {item.datasetId ? datasets.find(d => d.id === item.datasetId)?.name || 'Cargando...' : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {item.dashboardId ? dashboards.find(d => d._id === item.dashboardId)?.name || 'Cargando...' : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          item.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                          item.status === 'rejected' ? 'bg-rose-100 text-rose-700' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>
+                          {item.status === 'approved' ? 'Aprobado' :
+                           item.status === 'rejected' ? 'Rechazado' :
+                           'Pendiente'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        {canManageItems && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => startEdit(item)}
+                              className="text-indigo-600 hover:text-indigo-900"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="text-rose-600 hover:text-rose-900"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                            {roleAtLeast('admin') && item.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={() => handleApproveItem(item.id)}
+                                  className="text-emerald-600 hover:text-emerald-900"
+                                  title="Aprobar item"
+                                >
+                                  <PackageCheck className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleRejectItem(item.id)}
+                                  className="text-rose-600 hover:text-rose-900"
+                                  title="Rechazar item"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {items.length === 0 && !itemsLoading && (
+                <div className="py-8 text-center text-slate-500">
+                  No hay items de inventario. {canManageItems && 'Crea el primero.'}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

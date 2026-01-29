@@ -349,6 +349,96 @@ export const inventoryAPI = {
     },
 };
 
+/* ==================== INVENTORY ITEMS API ==================== */
+
+export interface InventoryItem {
+    id: string;
+    ownerId: string;
+    datasetId: string | null;
+    dashboardId: string | null;
+    name: string;
+    code: string;
+    quantity: number;
+    pvp: number;
+    cost: number;
+    status: 'pending' | 'approved' | 'rejected';
+    approvedBy: string | null;
+    approvedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateInventoryItemInput {
+    name: string;
+    code: string;
+    quantity: number;
+    pvp: number;
+    cost: number;
+    datasetId?: string;
+    dashboardId?: string;
+}
+
+export interface UpdateInventoryItemInput extends Partial<CreateInventoryItemInput> { }
+
+export const inventoryItemsAPI = {
+    // Listar items de inventario
+    list: async () => {
+        const response = await api.get<InventoryItem[]>('/inventory/items');
+        return response.data;
+    },
+
+    // Obtener item específico
+    getById: async (id: string) => {
+        const response = await api.get<InventoryItem>(`/inventory/items/${id}`);
+        return response.data;
+    },
+
+    // Crear nuevo item
+    create: async (input: CreateInventoryItemInput) => {
+        try {
+            const response = await api.post<InventoryItem>('/inventory/items', input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo crear el item de inventario.'));
+        }
+    },
+
+    // Actualizar item
+    update: async (id: string, input: UpdateInventoryItemInput) => {
+        try {
+            const response = await api.put<InventoryItem>(`/inventory/items/${id}`, input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo actualizar el item de inventario.'));
+        }
+    },
+
+    // Eliminar item
+    delete: async (id: string) => {
+        await api.delete(`/inventory/items/${id}`);
+    },
+
+    // Aprobar item
+    approve: async (id: string, status: 'approved') => {
+        try {
+            const response = await api.patch<InventoryItem>(`/inventory/items/${id}/approve`, { status });
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo aprobar el item de inventario.'));
+        }
+    },
+
+    // Rechazar item
+    reject: async (id: string, status: 'rejected') => {
+        try {
+            const response = await api.patch<InventoryItem>(`/inventory/items/${id}/approve`, { status });
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo rechazar el item de inventario.'));
+        }
+    },
+};
+
 /* ==================== ANALYSIS API ==================== */
 
 export interface AnalysisResult {

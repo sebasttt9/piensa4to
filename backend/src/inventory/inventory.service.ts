@@ -39,6 +39,9 @@ interface InventoryItemRow {
     quantity: number;
     pvp: number;
     cost: number;
+    status: 'pending' | 'approved' | 'rejected';
+    approved_by: string | null;
+    approved_at: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -53,6 +56,9 @@ export interface InventoryItem {
     quantity: number;
     pvp: number;
     cost: number;
+    status: 'pending' | 'approved' | 'rejected';
+    approvedBy: string | null;
+    approvedAt: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -242,6 +248,23 @@ export class InventoryService {
         }
     }
 
+    private async ensureDashboardOwnership(ownerId: string, dashboardId: string): Promise<void> {
+        const { data, error } = await this.supabase
+            .from(this.dashboardsTable)
+            .select('id')
+            .eq('id', dashboardId)
+            .eq('owner_id', ownerId)
+            .maybeSingle();
+
+        if (error) {
+            throw new InternalServerErrorException('No se pudo validar el dashboard en Supabase.');
+        }
+
+        if (!data) {
+            throw new NotFoundException('El dashboard indicado no existe o no pertenece a tu cuenta.');
+        }
+    }
+
     private buildRecords(
         datasets: DatasetRow[],
         dashboards: DashboardRow[],
@@ -301,7 +324,7 @@ export class InventoryService {
     }
 
     // Inventory Items CRUD
-    async createItem(ownerId: string, dto: CreateInventoryItemDto): Promise<InventoryItem> {
+    async createItem(ownerId: string, dto: CreateInventoryItemDto, userRole: string = 'user'): Promise<InventoryItem> {
         // Validate dataset/dashboard ownership if provided
         if (dto.datasetId) {
             await this.ensureDatasetOwnership(ownerId, dto.datasetId);
@@ -309,6 +332,9 @@ export class InventoryService {
         if (dto.dashboardId) {
             await this.ensureDashboardOwnership(ownerId, dto.dashboardId);
         }
+
+        // Determine initial status based on user role
+        const initialStatus = userRole === 'user' ? 'pending' : 'approved';
 
         const { data, error } = await this.supabase
             .from(this.itemsTable)
@@ -321,6 +347,9 @@ export class InventoryService {
                 quantity: dto.quantity,
                 pvp: dto.pvp,
                 cost: dto.cost,
+                status: initialStatus,
+                approved_by: initialStatus === 'approved' ? ownerId : null,
+                approved_at: initialStatus === 'approved' ? new Date().toISOString() : null,
             })
             .select()
             .single();
@@ -403,6 +432,25 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
+    async approveItem(ownerId: string, itemId: string, status: 'approved' | 'rejected'): Promise<InventoryItem> {
+        const { data, error } = await this.supabase
+            .from(this.itemsTable)
+            .update({
+                status,
+                approved_by: ownerId,
+                approved_at: new Date().toISOString(),
+            })
+            .eq('id', itemId)
+            .select()
+            .single();
+
+        if (error) {
+            throw new InternalServerErrorException('No se pudo actualizar el estado del item de inventario');
+        }
+
+        return this.mapToInventoryItem(data as InventoryItemRow);
+    }
+
     async deleteItem(ownerId: string, itemId: string): Promise<void> {
         const { error } = await this.supabase
             .from(this.itemsTable)
@@ -412,19 +460,6 @@ export class InventoryService {
 
         if (error) {
             throw new InternalServerErrorException('No se pudo eliminar el item de inventario');
-        }
-    }
-
-    private async ensureDashboardOwnership(ownerId: string, dashboardId: string): Promise<void> {
-        const { data, error } = await this.supabase
-            .from('dashboards')
-            .select('id')
-            .eq('id', dashboardId)
-            .eq('owner_id', ownerId)
-            .single();
-
-        if (error || !data) {
-            throw new BadRequestException('Dashboard no encontrado o no tienes acceso');
         }
     }
 
@@ -439,6 +474,9 @@ export class InventoryService {
             quantity: row.quantity,
             pvp: row.pvp,
             cost: row.cost,
+            status: row.status,
+            approvedBy: row.approved_by,
+            approvedAt: row.approved_at,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };

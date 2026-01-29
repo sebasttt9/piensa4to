@@ -128,6 +128,15 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
     quantity integer NOT NULL DEFAULT 0 CHECK (quantity >= 0),
     pvp decimal(10, 2) NOT NULL CHECK (pvp >= 0),
     cost decimal(10, 2) NOT NULL CHECK (cost >= 0),
+    status text NOT NULL DEFAULT 'pending' CHECK (
+        status IN (
+            'pending',
+            'approved',
+            'rejected'
+        )
+    ),
+    approved_by uuid REFERENCES public.users (id) ON DELETE SET NULL,
+    approved_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -235,7 +244,56 @@ SELECT USING (
 -- Políticas para inventory_adjustments: Owners manage
 CREATE POLICY "Owners manage inventory adjustments" ON public.inventory_adjustments FOR ALL USING (auth.uid () = owner_id);
 
--- Políticas para inventory_items: Owners manage
-CREATE POLICY "Owners manage inventory items" ON public.inventory_items FOR ALL USING (auth.uid () = owner_id);
+-- Políticas para inventory_items: Users can create and view own, admins can manage all
+CREATE POLICY "Users can create inventory items" ON public.inventory_items FOR
+INSERT
+WITH
+    CHECK (auth.uid () = owner_id);
+
+CREATE POLICY "Users can view own inventory items" ON public.inventory_items FOR
+SELECT USING (auth.uid () = owner_id);
+
+CREATE POLICY "Admins can view all inventory items" ON public.inventory_items FOR
+SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM public.users
+            WHERE
+                id = auth.uid ()
+                AND role IN ('admin', 'superadmin')
+        )
+    );
+
+CREATE POLICY "Users can update own pending items" ON public.inventory_items FOR
+UPDATE USING (
+    auth.uid () = owner_id
+    AND status = 'pending'
+);
+
+CREATE POLICY "Admins can update all inventory items" ON public.inventory_items FOR
+UPDATE USING (
+    EXISTS (
+        SELECT 1
+        FROM public.users
+        WHERE
+            id = auth.uid ()
+            AND role IN ('admin', 'superadmin')
+    )
+);
+
+CREATE POLICY "Users can delete own pending items" ON public.inventory_items FOR DELETE USING (
+    auth.uid () = owner_id
+    AND status = 'pending'
+);
+
+CREATE POLICY "Admins can delete any inventory items" ON public.inventory_items FOR DELETE USING (
+    EXISTS (
+        SELECT 1
+        FROM public.users
+        WHERE
+            id = auth.uid ()
+            AND role IN ('admin', 'superadmin')
+    )
+);
 
 -- Nota: Después de ejecutar este script, ve a Supabase Dashboard > Settings > API > Reload Schema para actualizar el caché.

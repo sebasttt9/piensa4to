@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsUUID, IsOptional, Min, IsNotEmpty } from 'class-validator';
+import { IsString, IsNumber, IsUUID, IsOptional, Min, IsNotEmpty, IsIn } from 'class-validator';
 
 export class CreateInventoryItemDto {
     @IsString()
@@ -61,4 +61,9 @@ export class UpdateInventoryItemDto {
     @IsUUID()
     @IsOptional()
     dashboardId?: string;
+}
+
+export class ApproveInventoryItemDto {
+    @IsIn(['approved', 'rejected'])
+    status: 'approved' | 'rejected';
 }
