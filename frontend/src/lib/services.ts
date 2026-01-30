@@ -183,7 +183,7 @@ export const analyticsAPI = {
 /* ==================== DASHBOARDS API ==================== */
 
 export interface Dashboard {
-    _id: string;
+    id: string;
     name: string;
     description?: string;
     layout: Record<string, any>;
@@ -195,8 +195,11 @@ export interface Dashboard {
     datasetIds: string[];
     createdAt: string;
     updatedAt: string;
-    userId: string;
+    ownerId: string;
     isPublic: boolean;
+    status: 'pending' | 'approved' | 'rejected';
+    approvedBy?: string;
+    approvedAt?: string;
 }
 
 export interface CreateDashboardInput {
@@ -215,6 +218,10 @@ export interface ShareDashboardInput {
     contact: string;
     message?: string;
     makePublic?: boolean;
+}
+
+export interface ApproveDashboardInput {
+    status: 'approved' | 'rejected';
 }
 
 export const dashboardsAPI = {
@@ -288,6 +295,16 @@ export const dashboardsAPI = {
             responseType: format === 'pdf' ? 'blob' : 'json',
         });
         return response.data;
+    },
+
+    // Aprobar o rechazar dashboard (solo admins)
+    approve: async (id: string, input: ApproveDashboardInput) => {
+        try {
+            const response = await api.patch<Dashboard>(`/dashboards/${id}/approve`, input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo actualizar el status del dashboard.'));
+        }
     },
 };
 

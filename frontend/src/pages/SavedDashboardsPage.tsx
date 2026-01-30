@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { dashboardsAPI, datasetsAPI, type Dataset, type ShareDashboardInput } from '../lib/services';
+import { useAuth } from '../context/AuthContext';
 import './SavedDashboardsPage.css';
 
 interface DashboardSummary {
@@ -30,6 +31,8 @@ interface DashboardSummary {
   chartCount: number;
   updatedAt: string;
   isPublic: boolean;
+  status: 'pending' | 'approved' | 'rejected';
+  ownerId: string;
 }
 
 interface CreateDashboardState {
@@ -53,6 +56,7 @@ interface ShareDialogState {
 }
 
 export function SavedDashboardsPage() {
+  const { roleAtLeast } = useAuth();
   const generateTempId = useCallback(() => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
       return crypto.randomUUID();
@@ -103,9 +107,13 @@ export function SavedDashboardsPage() {
         : [];
     const updatedAt = String(item.updatedAt ?? item.updated_at ?? new Date().toISOString());
     const isPublic = Boolean(item.isPublic ?? item.is_public ?? false);
-    const firstDatasetName = Array.isArray(item.datasets) && item.datasets.length > 0
-      ? String((item.datasets[0] as { name?: string }).name ?? '')
-      : undefined;
+    const status = (item.status as 'pending' | 'approved' | 'rejected') ?? 'pending';
+    const ownerId = String(item.ownerId ?? item.owner_id ?? item.userId ?? item.user_id ?? '');
+
+    // Obtener el nombre del primer dataset
+    const firstDatasetId = datasetIds.length > 0 ? datasetIds[0] : null;
+    const firstDataset = firstDatasetId ? datasets.find(d => d.id === firstDatasetId) : null;
+    const firstDatasetName = firstDataset ? firstDataset.name : 'Sin dataset';
 
     return {
       id,
@@ -116,8 +124,10 @@ export function SavedDashboardsPage() {
       chartCount,
       updatedAt,
       isPublic,
+      status,
+      ownerId,
     };
-  }, [generateTempId]);
+  }, [generateTempId, datasets]);
 
   const loadDashboards = useCallback(async () => {
     setLoading(true);
@@ -227,6 +237,16 @@ export function SavedDashboardsPage() {
     });
     setIsCreateOpen(true);
     setCreateError(null);
+  };
+
+  const handleApproveDashboard = async (dashboard: DashboardSummary, status: 'approved' | 'rejected') => {
+    try {
+      await dashboardsAPI.approve(dashboard.id, { status });
+      await loadDashboards();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al actualizar el dashboard';
+      setError(message);
+    }
   };
 
   const handleCloseCreate = () => {
@@ -539,6 +559,15 @@ export function SavedDashboardsPage() {
                   <dt>Visibilidad</dt>
                   <dd>{dashboard.isPublic ? 'Público' : 'Privado'}</dd>
                 </div>
+                <div>
+                  <dt>Estado</dt>
+                  <dd>
+                    <span className={`saved-dashboards-status saved-dashboards-status--${dashboard.status}`}>
+                      {dashboard.status === 'pending' ? 'Pendiente' :
+                       dashboard.status === 'approved' ? 'Aprobado' : 'Rechazado'}
+                    </span>
+                  </dd>
+                </div>
               </dl>
 
               <div className="saved-dashboards-card__actions">
@@ -598,6 +627,26 @@ export function SavedDashboardsPage() {
                     </div>
                   )}
                 </div>
+                {roleAtLeast('admin') && dashboard.status === 'pending' && (
+                  <div className="saved-dashboards-approval">
+                    <button
+                      type="button"
+                      className="saved-dashboards-action saved-dashboards-action--approve"
+                      onClick={() => handleApproveDashboard(dashboard, 'approved')}
+                    >
+                      <Check className="w-4 h-4" />
+                      Aprobar
+                    </button>
+                    <button
+                      type="button"
+                      className="saved-dashboards-action saved-dashboards-action--reject"
+                      onClick={() => handleApproveDashboard(dashboard, 'rejected')}
+                    >
+                      <X className="w-4 h-4" />
+                      Rechazar
+                    </button>
+                  </div>
+                )}
               </div>
             </article>
           ))}

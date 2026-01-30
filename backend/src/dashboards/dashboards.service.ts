@@ -17,6 +17,9 @@ interface DashboardRow {
   layout: Record<string, unknown> | null;
   charts: DashboardChartEntity[] | null;
   is_public: boolean;
+  status: 'pending' | 'approved' | 'rejected';
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,12 +63,15 @@ export class DashboardsService {
   private readonly shareTableName = 'dashboard_shares';
   private readonly datasetsJoinTable = 'dashboard_datasets';
 
-  async create(ownerId: string, dto: CreateDashboardDto): Promise<DashboardEntity> {
+  async create(ownerId: string, dto: CreateDashboardDto, userRole: string = 'user'): Promise<DashboardEntity> {
     if (dto.datasetIds && dto.datasetIds.length > 0) {
       for (const datasetId of dto.datasetIds) {
         await this.datasetsService.findOne(ownerId, datasetId);
       }
     }
+
+    // Determine initial status based on user role
+    const initialStatus = userRole === 'admin' || userRole === 'superadmin' ? 'approved' : 'pending';
 
     const { data, error } = await this.supabase
       .from(this.tableName)
@@ -76,6 +82,9 @@ export class DashboardsService {
         layout: {},
         charts: [],
         is_public: false,
+        status: initialStatus,
+        approved_by: initialStatus === 'approved' ? ownerId : null,
+        approved_at: initialStatus === 'approved' ? new Date().toISOString() : null,
       })
       .select('*')
       .single();
@@ -97,18 +106,29 @@ export class DashboardsService {
 
   async findAll(
     ownerId: string,
+    userRole: string = 'user',
     skip = 0,
     limit = 10,
   ): Promise<DashboardEntity[]> {
     const rangeStart = skip;
     const rangeEnd = skip + limit - 1;
 
-    const { data, error } = await this.supabase
+    let query = this.supabase
       .from(this.tableName)
       .select('*')
-      .eq('owner_id', ownerId)
       .order('updated_at', { ascending: false })
       .range(rangeStart, rangeEnd);
+
+    // Filter based on user role
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      // Admins can see all dashboards
+      // No additional filter needed
+    } else {
+      // Regular users can only see their own dashboards or approved dashboards
+      query = query.or(`owner_id.eq.${ownerId},status.eq.approved`);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw new InternalServerErrorException('No se pudieron listar los dashboards');
@@ -120,11 +140,21 @@ export class DashboardsService {
     return rows.map((row) => this.toEntity(row, datasets.get(row.id)));
   }
 
-  async countByUser(ownerId: string): Promise<number> {
-    const { count, error } = await this.supabase
+  async countByUser(ownerId: string, userRole: string = 'user'): Promise<number> {
+    let query = this.supabase
       .from(this.tableName)
-      .select('id', { count: 'exact', head: true })
-      .eq('owner_id', ownerId);
+      .select('id', { count: 'exact', head: true });
+
+    // Filter based on user role
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      // Admins can see all dashboards
+      // No additional filter needed
+    } else {
+      // Regular users can only see their own dashboards or approved dashboards
+      query = query.or(`owner_id.eq.${ownerId},status.eq.approved`);
+    }
+
+    const { count, error } = await query;
 
     if (error) {
       throw new InternalServerErrorException('No se pudo contar los dashboards');
@@ -358,6 +388,9 @@ export class DashboardsService {
       layout: row.layout ?? {},
       charts: row.charts ?? [],
       isPublic: row.is_public,
+      status: row.status,
+      approvedBy: row.approved_by ?? undefined,
+      approvedAt: row.approved_at ?? undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -435,5 +468,32 @@ export class DashboardsService {
     });
 
     return result;
+  }
+
+  async approveDashboard(ownerId: string, dashboardId: string, status: 'approved' | 'rejected'): Promise<DashboardEntity> {
+    // First check if the user has permission to approve (admin or superadmin)
+    // This will be checked in the controller with guards
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .update({
+        status,
+        approved_by: ownerId,
+        approved_at: new Date().toISOString(),
+      })
+      .eq('id', dashboardId)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudo actualizar el status del dashboard');
+    }
+
+    if (!data) {
+      throw new NotFoundException('Dashboard no encontrado');
+    }
+
+    const datasets = await this.collectDatasetIds([dashboardId]);
+    return this.toEntity(data as DashboardRow, datasets.get(dashboardId));
   }
 }

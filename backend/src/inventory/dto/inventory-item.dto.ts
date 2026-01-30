@@ -21,11 +21,11 @@ export class CreateInventoryItemDto {
     @Min(0)
     cost: number;
 
-    @IsUUID()
+    @IsUUID('4', { message: 'El dataset debe ser un UUID válido' })
     @IsOptional()
     datasetId?: string;
 
-    @IsUUID()
+    @IsUUID('4', { message: 'El dashboard debe ser un UUID válido' })
     @IsOptional()
     dashboardId?: string;
 }
@@ -54,11 +54,11 @@ export class UpdateInventoryItemDto {
     @IsOptional()
     cost?: number;
 
-    @IsUUID()
+    @IsUUID('4', { message: 'El dataset debe ser un UUID válido' })
     @IsOptional()
     datasetId?: string;
 
-    @IsUUID()
+    @IsUUID('4', { message: 'El dashboard debe ser un UUID válido' })
     @IsOptional()
     dashboardId?: string;
 }

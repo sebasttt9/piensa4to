@@ -30,10 +30,8 @@ export default function App() {
           <Route path="insights" element={<InsightsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
 
-          <Route element={<ProtectedRoute allowedRoles={['admin', 'superadmin']} />}>
-            <Route path="upload" element={<UploadPage />} />
-            <Route path="saved" element={<SavedDashboardsPage />} />
-          </Route>
+          <Route path="upload" element={<UploadPage />} />
+          <Route path="saved" element={<SavedDashboardsPage />} />
           <Route element={<ProtectedRoute allowedRoles="superadmin" />}>
             <Route path="admin/accounts" element={<AccountsPage />} />
           </Route>

@@ -21,9 +21,9 @@ export declare class DashboardsService {
     private readonly tableName;
     private readonly shareTableName;
     private readonly datasetsJoinTable;
-    create(ownerId: string, dto: CreateDashboardDto): Promise<DashboardEntity>;
-    findAll(ownerId: string, skip?: number, limit?: number): Promise<DashboardEntity[]>;
-    countByUser(ownerId: string): Promise<number>;
+    create(ownerId: string, dto: CreateDashboardDto, userRole?: string): Promise<DashboardEntity>;
+    findAll(ownerId: string, userRole?: string, skip?: number, limit?: number): Promise<DashboardEntity[]>;
+    countByUser(ownerId: string, userRole?: string): Promise<number>;
     findOne(ownerId: string, id: string): Promise<DashboardEntity>;
     update(ownerId: string, id: string, dto: UpdateDashboardDto): Promise<DashboardEntity>;
     share(ownerId: string, id: string, isPublic: boolean): Promise<DashboardEntity>;
@@ -34,4 +34,5 @@ export declare class DashboardsService {
     private toShareEntity;
     private replaceDashboardDatasets;
     private collectDatasetIds;
+    approveDashboard(ownerId: string, dashboardId: string, status: 'approved' | 'rejected'): Promise<DashboardEntity>;
 }

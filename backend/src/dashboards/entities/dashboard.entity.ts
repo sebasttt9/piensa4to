@@ -13,6 +13,9 @@ export interface DashboardEntity {
     layout: Record<string, unknown>;
     charts: DashboardChartEntity[];
     isPublic: boolean;
+    status: 'pending' | 'approved' | 'rejected';
+    approvedBy?: string;
+    approvedAt?: string;
     createdAt: string;
     updatedAt: string;
 }

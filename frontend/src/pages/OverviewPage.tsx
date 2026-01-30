@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { TrendingUp, TrendingDown, Package, ShoppingCart, DollarSign, AlertCircle } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { analyticsAPI, type OverviewAnalytics } from '../lib/services';
+import { useCurrency } from '../context/CurrencyContext';
 import './OverviewPage.css';
 
 interface StatCard {
@@ -21,6 +22,7 @@ interface QuickStat {
 }
 
 export function OverviewPage() {
+  const { formatAmount } = useCurrency();
   const [overview, setOverview] = useState<OverviewAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,12 +62,7 @@ export function OverviewPage() {
     };
   }, []);
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(value);
+  const formatCurrency = (value: number) => formatAmount(value, 'USD');
 
   const statCards: StatCard[] = useMemo(() => {
     const revenue = overview?.financial.totalRevenue ?? 0;

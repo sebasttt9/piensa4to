@@ -6,7 +6,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import './InventoryPage.css';
 
 export function InventoryPage() {
-  const { roleAtLeast } = useAuth();
+  const { roleAtLeast, user } = useAuth();
   const { formatAmount, currency } = useCurrency();
   const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,41 +62,113 @@ export function InventoryPage() {
   const loadDatasets = useCallback(async () => {
     try {
       const response = await datasetsAPI.list(1, 100); // Load more datasets
-      setDatasets(response.data);
+      setDatasets(response.data || []);
     } catch (err) {
       console.error('Error loading datasets:', err);
+      setDatasets([]); // Set empty array on error
     }
   }, []);
+
+  const isValidUUID = (str: string): boolean => {
+    try {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      return typeof str === 'string' && uuidRegex.test(str);
+    } catch (error) {
+      console.error('Error validating UUID:', error);
+      return false;
+    }
+  };
 
   const loadDashboards = useCallback(async () => {
     try {
       const response = await dashboardsAPI.list(1, 100); // Load more dashboards
-      setDashboards(response.data);
+      // Filter to only include dashboards with valid UUIDs and appropriate status
+      const validDashboards = (response.data || []).filter(dashboard => {
+        const isValidId = dashboard.id && isValidUUID(dashboard.id);
+        const isApproved = dashboard.status === 'approved';
+        const isOwnDashboard = dashboard.ownerId === user?.id;
+        return isValidId && (isApproved || isOwnDashboard);
+      });
+      setDashboards(validDashboards);
     } catch (err) {
       console.error('Error loading dashboards:', err);
     }
-  }, []);
+  }, [user?.id]);
 
   const handleCreateItem = async () => {
     try {
+      // Clear previous errors
+      setItemsError(null);
+
+      // Validate required fields
+      if (!formData.name.trim()) {
+        setItemsError('El nombre es obligatorio');
+        return;
+      }
+      if (!formData.code.trim()) {
+        setItemsError('El código es obligatorio');
+        return;
+      }
+
+      // Validate UUIDs if provided
+      if (formData.datasetId && !isValidUUID(formData.datasetId)) {
+        setItemsError('El ID del dataset no es válido');
+        return;
+      }
+      if (formData.dashboardId && !isValidUUID(formData.dashboardId)) {
+        setItemsError('El ID del dashboard no es válido');
+        return;
+      }
+
       await inventoryItemsAPI.create(formData);
       setFormData({ name: '', code: '', quantity: 0, pvp: 0, cost: 0, datasetId: undefined, dashboardId: undefined });
       setShowCreateForm(false);
       await loadItems();
     } catch (err) {
+      console.error('Error creating item:', err);
       setItemsError(err instanceof Error ? err.message : 'Error al crear item');
     }
   };
 
   const handleUpdateItem = async () => {
     if (!editingItem) return;
+
     try {
+      // Clear previous errors
+      setItemsError(null);
+
+      // Validate required fields
+      if (!formData.name.trim()) {
+        setItemsError('El nombre es obligatorio');
+        return;
+      }
+      if (!formData.code.trim()) {
+        setItemsError('El código es obligatorio');
+        return;
+      }
+
+      // Validate UUIDs if provided
+      if (formData.datasetId && !isValidUUID(formData.datasetId)) {
+        setItemsError('El ID del dataset no es válido');
+        setEditingItem(null); // Clear editing state on validation error
+        setFormData({ name: '', code: '', quantity: 0, pvp: 0, cost: 0, datasetId: undefined, dashboardId: undefined });
+        return;
+      }
+      if (formData.dashboardId && !isValidUUID(formData.dashboardId)) {
+        setItemsError('El ID del dashboard no es válido');
+        setEditingItem(null); // Clear editing state on validation error
+        setFormData({ name: '', code: '', quantity: 0, pvp: 0, cost: 0, datasetId: undefined, dashboardId: undefined });
+        return;
+      }
+
       await inventoryItemsAPI.update(editingItem.id, formData);
       setEditingItem(null);
       setFormData({ name: '', code: '', quantity: 0, pvp: 0, cost: 0, datasetId: undefined, dashboardId: undefined });
       await loadItems();
     } catch (err) {
+      console.error('Error updating item:', err);
       setItemsError(err instanceof Error ? err.message : 'Error al actualizar item');
+      // Don't clear editing state on API errors, let user retry
     }
   };
 
@@ -144,6 +216,17 @@ export function InventoryPage() {
   const cancelEdit = () => {
     setEditingItem(null);
     setFormData({ name: '', code: '', quantity: 0, pvp: 0, cost: 0, datasetId: undefined, dashboardId: undefined });
+    setItemsError(null); // Clear any errors when canceling
+  };
+
+  const navigateToDashboard = (dashboardId: string) => {
+    // Navigate to the dashboard page
+    window.location.href = `/saved-dashboards?dashboard=${dashboardId}`;
+  };
+
+  const navigateToDataset = (datasetId: string) => {
+    // Navigate to the datasets page with the specific dataset
+    window.location.href = `/datasets?dataset=${datasetId}`;
   };
 
   const syncPendingDefaults = useCallback((records: any[]) => {
@@ -655,6 +738,18 @@ export function InventoryPage() {
                 <p className="inventory-form-subtitle">
                   {editingItem ? 'Modifica los detalles del item seleccionado' : 'Añade un nuevo producto al inventario'}
                 </p>
+                {itemsError && (
+                  <div className="inventory-form-error">
+                    <AlertTriangle className="h-4 w-4" />
+                    <p>{itemsError}</p>
+                    <button
+                      onClick={() => setItemsError(null)}
+                      className="inventory-form-error-close"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="inventory-form-content">
                 <div className="inventory-form-grid">
@@ -714,8 +809,11 @@ export function InventoryPage() {
                       value={formData.datasetId || ''}
                       onChange={(e) => setFormData({ ...formData, datasetId: e.target.value || undefined })}
                       className="inventory-form-input"
+                      disabled={datasets.length === 0}
                     >
-                      <option value="">Seleccionar dataset...</option>
+                      <option value="">
+                        {datasets.length === 0 ? 'Cargando datasets...' : 'Seleccionar dataset...'}
+                      </option>
                       {datasets.map((dataset) => (
                         <option key={dataset.id} value={dataset.id}>
                           {dataset.name}
@@ -729,10 +827,13 @@ export function InventoryPage() {
                       value={formData.dashboardId || ''}
                       onChange={(e) => setFormData({ ...formData, dashboardId: e.target.value || undefined })}
                       className="inventory-form-input"
+                      disabled={dashboards.length === 0}
                     >
-                      <option value="">Seleccionar dashboard...</option>
+                      <option value="">
+                        {dashboards.length === 0 ? 'Cargando dashboards...' : 'Seleccionar dashboard...'}
+                      </option>
                       {dashboards.map((dashboard) => (
-                        <option key={dashboard._id} value={dashboard._id}>
+                        <option key={dashboard.id} value={dashboard.id}>
                           {dashboard.name}
                         </option>
                       ))}
@@ -802,19 +903,33 @@ export function InventoryPage() {
                       </td>
                       <td className="inventory-items-table__body">
                         <span className="inventory-items-table__price inventory-items-table__price--pvp">
-                          {formatAmount(item.pvp)}
+                          {formatAmount(item.pvp, 'USD')}
                         </span>
                       </td>
                       <td className="inventory-items-table__body">
                         <span className="inventory-items-table__price inventory-items-table__price--cost">
-                          {formatAmount(item.cost)}
+                          {formatAmount(item.cost, 'USD')}
                         </span>
                       </td>
                       <td className="inventory-items-table__body">
-                        {item.datasetId ? datasets.find(d => d.id === item.datasetId)?.name || 'Cargando...' : '-'}
+                        {item.datasetId ? (
+                          <button
+                            onClick={() => navigateToDataset(item.datasetId!)}
+                            className="inventory-items-table__link"
+                          >
+                            {datasets.find(d => d.id === item.datasetId)?.name || 'Cargando...'}
+                          </button>
+                        ) : '-'}
                       </td>
                       <td className="inventory-items-table__body">
-                        {item.dashboardId ? dashboards.find(d => d._id === item.dashboardId)?.name || 'Cargando...' : '-'}
+                        {item.dashboardId ? (
+                          <button
+                            onClick={() => navigateToDashboard(item.dashboardId!)}
+                            className="inventory-items-table__link"
+                          >
+                            {dashboards.find(d => d.id === item.dashboardId)?.name || 'Cargando...'}
+                          </button>
+                        ) : '-'}
                       </td>
                       <td className="inventory-items-table__body">
                         <span className={`inventory-items-table__status-badge ${

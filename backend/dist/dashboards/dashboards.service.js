@@ -32,12 +32,13 @@ let DashboardsService = class DashboardsService {
     tableName = 'dashboards';
     shareTableName = 'dashboard_shares';
     datasetsJoinTable = 'dashboard_datasets';
-    async create(ownerId, dto) {
+    async create(ownerId, dto, userRole = 'user') {
         if (dto.datasetIds && dto.datasetIds.length > 0) {
             for (const datasetId of dto.datasetIds) {
                 await this.datasetsService.findOne(ownerId, datasetId);
             }
         }
+        const initialStatus = userRole === 'admin' || userRole === 'superadmin' ? 'approved' : 'pending';
         const { data, error } = await this.supabase
             .from(this.tableName)
             .insert({
@@ -47,6 +48,9 @@ let DashboardsService = class DashboardsService {
             layout: {},
             charts: [],
             is_public: false,
+            status: initialStatus,
+            approved_by: initialStatus === 'approved' ? ownerId : null,
+            approved_at: initialStatus === 'approved' ? new Date().toISOString() : null,
         })
             .select('*')
             .single();
@@ -60,15 +64,20 @@ let DashboardsService = class DashboardsService {
         const datasets = await this.collectDatasetIds([data.id]);
         return this.toEntity(data, datasets.get(data.id));
     }
-    async findAll(ownerId, skip = 0, limit = 10) {
+    async findAll(ownerId, userRole = 'user', skip = 0, limit = 10) {
         const rangeStart = skip;
         const rangeEnd = skip + limit - 1;
-        const { data, error } = await this.supabase
+        let query = this.supabase
             .from(this.tableName)
             .select('*')
-            .eq('owner_id', ownerId)
             .order('updated_at', { ascending: false })
             .range(rangeStart, rangeEnd);
+        if (userRole === 'admin' || userRole === 'superadmin') {
+        }
+        else {
+            query = query.or(`owner_id.eq.${ownerId},status.eq.approved`);
+        }
+        const { data, error } = await query;
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudieron listar los dashboards');
         }
@@ -76,11 +85,16 @@ let DashboardsService = class DashboardsService {
         const datasets = await this.collectDatasetIds(rows.map((row) => row.id));
         return rows.map((row) => this.toEntity(row, datasets.get(row.id)));
     }
-    async countByUser(ownerId) {
-        const { count, error } = await this.supabase
+    async countByUser(ownerId, userRole = 'user') {
+        let query = this.supabase
             .from(this.tableName)
-            .select('id', { count: 'exact', head: true })
-            .eq('owner_id', ownerId);
+            .select('id', { count: 'exact', head: true });
+        if (userRole === 'admin' || userRole === 'superadmin') {
+        }
+        else {
+            query = query.or(`owner_id.eq.${ownerId},status.eq.approved`);
+        }
+        const { count, error } = await query;
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo contar los dashboards');
         }
@@ -254,6 +268,9 @@ let DashboardsService = class DashboardsService {
             layout: row.layout ?? {},
             charts: row.charts ?? [],
             isPublic: row.is_public,
+            status: row.status,
+            approvedBy: row.approved_by ?? undefined,
+            approvedAt: row.approved_at ?? undefined,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
@@ -316,6 +333,26 @@ let DashboardsService = class DashboardsService {
             }
         });
         return result;
+    }
+    async approveDashboard(ownerId, dashboardId, status) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update({
+            status,
+            approved_by: ownerId,
+            approved_at: new Date().toISOString(),
+        })
+            .eq('id', dashboardId)
+            .select('*')
+            .single();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo actualizar el status del dashboard');
+        }
+        if (!data) {
+            throw new common_1.NotFoundException('Dashboard no encontrado');
+        }
+        const datasets = await this.collectDatasetIds([dashboardId]);
+        return this.toEntity(data, datasets.get(dashboardId));
     }
 };
 exports.DashboardsService = DashboardsService;

@@ -20,21 +20,22 @@ const current_user_decorator_1 = require("../common/decorators/current-user.deco
 const create_dashboard_dto_1 = require("./dto/create-dashboard.dto");
 const update_dashboard_dto_1 = require("./dto/update-dashboard.dto");
 const share_dashboard_dto_1 = require("./dto/share-dashboard.dto");
+const approve_dashboard_dto_1 = require("./dto/approve-dashboard.dto");
 let DashboardsController = class DashboardsController {
     dashboardsService;
     constructor(dashboardsService) {
         this.dashboardsService = dashboardsService;
     }
     create(user, dto) {
-        return this.dashboardsService.create(user.id, dto);
+        return this.dashboardsService.create(user.id, dto, user.role);
     }
     async findAll(user, page = 1, limit = 10) {
         const parsedPage = Number(page) || 1;
         const parsedLimit = Number(limit) || 10;
         const skip = (parsedPage - 1) * parsedLimit;
         const [dashboards, total] = await Promise.all([
-            this.dashboardsService.findAll(user.id, skip, parsedLimit),
-            this.dashboardsService.countByUser(user.id),
+            this.dashboardsService.findAll(user.id, user.role, skip, parsedLimit),
+            this.dashboardsService.countByUser(user.id, user.role),
         ]);
         return {
             data: dashboards,
@@ -70,6 +71,9 @@ let DashboardsController = class DashboardsController {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.pdf"`);
         return res.send(pdfBuffer);
+    }
+    approve(user, id, dto) {
+        return this.dashboardsService.approveDashboard(user.id, id, dto.status);
     }
 };
 exports.DashboardsController = DashboardsController;
@@ -143,6 +147,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], DashboardsController.prototype, "export", null);
+__decorate([
+    (0, common_1.Patch)(':id/approve'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, approve_dashboard_dto_1.ApproveDashboardDto]),
+    __metadata("design:returntype", void 0)
+], DashboardsController.prototype, "approve", null);
 exports.DashboardsController = DashboardsController = __decorate([
     (0, common_1.Controller)('dashboards'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

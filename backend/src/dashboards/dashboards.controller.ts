@@ -18,6 +18,7 @@ import type { UserEntity } from '../users/entities/user.entity';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { ShareDashboardDto } from './dto/share-dashboard.dto';
+import { ApproveDashboardDto } from './dto/approve-dashboard.dto';
 import type { Response } from 'express';
 
 @Controller('dashboards')
@@ -27,7 +28,7 @@ export class DashboardsController {
 
   @Post()
   create(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Body() dto: CreateDashboardDto) {
-    return this.dashboardsService.create(user.id, dto);
+    return this.dashboardsService.create(user.id, dto, user.role);
   }
 
   @Get()
@@ -40,8 +41,8 @@ export class DashboardsController {
     const parsedLimit = Number(limit) || 10;
     const skip = (parsedPage - 1) * parsedLimit;
     const [dashboards, total] = await Promise.all([
-      this.dashboardsService.findAll(user.id, skip, parsedLimit),
-      this.dashboardsService.countByUser(user.id),
+      this.dashboardsService.findAll(user.id, user.role, skip, parsedLimit),
+      this.dashboardsService.countByUser(user.id, user.role),
     ]);
     return {
       data: dashboards,
@@ -107,5 +108,10 @@ export class DashboardsController {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.pdf"`);
     return res.send(pdfBuffer);
+  }
+
+  @Patch(':id/approve')
+  approve(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string, @Body() dto: ApproveDashboardDto) {
+    return this.dashboardsService.approveDashboard(user.id, id, dto.status);
   }
 }

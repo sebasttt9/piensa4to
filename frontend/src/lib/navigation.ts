@@ -15,8 +15,8 @@ export const appNavigation: AppNavigationItem[] = [
   { label: 'Dashboard', to: '/app/overview', icon: BarChart3, minRole: 'user' },
   { label: 'Datasets', to: '/app/datasets', icon: Database, minRole: 'user' },
   { label: 'Inventario', to: '/app/inventory', icon: Boxes, minRole: 'user' },
-  { label: 'Subir archivo', to: '/app/upload', icon: UploadCloud, minRole: 'admin' },
-  { label: 'Dashboards guardados', to: '/app/saved', icon: LayoutGrid, minRole: 'admin' },
+  { label: 'Subir archivo', to: '/app/upload', icon: UploadCloud, minRole: 'user' },
+  { label: 'Dashboards guardados', to: '/app/saved', icon: LayoutGrid, minRole: 'user' },
   { label: 'IA Insights', to: '/app/insights', icon: LineChart, minRole: 'user' },
   { label: 'Cuentas y roles', to: '/app/admin/accounts', icon: ShieldCheck, minRole: 'superadmin' },
 ];
