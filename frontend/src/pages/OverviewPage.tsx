@@ -16,7 +16,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
-import { inventoryAPI, inventoryItemsAPI, datasetsAPI, dashboardsAPI, type InventorySummary, type InventoryItem, type Dataset, type Dashboard } from '../lib/services';
+import { inventoryAPI, inventoryItemsAPI, datasetsAPI, dashboardsAPI, issuesAPI, type InventorySummary, type InventoryItem, type Dataset, type Dashboard, type Issue } from '../lib/services';
 import { useCurrency } from '../context/CurrencyContext';
 import './OverviewPage.css';
 
@@ -35,6 +35,7 @@ interface InventoryOverview {
   items: InventoryItem[];
   datasets: Dataset[];
   dashboards: Dashboard[];
+  issues?: Issue[];
 }
 
 type ChartType = 'bar' | 'pie' | 'radar' | 'line' | 'area' | 'scatter';
@@ -62,6 +63,8 @@ export function OverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('bar');
   const [showChartSelector, setShowChartSelector] = useState(false);
+  const [selectedSecondaryChartType, setSelectedSecondaryChartType] = useState<ChartType>('pie');
+  const [showSecondaryChartSelector, setShowSecondaryChartSelector] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -69,6 +72,7 @@ export function OverviewPage() {
     const fetchOverview = async () => {
       setIsLoading(true);
       try {
+        // Cargar datos principales primero
         const [summary, items, datasets, dashboards] = await Promise.all([
           inventoryAPI.getSummary(),
           inventoryItemsAPI.list(),
@@ -76,13 +80,23 @@ export function OverviewPage() {
           dashboardsAPI.list(1, 100)
         ]);
 
+        // Cargar issues de forma opcional (si la tabla existe)
+        let issues: Issue[] = [];
+        try {
+          issues = await issuesAPI.list();
+        } catch (issuesError) {
+          console.warn('Issues table not available yet:', issuesError);
+          issues = [];
+        }
+
         if (!active) return;
 
         setOverview({
           summary,
           items: items || [],
           datasets: datasets.data || [],
-          dashboards: dashboards.data || []
+          dashboards: dashboards.data || [],
+          issues: issues || []
         });
         setError(null);
       } catch (err: unknown) {
@@ -240,6 +254,22 @@ export function OverviewPage() {
       .slice(0, 6);
   }, [overview]);
 
+  const issuesData = useMemo(() => {
+    if (!overview || !overview.issues) return [];
+
+    const typeCount = overview.issues.reduce((acc, issue) => {
+      acc[issue.type] = (acc[issue.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return [
+      { name: 'Compras', value: typeCount.compra || 0, color: '#00D4FF' },
+      { name: 'Devoluciones', value: typeCount.devolucion || 0, color: '#FF6B6B' },
+      { name: 'Errores Logísticos', value: typeCount.error_logistico || 0, color: '#FFEAA7' },
+      { name: 'Otros', value: typeCount.otro || 0, color: '#4ECDC4' }
+    ].filter(item => item.value > 0);
+  }, [overview]);
+
   // Datos para gráfico de radar (métricas multidimensionales)
   const radarData = useMemo(() => {
     if (!overview) return [];
@@ -311,6 +341,275 @@ export function OverviewPage() {
     }));
   }, [overview]);
 
+  // Función para renderizar el gráfico secundario seleccionado
+  const renderSecondaryChart = () => {
+    const selectedOption = CHART_OPTIONS.find(option => option.type === selectedSecondaryChartType);
+    if (!selectedOption) return null;
+
+    const Icon = selectedOption.icon;
+
+    switch (selectedSecondaryChartType) {
+      case 'bar':
+        return (
+          <div className="overview-chart-card">
+            <div className="overview-chart-card__header">
+              <div className="overview-chart-card__header-main">
+                <Icon className="overview-chart-card__type-icon" />
+                <div>
+                  <h3 className="overview-chart-card__title">Problemas por Tipo</h3>
+                  <p className="overview-chart-card__subtitle">Distribución de problemas logísticos</p>
+                </div>
+              </div>
+            </div>
+            <div className="overview-chart-card__content">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={issuesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="issuesBarGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#4ECDC4" />
+                      <stop offset="100%" stopColor="#45B7D1" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#94a3b8"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <YAxis stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                  <Tooltip
+                    formatter={(value: number) => [value, 'Cantidad']}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
+                  />
+                  <Bar dataKey="value" fill="url(#issuesBarGradient)" name="Cantidad" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+
+      case 'pie':
+        return (
+          <div className="overview-chart-card">
+            <div className="overview-chart-card__header">
+              <div className="overview-chart-card__header-main">
+                <Icon className="overview-chart-card__type-icon" />
+                <div>
+                  <h3 className="overview-chart-card__title">Distribución de Problemas</h3>
+                  <p className="overview-chart-card__subtitle">Problemas logísticos por tipo</p>
+                </div>
+              </div>
+            </div>
+            <div className="overview-chart-card__content">
+              <ResponsiveContainer width="100%" height={300}>
+                <RechartsPieChart>
+                  <Pie
+                    data={issuesData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    dataKey="value"
+                    label={(entry: any) => `${entry.name} ${(entry.percent * 100).toFixed(0)}%`}
+                  >
+                    {issuesData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
+                  />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+
+      case 'radar':
+        return (
+          <div className="overview-chart-card">
+            <div className="overview-chart-card__header">
+              <div className="overview-chart-card__header-main">
+                <Icon className="overview-chart-card__type-icon" />
+                <div>
+                  <h3 className="overview-chart-card__title">Problemas Multidimensionales</h3>
+                  <p className="overview-chart-card__subtitle">Vista radial de los problemas</p>
+                </div>
+              </div>
+            </div>
+            <div className="overview-chart-card__content">
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart data={issuesData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="name" style={{ fontSize: '12px' }} />
+                  <PolarRadiusAxis
+                    angle={90}
+                    domain={[0, 'dataMax']}
+                    style={{ fontSize: '10px' }}
+                  />
+                  <RechartsRadar
+                    name="Cantidad"
+                    dataKey="value"
+                    stroke="#4ECDC4"
+                    fill="#4ECDC4"
+                    fillOpacity={0.3}
+                    strokeWidth={2}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [value, 'Cantidad']}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+
+      case 'line':
+        return (
+          <div className="overview-chart-card">
+            <div className="overview-chart-card__header">
+              <div className="overview-chart-card__header-main">
+                <Icon className="overview-chart-card__type-icon" />
+                <div>
+                  <h3 className="overview-chart-card__title">Tendencias de Problemas</h3>
+                  <p className="overview-chart-card__subtitle">Evolución de problemas logísticos</p>
+                </div>
+              </div>
+            </div>
+            <div className="overview-chart-card__content">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={issuesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                  <Tooltip
+                    formatter={(value: number) => [value, 'Cantidad']}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
+                  />
+                  <Line type="monotone" dataKey="value" stroke="#4ECDC4" strokeWidth={3} name="Cantidad" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+
+      case 'area':
+        return (
+          <div className="overview-chart-card">
+            <div className="overview-chart-card__header">
+              <div className="overview-chart-card__header-main">
+                <Icon className="overview-chart-card__type-icon" />
+                <div>
+                  <h3 className="overview-chart-card__title">Distribución de Problemas</h3>
+                  <p className="overview-chart-card__subtitle">Acumulación por tipo de problema</p>
+                </div>
+              </div>
+            </div>
+            <div className="overview-chart-card__content">
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={issuesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="issuesAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#4ECDC4" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#4ECDC4" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                  <Tooltip
+                    formatter={(value: number) => [value, 'Cantidad']}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
+                  />
+                  <Area type="monotone" dataKey="value" stroke="#4ECDC4" fill="url(#issuesAreaGradient)" name="Cantidad" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+
+      case 'scatter':
+        return (
+          <div className="overview-chart-card">
+            <div className="overview-chart-card__header">
+              <div className="overview-chart-card__header-main">
+                <Icon className="overview-chart-card__type-icon" />
+                <div>
+                  <h3 className="overview-chart-card__title">Problemas Dispersos</h3>
+                  <p className="overview-chart-card__subtitle">Distribución de problemas</p>
+                </div>
+              </div>
+            </div>
+            <div className="overview-chart-card__content">
+              <ResponsiveContainer width="100%" height={300}>
+                <ScatterChart data={issuesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis
+                    type="category"
+                    dataKey="name"
+                    name="Tipo"
+                    stroke="#94a3b8"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <YAxis
+                    type="number"
+                    dataKey="value"
+                    name="Cantidad"
+                    stroke="#94a3b8"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [value, 'Cantidad']}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
+                  />
+                  <Scatter dataKey="value" fill="#4ECDC4" name="Cantidad" />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   // Función para renderizar el gráfico seleccionado
   const renderSelectedChart = () => {
     const selectedOption = CHART_OPTIONS.find(option => option.type === selectedChartType);
@@ -354,9 +653,10 @@ export function OverviewPage() {
                     formatter={(value: number) => formatCurrency(value)}
                     contentStyle={{
                       borderRadius: '8px',
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
                       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                      backgroundColor: '#ffffff'
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
                     }}
                   />
                   <Bar dataKey="value" fill="url(#barGradient)" name="Valor" radius={[4, 4, 0, 0]} />
@@ -393,7 +693,15 @@ export function OverviewPage() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
+                  />
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
@@ -435,6 +743,13 @@ export function OverviewPage() {
                       formatCurrency(props.payload.actual),
                       name
                     ]}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
                   />
                 </RadarChart>
               </ResponsiveContainer>
@@ -467,9 +782,10 @@ export function OverviewPage() {
                     ]}
                     contentStyle={{
                       borderRadius: '8px',
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
                       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                      backgroundColor: '#ffffff'
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
                     }}
                   />
                   <Line type="monotone" dataKey="count" stroke="#00D4FF" strokeWidth={3} name="count" />
@@ -516,9 +832,10 @@ export function OverviewPage() {
                     ]}
                     contentStyle={{
                       borderRadius: '8px',
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
                       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                      backgroundColor: '#ffffff'
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
                     }}
                   />
                   <Area type="monotone" dataKey="value" stackId="1" stroke="#00D4FF" fill="url(#colorValue)" name="value" />
@@ -567,9 +884,10 @@ export function OverviewPage() {
                     labelFormatter={(_label, payload) => payload?.[0]?.payload?.name || ''}
                     contentStyle={{
                       borderRadius: '8px',
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
                       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                      backgroundColor: '#ffffff'
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
                     }}
                   />
                   <Scatter dataKey="value" fill="#00D4FF" name="value" />
@@ -692,32 +1010,46 @@ export function OverviewPage() {
         {/* Selected Chart */}
         {renderSelectedChart()}
 
-        {/* Secondary Chart - Status Overview */}
-        <div className="overview-chart-card">
-          <div className="overview-chart-card__header">
-            <h3 className="overview-chart-card__title">Estado del Inventario</h3>
-            <p className="overview-chart-card__subtitle">Distribución por estado de aprobación</p>
+        {/* Secondary Chart Selector */}
+        <div className="overview-chart-selector">
+          <div className="overview-chart-selector__header">
+            <h3 className="overview-chart-selector__title">Visualización Secundaria</h3>
+            <button
+              className="overview-chart-selector__toggle"
+              onClick={() => setShowSecondaryChartSelector(!showSecondaryChartSelector)}
+            >
+              {CHART_OPTIONS.find(option => option.type === selectedSecondaryChartType)?.name}
+              <ChevronDown className={`overview-chart-selector__arrow ${showSecondaryChartSelector ? 'rotated' : ''}`} />
+            </button>
           </div>
-          <div className="overview-chart-card__content">
-            <ResponsiveContainer width="100%" height={300}>
-              <RechartsPieChart>
-                <Pie
-                  data={inventoryStatusData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  dataKey="value"
-                  label={(entry: any) => `${entry.name} ${(entry.percent * 100).toFixed(0)}%`}
-                >
-                  {inventoryStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </RechartsPieChart>
-            </ResponsiveContainer>
-          </div>
+
+          {showSecondaryChartSelector && (
+            <div className="overview-chart-selector__options">
+              {CHART_OPTIONS.map((option) => {
+                const OptionIcon = option.icon;
+                return (
+                  <button
+                    key={option.type}
+                    className={`overview-chart-selector__option ${selectedSecondaryChartType === option.type ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedSecondaryChartType(option.type);
+                      setShowSecondaryChartSelector(false);
+                    }}
+                  >
+                    <OptionIcon className="overview-chart-selector__option-icon" />
+                    <div className="overview-chart-selector__option-content">
+                      <span className="overview-chart-selector__option-name">{option.name}</span>
+                      <span className="overview-chart-selector__option-description">{option.description}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
+
+        {/* Secondary Chart */}
+        {renderSecondaryChart()}
       </div>
 
       {/* Connections Section */}

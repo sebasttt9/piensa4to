@@ -424,9 +424,7 @@ export interface UpdateInventoryItemInput extends Partial<CreateInventoryItemInp
 export const inventoryItemsAPI = {
     // Listar items de inventario
     list: async () => {
-        console.log('inventoryItemsAPI.list() called');
         const response = await api.get<InventoryItem[]>('/inventory/items');
-        console.log('API response received:', response.status, response.data);
         return response.data;
     },
 
@@ -461,20 +459,20 @@ export const inventoryItemsAPI = {
         await api.delete(`/inventory/items/${id}`);
     },
 
-    // Aprobar item
+    // Aprobar item (usando endpoint de prueba temporal)
     approve: async (id: string, status: 'approved') => {
         try {
-            const response = await api.patch<InventoryItem>(`/inventory/items/${id}/approve`, { status });
+            const response = await api.patch<InventoryItem>(`/inventory/test/approve/${id}`, { status });
             return response.data;
         } catch (error) {
             throw new Error(resolveApiError(error, 'No se pudo aprobar el item de inventario.'));
         }
     },
 
-    // Rechazar item
+    // Rechazar item (usando endpoint de prueba temporal)
     reject: async (id: string, status: 'rejected') => {
         try {
-            const response = await api.patch<InventoryItem>(`/inventory/items/${id}/approve`, { status });
+            const response = await api.patch<InventoryItem>(`/inventory/test/approve/${id}`, { status });
             return response.data;
         } catch (error) {
             throw new Error(resolveApiError(error, 'No se pudo rechazar el item de inventario.'));
@@ -585,5 +583,73 @@ export const adminUsersAPI = {
 
     remove: async (id: string) => {
         await api.delete(`/users/${id}`);
+    },
+};
+
+/* ==================== ISSUES API ==================== */
+
+export interface Issue {
+    id: string;
+    type: 'compra' | 'devolucion' | 'error_logistico' | 'otro';
+    description: string;
+    amount?: number;
+    status: 'pendiente' | 'resuelto' | 'cancelado';
+    createdAt: string;
+    updatedAt: string;
+    createdBy: {
+        id: string;
+        name: string;
+    };
+    inventoryItem?: {
+        id: string;
+        name: string;
+    };
+}
+
+export interface CreateIssueInput {
+    type: 'compra' | 'devolucion' | 'error_logistico' | 'otro';
+    description: string;
+    amount?: number;
+    inventoryItemId?: string;
+}
+
+export interface UpdateIssueInput {
+    type?: 'compra' | 'devolucion' | 'error_logistico' | 'otro';
+    description?: string;
+    amount?: number;
+    status?: 'pendiente' | 'resuelto' | 'cancelado';
+}
+
+export const issuesAPI = {
+    list: async () => {
+        const response = await api.get<Issue[]>('/issues');
+        return response.data;
+    },
+
+    getById: async (id: string) => {
+        const response = await api.get<Issue>(`/issues/${id}`);
+        return response.data;
+    },
+
+    create: async (input: CreateIssueInput) => {
+        try {
+            const response = await api.post<Issue>('/issues', input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo crear el problema.'));
+        }
+    },
+
+    update: async (id: string, input: UpdateIssueInput) => {
+        try {
+            const response = await api.patch<Issue>(`/issues/${id}`, input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo actualizar el problema.'));
+        }
+    },
+
+    delete: async (id: string) => {
+        await api.delete(`/issues/${id}`);
     },
 };

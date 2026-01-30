@@ -22,9 +22,9 @@
 }
 
 @layer base {
-  input,
-  textarea,
-  select {
+  input:not(.issues-modal input),
+  textarea:not(.issues-modal textarea),
+  select:not(.issues-modal select) {
     background: transparent;
     color: #ffffff;
     caret-color: #ffffff;

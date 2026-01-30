@@ -8,15 +8,99 @@ import { AdjustInventoryDto } from './dto/adjust-inventory.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/constants/roles.enum';
 import { CreateInventoryItemDto, UpdateInventoryItemDto, ApproveInventoryItemDto } from './dto/inventory-item.dto';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
+import { Inject, InternalServerErrorException } from '@nestjs/common';
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class InventoryController {
-    constructor(private readonly inventoryService: InventoryService) { }
+    constructor(
+        private readonly inventoryService: InventoryService,
+        @Inject(SUPABASE_DATA_CLIENT)
+        private readonly supabase: SupabaseClient,
+    ) { }
 
     @Get('test')
-    testEndpoint() {
-        return { message: 'Test endpoint works' };
+    async testEndpoint() {
+        // Crear algunos items de prueba con owner_id fijo para testing
+        const testItems = [
+            {
+                owner_id: '550e8400-e29b-41d4-a716-446655440000', // UUID de prueba
+                name: 'Producto de Prueba 1',
+                code: 'TEST001',
+                quantity: 100,
+                pvp: 25.50,
+                cost: 15.00,
+                status: 'pending'
+            },
+            {
+                owner_id: '550e8400-e29b-41d4-a716-446655440000',
+                name: 'Producto de Prueba 2',
+                code: 'TEST002',
+                quantity: 50,
+                pvp: 45.00,
+                cost: 30.00,
+                status: 'pending'
+            },
+            {
+                owner_id: '550e8400-e29b-41d4-a716-446655440000',
+                name: 'Producto de Prueba 3',
+                code: 'TEST003',
+                quantity: 75,
+                pvp: 12.99,
+                cost: 8.50,
+                status: 'pending'
+            }
+        ];
+
+        try {
+            const { data, error } = await this.supabase
+                .from('inventory_items')
+                .upsert(testItems, { onConflict: 'code' });
+
+            if (error) {
+                console.error('Error creating test items:', error);
+                return { error: error.message };
+            }
+
+            return { message: 'Test items created', count: testItems.length, data };
+        } catch (err) {
+            console.error('Exception creating test items:', err);
+            return { error: 'Exception occurred' };
+        }
+    }
+
+    @Patch('test/approve/:id')
+    async testApproveItem(@Param('id') itemId: string, @Body() dto: { status: string }) {
+        try {
+            const { data, error } = await this.supabase
+                .from('inventory_items')
+                .update({ status: dto.status })
+                .eq('id', itemId)
+                .select()
+                .single();
+
+            if (error) {
+                throw error;
+            }
+
+            return data;
+        } catch (error) {
+            throw new InternalServerErrorException('Error aprobando item de prueba');
+        }
+    }
+
+    @Get('debug')
+    async debugEndpoint(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
+        return {
+            user: {
+                id: user.id,
+                email: user.email,
+                role: user.role
+            },
+            timestamp: new Date().toISOString()
+        };
     }
 
     @Get()
@@ -63,6 +147,7 @@ export class InventoryController {
     @Get('items')
     @Roles(UserRole.User)
     getItems(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
+        console.log('GET /inventory/items called by user:', user.id, 'role:', user.role, 'email:', user.email);
         return this.inventoryService.getItems(user.id, user.role);
     }
 

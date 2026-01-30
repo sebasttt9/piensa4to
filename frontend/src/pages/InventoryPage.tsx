@@ -8,12 +8,13 @@ import './InventoryPage.css';
 export function InventoryPage() {
   const { roleAtLeast, user } = useAuth();
   const { formatAmount, currency } = useCurrency();
-  const [summary, setSummary] = useState<InventorySummary | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingAmounts, setPendingAmounts] = useState<Record<string, number>>({});
   const [actionLoading, setActionLoading] = useState(false);
+  const [summary, setSummary] = useState<InventorySummary | null>(null);
 
   // Inventory Items state
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -38,33 +39,28 @@ export function InventoryPage() {
   const canManageItems = roleAtLeast('user');
 
   const loadItems = useCallback(async () => {
-    console.log('loadItems called, canManageItems:', canManageItems, 'role:', roleAtLeast('user'));
-    if (!canManageItems) {
-      console.log('User cannot manage items, skipping load');
+    const currentCanManageItems = roleAtLeast('user');
+    if (!currentCanManageItems) {
       return;
     }
     setItemsLoading(true);
     setItemsError(null);
     try {
-      console.log('Calling inventoryItemsAPI.list()');
       const data = await inventoryItemsAPI.list();
-      console.log('Items loaded successfully:', data);
       setItems(data);
     } catch (err) {
-      console.log('Error loading items:', err);
       const message = err instanceof Error ? err.message : 'Error al cargar items';
       setItemsError(message);
     } finally {
       setItemsLoading(false);
     }
-  }, [canManageItems]);
+  }, [roleAtLeast]); // Solo dependemos de roleAtLeast
 
   const loadDatasets = useCallback(async () => {
     try {
       const response = await datasetsAPI.list(1, 100); // Load more datasets
       setDatasets(response.data || []);
     } catch (err) {
-      console.error('Error loading datasets:', err);
       setDatasets([]); // Set empty array on error
     }
   }, []);
@@ -74,7 +70,6 @@ export function InventoryPage() {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       return typeof str === 'string' && uuidRegex.test(str);
     } catch (error) {
-      console.error('Error validating UUID:', error);
       return false;
     }
   };
@@ -91,7 +86,7 @@ export function InventoryPage() {
       });
       setDashboards(validDashboards);
     } catch (err) {
-      console.error('Error loading dashboards:', err);
+      setDashboards([]);
     }
   }, [user?.id]);
 
@@ -245,7 +240,7 @@ export function InventoryPage() {
       loadDatasets();
       loadDashboards();
     }
-  }, [activeTab]); // Remover las dependencias de los callbacks para evitar loops
+  }, [activeTab, user]); // Dependemos de activeTab y user
 
   useEffect(() => {
     let active = true;
@@ -957,24 +952,25 @@ export function InventoryPage() {
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
-                            {roleAtLeast('admin') && item.status === 'pending' && (
-                              <>
-                                <button
-                                  onClick={() => handleApproveItem(item.id)}
-                                  className="inventory-items-table__action-btn inventory-items-table__action-btn--approve"
-                                  title="Aprobar item"
-                                >
-                                  <PackageCheck className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleRejectItem(item.id)}
-                                  className="inventory-items-table__action-btn inventory-items-table__action-btn--reject"
-                                  title="Rechazar item"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </>
-                            )}
+                          </div>
+                        )}
+                        {/* Botones de aprobar/rechazar solo para admins */}
+                        {canAdjust && (
+                          <div className="inventory-items-table__actions">
+                            <button
+                              onClick={() => handleApproveItem(item.id)}
+                              className="inventory-items-table__action-btn inventory-items-table__action-btn--approve"
+                              title={`Aprobar item (Status: ${item.status})`}
+                            >
+                              <PackageCheck className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleRejectItem(item.id)}
+                              className="inventory-items-table__action-btn inventory-items-table__action-btn--reject"
+                              title={`Rechazar item (Status: ${item.status})`}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
                           </div>
                         )}
                       </td>
@@ -995,6 +991,7 @@ export function InventoryPage() {
           )}
         </div>
       )}
+
     </div>
   );
 }

@@ -72,15 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const cached = localStorage.getItem(STORAGE_KEY);
-    const token = localStorage.getItem(TOKEN_KEY);
-    console.log('AuthProvider init - cached user:', !!cached, 'token:', !!token);
     if (!cached) return null;
     try {
       const parsed = JSON.parse(cached) as AuthUser;
-      console.log('AuthProvider - parsed user:', parsed);
       return parsed;
     } catch (error) {
-      console.error('Failed to parse cached session', error);
       return null;
     }
   });
@@ -184,7 +180,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(nextUser);
         persistUser(nextUser, token);
       } catch {
-        signOut();
+        // Don't sign out, just keep the cached user
+        // signOut();
       } finally {
         setIsAuthenticating(false);
       }

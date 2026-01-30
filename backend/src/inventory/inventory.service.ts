@@ -417,23 +417,28 @@ export class InventoryService {
     }
 
     async getItems(ownerId: string, userRole: string = 'user'): Promise<InventoryItem[]> {
+        console.log('getItems called with ownerId:', ownerId, 'userRole:', userRole);
+
         let query = this.supabase
             .from(this.itemsTable)
             .select('*')
             .order('created_at', { ascending: false });
 
         if (userRole === 'admin' || userRole === 'superadmin') {
+            console.log('User is admin/superadmin, fetching all items');
         } else {
-
+            console.log('User is regular user, filtering by owner_id:', ownerId);
             query = query.eq('owner_id', ownerId);
         }
 
         const { data, error } = await query;
 
         if (error) {
+            console.error('Error fetching items:', error);
             throw new InternalServerErrorException('No se pudieron obtener los items de inventario');
         }
 
+        console.log('Items fetched:', data?.length || 0, 'items');
         return (data as InventoryItemRow[]).map(row => this.mapToInventoryItem(row));
     }
 

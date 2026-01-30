@@ -7,6 +7,7 @@ import { UploadPage } from './pages/UploadPage';
 import { SavedDashboardsPage } from './pages/SavedDashboardsPage';
 import { InsightsPage } from './pages/InsightsPage';
 import { InventoryPage } from './pages/InventoryPage';
+import { IssuesPage } from './pages/IssuesPage';
 import { DatasetDetailPage } from './pages/DatasetDetailPage';
 import { ManualDatasetPage } from './pages/ManualDatasetPage';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="datasets/:datasetId" element={<DatasetDetailPage />} />
           <Route path="insights" element={<InsightsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
+          <Route path="issues" element={<IssuesPage />} />
 
           <Route path="upload" element={<UploadPage />} />
           <Route path="manual-dataset" element={<ManualDatasetPage />} />
