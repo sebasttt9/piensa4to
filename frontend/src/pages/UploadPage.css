@@ -346,6 +346,30 @@
   color: rgba(252, 165, 165, 0.95);
 }
 
+.upload-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  color: rgba(254, 202, 202, 0.92);
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+.upload-error__icon {
+  width: 20px;
+  height: 20px;
+  color: rgba(252, 165, 165, 0.95);
+  flex-shrink: 0;
+}
+
+.upload-error__message {
+  line-height: 1.4;
+}
+
 .upload-sidebar {
   display: flex;
   flex-direction: column;

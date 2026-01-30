@@ -29,7 +29,7 @@ export interface Dataset {
     description?: string;
     filename?: string;
     fileSize?: number;
-    fileType?: 'csv' | 'xlsx';
+    fileType?: 'csv' | 'xlsx' | 'json';
     rowCount?: number;
     columnCount?: number;
     analysis?: Record<string, any>;

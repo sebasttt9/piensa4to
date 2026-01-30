@@ -235,7 +235,10 @@ let DatasetsService = class DatasetsService {
         if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
             return 'xlsx';
         }
-        throw new common_1.BadRequestException('Formato no soportado. Use CSV o Excel.');
+        if (lower.endsWith('.json')) {
+            return 'json';
+        }
+        throw new common_1.BadRequestException('Formato no soportado. Use CSV, Excel (.xlsx/.xls) o JSON.');
     }
     async parseFile(file, extension) {
         if (extension === 'csv') {
@@ -249,6 +252,41 @@ let DatasetsService = class DatasetsService {
                 throw new common_1.BadRequestException(`Error al procesar CSV: ${parsed.errors[0].message}`);
             }
             return parsed.data;
+        }
+        if (extension === 'json') {
+            try {
+                const content = file.buffer.toString('utf-8');
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                    return parsed.map(item => {
+                        if (typeof item === 'object' && item !== null) {
+                            return item;
+                        }
+                        throw new common_1.BadRequestException('El JSON debe contener un array de objetos.');
+                    });
+                }
+                if (typeof parsed === 'object' && parsed !== null) {
+                    const possibleDataKeys = ['data', 'records', 'rows', 'items', 'results'];
+                    for (const key of possibleDataKeys) {
+                        if (Array.isArray(parsed[key])) {
+                            return parsed[key].map(item => {
+                                if (typeof item === 'object' && item !== null) {
+                                    return item;
+                                }
+                                return { [key]: item };
+                            });
+                        }
+                    }
+                    return [parsed];
+                }
+                throw new common_1.BadRequestException('Formato JSON no válido. Debe ser un array de objetos o un objeto con una propiedad que contenga los datos.');
+            }
+            catch (error) {
+                if (error instanceof SyntaxError) {
+                    throw new common_1.BadRequestException('El archivo JSON tiene un formato inválido.');
+                }
+                throw error;
+            }
         }
         const workbook = XLSX.read(file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];

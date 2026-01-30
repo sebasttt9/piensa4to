@@ -56,7 +56,7 @@ export class DatasetsController {
   }
 
   @Post()
-  @Roles(UserRole.Admin)
+  @Roles(UserRole.Admin, UserRole.User)
   create(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Body() dto: UploadDatasetDto,
@@ -75,7 +75,7 @@ export class DatasetsController {
   }
 
   @Post(':id/upload')
-  @Roles(UserRole.Admin)
+  @Roles(UserRole.Admin, UserRole.User)
   @UseInterceptors(FileInterceptor('file'))
   uploadFile(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,

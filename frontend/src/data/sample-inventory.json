@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "nombre": "Producto A",
+    "categoria": "Electrónicos",
+    "precio": 299.99,
+    "cantidad": 50,
+    "proveedor": "TechCorp",
+    "fecha_ingreso": "2024-01-15",
+    "estado": "disponible"
+  },
+  {
+    "id": 2,
+    "nombre": "Producto B",
+    "categoria": "Ropa",
+    "precio": 89.50,
+    "cantidad": 200,
+    "proveedor": "FashionPlus",
+    "fecha_ingreso": "2024-01-20",
+    "estado": "disponible"
+  },
+  {
+    "id": 3,
+    "nombre": "Producto C",
+    "categoria": "Hogar",
+    "precio": 45.00,
+    "cantidad": 75,
+    "proveedor": "HomeStyle",
+    "fecha_ingreso": "2024-01-10",
+    "estado": "agotado"
+  },
+  {
+    "id": 4,
+    "nombre": "Producto D",
+    "categoria": "Deportes",
+    "precio": 129.99,
+    "cantidad": 30,
+    "proveedor": "SportMax",
+    "fecha_ingreso": "2024-01-25",
+    "estado": "disponible"
+  },
+  {
+    "id": 5,
+    "nombre": "Producto E",
+    "categoria": "Libros",
+    "precio": 24.99,
+    "cantidad": 150,
+    "proveedor": "BookWorld",
+    "fecha_ingreso": "2024-01-05",
+    "estado": "disponible"
+  }
+]

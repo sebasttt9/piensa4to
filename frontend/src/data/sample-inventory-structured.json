@@ -1,0 +1,48 @@
+{
+  "data": [
+    {
+      "codigo": "PROD001",
+      "descripcion": "Laptop Gaming Pro",
+      "marca": "GameTech",
+      "modelo": "GT-2024",
+      "precio_compra": 899.99,
+      "precio_venta": 1299.99,
+      "stock_actual": 25,
+      "stock_minimo": 5,
+      "ubicacion": "Almacén A-1",
+      "fecha_ultima_compra": "2024-01-15",
+      "proveedor_principal": "TechDistributors Inc."
+    },
+    {
+      "codigo": "PROD002",
+      "descripcion": "Monitor 4K Ultra HD",
+      "marca": "ViewMax",
+      "modelo": "VM-4K32",
+      "precio_compra": 349.99,
+      "precio_venta": 499.99,
+      "stock_actual": 40,
+      "stock_minimo": 8,
+      "ubicacion": "Almacén A-2",
+      "fecha_ultima_compra": "2024-01-18",
+      "proveedor_principal": "DisplaySolutions Ltd."
+    },
+    {
+      "codigo": "PROD003",
+      "descripcion": "Teclado Mecánico RGB",
+      "marca": "KeyMaster",
+      "modelo": "KM-RGB-Pro",
+      "precio_compra": 79.99,
+      "precio_venta": 129.99,
+      "stock_actual": 60,
+      "stock_minimo": 10,
+      "ubicacion": "Almacén B-1",
+      "fecha_ultima_compra": "2024-01-12",
+      "proveedor_principal": "PeripheralPro"
+    }
+  ],
+  "metadata": {
+    "total_registros": 3,
+    "fecha_generacion": "2024-01-29",
+    "version": "1.0"
+  }
+}

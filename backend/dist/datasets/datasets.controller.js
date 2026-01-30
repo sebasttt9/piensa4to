@@ -104,7 +104,7 @@ __decorate([
 ], DatasetsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
-    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin, roles_enum_1.UserRole.User),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -123,7 +123,7 @@ __decorate([
 ], DatasetsController.prototype, "update", null);
 __decorate([
     (0, common_1.Post)(':id/upload'),
-    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin, roles_enum_1.UserRole.User),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),

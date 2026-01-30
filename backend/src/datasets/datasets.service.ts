@@ -262,7 +262,7 @@ export class DatasetsService {
     this.dataCache.delete(datasetId);
   }
 
-  private resolveExtension(fileName: string): 'csv' | 'xlsx' {
+  private resolveExtension(fileName: string): 'csv' | 'xlsx' | 'json' {
     const lower = fileName.toLowerCase();
     if (lower.endsWith('.csv')) {
       return 'csv';
@@ -270,12 +270,15 @@ export class DatasetsService {
     if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
       return 'xlsx';
     }
-    throw new BadRequestException('Formato no soportado. Use CSV o Excel.');
+    if (lower.endsWith('.json')) {
+      return 'json';
+    }
+    throw new BadRequestException('Formato no soportado. Use CSV, Excel (.xlsx/.xls) o JSON.');
   }
 
   private async parseFile(
     file: Express.Multer.File,
-    extension: 'csv' | 'xlsx',
+    extension: 'csv' | 'xlsx' | 'json',
   ): Promise<Record<string, unknown>[]> {
     if (extension === 'csv') {
       const content = file.buffer.toString('utf-8');
@@ -292,6 +295,49 @@ export class DatasetsService {
       }
 
       return parsed.data;
+    }
+
+    if (extension === 'json') {
+      try {
+        const content = file.buffer.toString('utf-8');
+        const parsed = JSON.parse(content);
+
+        // Si es un array de objetos, procesarlo directamente
+        if (Array.isArray(parsed)) {
+          return parsed.map(item => {
+            if (typeof item === 'object' && item !== null) {
+              return item as Record<string, unknown>;
+            }
+            throw new BadRequestException('El JSON debe contener un array de objetos.');
+          });
+        }
+
+        // Si es un objeto con una propiedad que contiene el array de datos
+        if (typeof parsed === 'object' && parsed !== null) {
+          // Buscar propiedades comunes que podrían contener los datos
+          const possibleDataKeys = ['data', 'records', 'rows', 'items', 'results'];
+          for (const key of possibleDataKeys) {
+            if (Array.isArray(parsed[key])) {
+              return parsed[key].map(item => {
+                if (typeof item === 'object' && item !== null) {
+                  return item as Record<string, unknown>;
+                }
+                return { [key]: item };
+              });
+            }
+          }
+
+          // Si no encontramos arrays, asumir que el objeto raíz es un array de un elemento
+          return [parsed as Record<string, unknown>];
+        }
+
+        throw new BadRequestException('Formato JSON no válido. Debe ser un array de objetos o un objeto con una propiedad que contenga los datos.');
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          throw new BadRequestException('El archivo JSON tiene un formato inválido.');
+        }
+        throw error;
+      }
     }
 
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });

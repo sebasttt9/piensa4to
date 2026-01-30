@@ -9,6 +9,39 @@ export function UploadPage() {
   const [fileName, setFileName] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  const validateFile = (file: File): string | null => {
+    // Verificar tamaño (100MB límite)
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSize) {
+      return 'El archivo es demasiado grande. El límite es 100 MB.';
+    }
+
+    // Verificar tipo de archivo
+    const allowedExtensions = ['.csv', '.xlsx', '.xls', '.json'];
+    const fileName = file.name.toLowerCase();
+    const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!hasValidExtension) {
+      return 'Formato no soportado. Use archivos CSV, Excel (.xlsx/.xls) o JSON.';
+    }
+
+    // Verificar tipo MIME para archivos JSON
+    if (fileName.endsWith('.json')) {
+      const allowedMimeTypes = ['application/json', 'text/plain'];
+      if (!allowedMimeTypes.includes(file.type) && file.type !== '') {
+        return 'El archivo JSON tiene un tipo MIME inválido.';
+      }
+    }
+
+    // Verificar que no esté vacío
+    if (file.size === 0) {
+      return 'El archivo está vacío.';
+    }
+
+    return null;
+  };
 
   const mutation = useMutation({
     mutationFn: async ({ file, name, details }: { file: File; name: string; details?: { description?: string; tags?: string[] } }) => {
@@ -20,11 +53,26 @@ export function UploadPage() {
       await datasetsAPI.uploadFile(dataset.id, file);
       return dataset;
     },
+    onError: (error: any) => {
+      console.warn('Upload error:', error);
+      // El error ya se maneja en el componente
+    },
   });
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      const validationError = validateFile(file);
+      if (validationError) {
+        setFileError(validationError);
+        setSelectedFile(null);
+        setFileName('');
+        // Reset the input
+        event.target.value = '';
+        return;
+      }
+
+      setFileError(null);
       setSelectedFile(file);
       setFileName(file.name.replace(/\.[^.]+$/, ''));
     }
@@ -35,6 +83,7 @@ export function UploadPage() {
     setFileName('');
     setDescription('');
     setTags('');
+    setFileError(null);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -119,6 +168,13 @@ export function UploadPage() {
                 <p className="upload-dropzone__meta">Formatos admitidos: CSV, XLSX, JSON • Límite 100&nbsp;MB</p>
               </label>
             </div>
+
+            {fileError && (
+              <div className="upload-error">
+                <AlertCircle className="upload-error__icon" />
+                <span className="upload-error__message">{fileError}</span>
+              </div>
+            )}
 
             {selectedFile && fileSummary && (
               <div className="upload-file">
@@ -210,7 +266,11 @@ export function UploadPage() {
                 <AlertCircle className="upload-feedback__icon" />
                 <div>
                   <p className="upload-feedback__title">No pudimos completar la carga</p>
-                  <p className="upload-feedback__message">Revisa el formato del archivo e inténtalo nuevamente.</p>
+                  <p className="upload-feedback__message">
+                    {mutation.error instanceof Error
+                      ? mutation.error.message
+                      : 'Revisa el formato del archivo e inténtalo nuevamente.'}
+                  </p>
                 </div>
               </div>
             )}
@@ -241,6 +301,9 @@ export function UploadPage() {
               <li>Asegúrate que cada columna tenga un encabezado descriptivo.</li>
               <li>Normaliza fechas y valores numéricos para facilitar el análisis.</li>
               <li>Los archivos grandes se procesan en segundo plano; recibirás una notificación.</li>
+              <li><strong>JSON:</strong> Usa arrays de objetos o objetos con propiedades como 'data', 'records', 'rows', 'items', o 'results'.</li>
+              <li><strong>Ejemplo JSON válido:</strong> <code>{'[{"nombre": "Producto A", "precio": 25.50, "cantidad": 100}]'}</code></li>
+              <li><strong>Archivos de ejemplo:</strong> Revisa <code>src/data/sample-inventory.json</code> y <code>src/data/sample-inventory-structured.json</code></li>
             </ul>
           </div>
         </aside>
