@@ -14,9 +14,24 @@ import { CreateInventoryItemDto, UpdateInventoryItemDto, ApproveInventoryItemDto
 export class InventoryController {
     constructor(private readonly inventoryService: InventoryService) { }
 
+    @Get('test')
+    testEndpoint() {
+        return { message: 'Test endpoint works' };
+    }
+
     @Get()
     getSummary(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
-        return this.inventoryService.getInventory(user.id);
+        // Temporary test endpoint
+        return {
+            overview: null,
+            totals: {
+                baseUnits: 0,
+                adjustedUnits: 0,
+                datasetsWithAlerts: 0,
+                dashboardsLinked: 0,
+            },
+            records: [],
+        };
     }
 
     @Post(':datasetId/adjust')

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { NavLink, useLocation } from 'react-router-dom';
 import { Activity, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { CurrencySelector } from '../ui/CurrencySelector';
 import { appNavigation } from '../../lib/navigation';
 import './AppShell.css';
 
@@ -227,7 +228,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className={mainClasses}>
         <div className={contentClasses}>
-          <div className={headerClasses} />
+          <div className={headerClasses}>
+            <div className="flex items-center justify-end">
+              <CurrencySelector />
+            </div>
+          </div>
           {children}
         </div>
       </main>

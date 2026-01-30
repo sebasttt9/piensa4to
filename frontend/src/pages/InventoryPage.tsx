@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Minus, RefreshCw, PackageCheck, Layers3, PieChart, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Minus, RefreshCw, PackageCheck, Layers3, Edit, Trash2, X, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
 import { inventoryAPI, inventoryItemsAPI, datasetsAPI, dashboardsAPI, type InventorySummary, type InventoryItem, type CreateInventoryItemInput } from '../lib/services';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
+import './InventoryPage.css';
 
 export function InventoryPage() {
   const { roleAtLeast } = useAuth();
+  const { formatAmount, currency } = useCurrency();
   const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +19,7 @@ export function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [itemsError, setItemsError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'adjustments' | 'items'>('adjustments');
+  const [activeTab, setActiveTab] = useState<'adjustments' | 'items'>('items');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [formData, setFormData] = useState<CreateInventoryItemInput>({
@@ -35,13 +38,20 @@ export function InventoryPage() {
   const canManageItems = roleAtLeast('user');
 
   const loadItems = useCallback(async () => {
-    if (!canManageItems) return;
+    console.log('loadItems called, canManageItems:', canManageItems, 'role:', roleAtLeast('user'));
+    if (!canManageItems) {
+      console.log('User cannot manage items, skipping load');
+      return;
+    }
     setItemsLoading(true);
     setItemsError(null);
     try {
+      console.log('Calling inventoryItemsAPI.list()');
       const data = await inventoryItemsAPI.list();
+      console.log('Items loaded successfully:', data);
       setItems(data);
     } catch (err) {
+      console.log('Error loading items:', err);
       const message = err instanceof Error ? err.message : 'Error al cargar items';
       setItemsError(message);
     } finally {
@@ -264,24 +274,12 @@ export function InventoryPage() {
     }
   };
 
-  const statusBadge = (status: 'pending' | 'processed' | 'error') => {
-    const base = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
-    switch (status) {
-      case 'processed':
-        return `${base} bg-emerald-100 text-emerald-700`;
-      case 'pending':
-        return `${base} bg-amber-100 text-amber-700`;
-      case 'error':
-        return `${base} bg-rose-100 text-rose-700`;
-      default:
-        return `${base} bg-slate-100 text-slate-700`;
-    }
-  };
+
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex items-center gap-3 rounded-lg bg-slate-900/80 px-4 py-3 text-white shadow-lg">
+      <div className="inventory-page inventory-page--loading">
+        <div className="inventory-state inventory-loading">
           <RefreshCw className="h-4 w-4 animate-spin" />
           <span>Cargando inventario inteligente…</span>
         </div>
@@ -291,62 +289,56 @@ export function InventoryPage() {
 
   if (error) {
     return (
-      <div className="mx-auto mt-16 max-w-2xl rounded-xl border border-rose-200 bg-white p-8 shadow-sm">
-        <h1 className="text-xl font-semibold text-rose-700">Hubo un problema</h1>
-        <p className="mt-2 text-sm text-slate-600">{error}</p>
-        <button
-          type="button"
-          onClick={() => {
-            setSummary(null);
-            setPendingAmounts({});
-            setActionError(null);
-            setError(null);
-            setLoading(true);
-            // force refetch
-            setTimeout(() => {
-              window.location.reload();
-            }, 0);
-          }}
-          className="mt-4 inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow hover:bg-slate-700"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Reintentar
-        </button>
+      <div className="inventory-page inventory-page--error">
+        <div className="inventory-state inventory-error">
+          <h1 className="inventory-error__title">Hubo un problema</h1>
+          <p className="inventory-error__message">{error}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setSummary(null);
+              setPendingAmounts({});
+              setActionError(null);
+              setError(null);
+              setLoading(true);
+              // force refetch
+              setTimeout(() => {
+                window.location.reload();
+              }, 0);
+            }}
+            className="mt-4 inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow hover:bg-slate-700"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reintentar
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <header className="space-y-2">
+    <div className="inventory-page">
+      <header className="inventory-header">
         <p className="text-sm font-semibold uppercase tracking-wide text-indigo-500">Centro de control</p>
-        <h1 className="text-3xl font-semibold text-slate-900">Inventario integrado</h1>
-        <p className="max-w-3xl text-sm text-slate-600">
+        <h1 className="inventory-title">Inventario integrado</h1>
+        <p className="inventory-subtitle">
           Supervisa existencias en tiempo real combinando tus datasets operativos y dashboards activos. Los administradores pueden ajustar
           niveles directamente desde este panel para mantener la coherencia analítica.
         </p>
       </header>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200">
-        <nav className="-mb-px flex space-x-8">
+      <div className="inventory-tabs">
+        <nav className="inventory-tabs__nav">
           <button
             onClick={() => setActiveTab('adjustments')}
-            className={`border-b-2 py-2 px-1 text-sm font-medium ${
-              activeTab === 'adjustments'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
-            }`}
+            className={`inventory-tab ${activeTab === 'adjustments' ? 'inventory-tab--active' : ''}`}
           >
             Ajustes de Datasets
           </button>
           <button
             onClick={() => setActiveTab('items')}
-            className={`border-b-2 py-2 px-1 text-sm font-medium ${
-              activeTab === 'items'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
-            }`}
+            className={`inventory-tab ${activeTab === 'items' ? 'inventory-tab--active' : ''}`}
           >
             Gestión de Items
           </button>
@@ -355,114 +347,174 @@ export function InventoryPage() {
 
       {activeTab === 'adjustments' ? (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Unidades registradas</span>
-            <PackageCheck className="h-4 w-4 text-indigo-500" />
+          {/* Key Metrics Grid */}
+          <div className="inventory-stats">
+            <div className="inventory-stat-card" style={{ '--dp-card-accent': '#3b82f6', '--dp-card-accent-soft': 'rgba(59, 130, 246, 0.1)', '--dp-card-accent-dark': '#1d4ed8' } as React.CSSProperties}>
+              <div className="inventory-stat-card__header">
+                <div>
+                  <p className="inventory-stat-card__title">Unidades Registradas</p>
+                  <p className="inventory-stat-card__value">{totals.baseUnits.toLocaleString('es-ES')}</p>
+                  <p className="inventory-stat-card__meta">Conteo original de datasets</p>
+                </div>
+                <div className="inventory-stat-card__icon">
+                  <PackageCheck className="inventory-stat-card__icon-svg" />
+                </div>
+              </div>
+              <div className="inventory-stat-card__accent-bar" />
+            </div>
+
+            <div className="inventory-stat-card" style={{ '--dp-card-accent': '#10b981', '--dp-card-accent-soft': 'rgba(16, 185, 129, 0.1)', '--dp-card-accent-dark': '#059669' } as React.CSSProperties}>
+              <div className="inventory-stat-card__header">
+                <div>
+                  <p className="inventory-stat-card__title">Inventario Ajustado</p>
+                  <p className="inventory-stat-card__value">{totals.adjustedUnits.toLocaleString('es-ES')}</p>
+                  <p className="inventory-stat-card__meta">Incluye ajustes manuales</p>
+                </div>
+                <div className="inventory-stat-card__icon">
+                  <Layers3 className="inventory-stat-card__icon-svg" />
+                </div>
+              </div>
+              <div className="inventory-stat-card__accent-bar" />
+            </div>
+
+            <div className="inventory-stat-card" style={{ '--dp-card-accent': '#f59e0b', '--dp-card-accent-soft': 'rgba(245, 158, 11, 0.1)', '--dp-card-accent-dark': '#d97706' } as React.CSSProperties}>
+              <div className="inventory-stat-card__header">
+                <div>
+                  <p className="inventory-stat-card__title">Datasets con Alerta</p>
+                  <p className="inventory-stat-card__value">{totals.datasetsWithAlerts}</p>
+                  <p className="inventory-stat-card__meta">Requieren atención inmediata</p>
+                </div>
+                <div className="inventory-stat-card__icon">
+                  <AlertTriangle className="inventory-stat-card__icon-svg" />
+                </div>
+              </div>
+              <div className="inventory-stat-card__accent-bar" />
+            </div>
+
+            <div className="inventory-stat-card" style={{ '--dp-card-accent': '#8b5cf6', '--dp-card-accent-soft': 'rgba(139, 92, 246, 0.1)', '--dp-card-accent-dark': '#7c3aed' } as React.CSSProperties}>
+              <div className="inventory-stat-card__header">
+                <div>
+                  <p className="inventory-stat-card__title">Dashboards Vinculados</p>
+                  <p className="inventory-stat-card__value">{totals.dashboardsLinked}</p>
+                  <p className="inventory-stat-card__meta">Actualización automática</p>
+                </div>
+                <div className="inventory-stat-card__icon">
+                  <TrendingUp className="inventory-stat-card__icon-svg" />
+                </div>
+              </div>
+              <div className="inventory-stat-card__accent-bar" />
+            </div>
           </div>
-          <p className="mt-3 text-3xl font-semibold text-slate-900">{totals.baseUnits.toLocaleString('es-ES')}</p>
-          <p className="mt-1 text-xs text-slate-500">Conteo original proveniente de datasets procesados.</p>
-        </article>
-        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Inventario ajustado</span>
-            <Layers3 className="h-4 w-4 text-indigo-500" />
-          </div>
-          <p className="mt-3 text-3xl font-semibold text-slate-900">{totals.adjustedUnits.toLocaleString('es-ES')}</p>
-          <p className="mt-1 text-xs text-slate-500">Incluye ajustes manuales aplicados por administradores.</p>
-        </article>
-        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Datasets con alerta</span>
-            <PieChart className="h-4 w-4 text-indigo-500" />
-          </div>
-          <p className="mt-3 text-3xl font-semibold text-slate-900">{totals.datasetsWithAlerts}</p>
-          <p className="mt-1 text-xs text-slate-500">Incluye datasets pendientes o con errores que afectan proyecciones.</p>
-        </article>
-        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Dashboards vinculados</span>
-            <RefreshCw className="h-4 w-4 text-indigo-500" />
-          </div>
-          <p className="mt-3 text-3xl font-semibold text-slate-900">{totals.dashboardsLinked}</p>
-          <p className="mt-1 text-xs text-slate-500">Se actualizan automáticamente cuando cambian los datasets asociados.</p>
-        </article>
-      </section>
 
       {overview ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <header className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">Salud operacional</h2>
-              <p className="text-xs text-slate-500">Basado en la última actualización del módulo de analytics.</p>
+        <div className="inventory-analytics">
+          <div className="inventory-analytics__content">
+            <div className="inventory-analytics__header">
+              <div>
+                <h3 className="inventory-analytics__title">Salud Operacional</h3>
+                <p className="inventory-analytics__subtitle">Métricas financieras y operativas en tiempo real</p>
+              </div>
+              <div className="inventory-analytics__status">
+                <div className="inventory-analytics__status-dot" />
+                <span>Actualizado {new Date(overview.lastUpdated).toLocaleString('es-ES')}</span>
+              </div>
             </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">
-              Última sincronización: {new Date(overview.lastUpdated).toLocaleString('es-ES')}
-            </span>
-          </header>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs text-slate-500">Datasets totales</p>
-              <p className="text-2xl font-semibold text-slate-900">{overview.summary.totalDatasets}</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs text-slate-500">Reportes activos</p>
-              <p className="text-2xl font-semibold text-slate-900">{overview.summary.activeReports}</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs text-slate-500">Ganancia neta</p>
-              <p className="text-2xl font-semibold text-emerald-600">{overview.financial.netProfit.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })}</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs text-slate-500">Crecimiento</p>
-              <p className="text-2xl font-semibold text-indigo-600">{overview.summary.growthPercentage.toFixed(1)}%</p>
+
+            <div className="inventory-analytics__grid">
+              <div className="inventory-analytics__metric">
+                <div className="inventory-analytics__metric-icon">
+                  <PackageCheck className="inventory-analytics__metric-icon-svg" />
+                </div>
+                <div>
+                  <p className="inventory-analytics__metric-label">Datasets Totales</p>
+                  <p className="inventory-analytics__metric-value">{overview.summary.totalDatasets}</p>
+                </div>
+              </div>
+
+              <div className="inventory-analytics__metric">
+                <div className="inventory-analytics__metric-icon">
+                  <TrendingUp className="inventory-analytics__metric-icon-svg" />
+                </div>
+                <div>
+                  <p className="inventory-analytics__metric-label">Reportes Activos</p>
+                  <p className="inventory-analytics__metric-value">{overview.summary.activeReports}</p>
+                </div>
+              </div>
+
+              <div className="inventory-analytics__metric">
+                <div className="inventory-analytics__metric-icon">
+                  <DollarSign className="inventory-analytics__metric-icon-svg" />
+                </div>
+                <div>
+                  <p className="inventory-analytics__metric-label">Ganancia Neta</p>
+                  <p className="inventory-analytics__metric-value">{formatAmount(overview.financial.netProfit)}</p>
+                </div>
+              </div>
+
+              <div className="inventory-analytics__metric">
+                <div className="inventory-analytics__metric-icon">
+                  <TrendingUp className="inventory-analytics__metric-icon-svg" />
+                </div>
+                <div>
+                  <p className="inventory-analytics__metric-label">Crecimiento</p>
+                  <p className="inventory-analytics__metric-value">{overview.summary.growthPercentage.toFixed(1)}%</p>
+                </div>
+              </div>
             </div>
           </div>
-        </section>
+        </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
+      <div className="inventory-table-section">
+        <div className="inventory-table-section__header">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Inventario por dataset</h2>
-            <p className="text-xs text-slate-500">Monitorea niveles y dashboards vinculados para cada fuente de datos.</p>
+            <h3 className="inventory-table-section__title">Inventario por Dataset</h3>
+            <p className="inventory-table-section__subtitle">Monitorea niveles y dashboards vinculados para cada fuente de datos</p>
           </div>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!canAdjust || actionLoading || !hasAdjustments}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Restablecer ajustes
-          </button>
-        </header>
+          <div className="inventory-table-section__actions">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="inventory-table-section__reset-btn"
+              disabled={!canAdjust || actionLoading || !hasAdjustments}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Restablecer Ajustes
+            </button>
+          </div>
+        </div>
 
-        {actionError ? (
-          <div className="mx-6 mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
-            {actionError}
+        {actionError && (
+          <div className="inventory-table-section__error">
+            <AlertTriangle className="h-5 w-5" />
+            <p>{actionError}</p>
           </div>
-        ) : null}
+        )}
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <table className="inventory-table">
+            <thead className="inventory-table__header">
               <tr>
-                <th className="px-6 py-3 font-semibold">Dataset</th>
-                <th className="px-6 py-3 font-semibold">Estado</th>
-                <th className="px-6 py-3 font-semibold">Base</th>
-                <th className="px-6 py-3 font-semibold">Ajuste</th>
-                <th className="px-6 py-3 font-semibold">Total</th>
-                <th className="px-6 py-3 font-semibold">Dashboards vinculados</th>
-                <th className="px-6 py-3 font-semibold">Acciones</th>
+                <th className="inventory-table__header">Dataset</th>
+                <th className="inventory-table__header">Estado</th>
+                <th className="inventory-table__header">Base</th>
+                <th className="inventory-table__header">Ajuste</th>
+                <th className="inventory-table__header">Total</th>
+                <th className="inventory-table__header">Dashboards</th>
+                <th className="inventory-table__header">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody className="inventory-table__body">
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
-                    No hay datasets registrados todavía. Carga datos para comenzar a gestionar inventario.
+                  <td colSpan={7} className="px-8 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <PackageCheck className="h-12 w-12 text-slate-400" />
+                      <div>
+                        <p className="text-lg font-medium text-slate-900">No hay datasets registrados</p>
+                        <p className="text-sm text-slate-500">Carga datos para comenzar a gestionar inventario</p>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -471,70 +523,91 @@ export function InventoryPage() {
                   const baseCount = dataset.rowCount ?? 0;
                   const pendingValue = pendingAmounts[dataset.id] ?? 1;
                   return (
-                    <tr key={dataset.id} className="hover:bg-slate-50/60">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-slate-900">{dataset.name}</div>
-                        <div className="text-xs text-slate-500">Actualizado {new Date(dataset.updatedAt).toLocaleDateString('es-ES')}</div>
+                    <tr key={dataset.id} className="inventory-table__body">
+                      <td className="inventory-table__body">
+                        <div className="inventory-table__dataset-name">{dataset.name}</div>
+                        <div className="inventory-table__dataset-meta">
+                          Actualizado {new Date(dataset.updatedAt).toLocaleDateString('es-ES')}
+                        </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={statusBadge(dataset.status)}>{dataset.status}</span>
+                      <td className="inventory-table__body">
+                        <span className={`inventory-table__status-badge ${
+                          dataset.status === 'processed' ? 'inventory-table__status-badge--processed' :
+                          dataset.status === 'pending' ? 'inventory-table__status-badge--pending' :
+                          'inventory-table__status-badge--error'
+                        }`}>
+                          {dataset.status === 'processed' ? 'Procesado' :
+                           dataset.status === 'pending' ? 'Pendiente' :
+                           'Error'}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 text-slate-600">{baseCount.toLocaleString('es-ES')}</td>
-                      <td className="px-6 py-4">
-                        <span className={adjustment >= 0 ? 'text-emerald-600 font-semibold' : 'text-rose-600 font-semibold'}>
+                      <td className="inventory-table__body">
+                        <span className="inventory-table__total">{baseCount.toLocaleString('es-ES')}</span>
+                      </td>
+                      <td className="inventory-table__body">
+                        <span className={`inventory-table__adjustment ${
+                          adjustment >= 0 ? 'inventory-table__adjustment--positive' : 'inventory-table__adjustment--negative'
+                        }`}>
                           {adjustment >= 0 ? `+${adjustment.toLocaleString('es-ES')}` : adjustment.toLocaleString('es-ES')}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-slate-900 font-semibold">{total.toLocaleString('es-ES')}</td>
-                      <td className="px-6 py-4">
+                      <td className="inventory-table__body">
+                        <span className="inventory-table__total">{total.toLocaleString('es-ES')}</span>
+                      </td>
+                      <td className="inventory-table__body">
                         {linkedDashboards.length === 0 ? (
-                          <span className="text-xs text-slate-400">Sin dashboards asociados</span>
+                          <span className="text-sm text-slate-400 italic">Sin dashboards asociados</span>
                         ) : (
-                          <ul className="space-y-1 text-xs text-slate-600">
-                            {linkedDashboards.slice(0, 3).map((dashboard) => (
-                              <li key={dashboard.id} className="truncate">
-                                • {dashboard.name}
-                              </li>
+                          <div className="inventory-table__dashboards">
+                            {linkedDashboards.slice(0, 2).map((dashboard) => (
+                              <span key={dashboard.id} className="inventory-table__dashboard-tag">
+                                {dashboard.name}
+                              </span>
                             ))}
-                            {linkedDashboards.length > 3 ? (
-                              <li className="text-slate-400">+{linkedDashboards.length - 3} adicionales</li>
-                            ) : null}
-                          </ul>
+                            {linkedDashboards.length > 2 && (
+                              <span className="inventory-table__dashboard-tag">
+                                +{linkedDashboards.length - 2} más
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="inventory-table__body">
                         {canAdjust ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min={1}
-                              value={pendingValue}
-                              onChange={(event) => handlePendingAmountChange(dataset.id, Number(event.target.value))}
-                              className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                            />
-                            <div className="flex items-center gap-1">
+                          <div className="inventory-table__actions">
+                            <div className="inventory-table__input-group">
+                              <input
+                                type="number"
+                                min={1}
+                                value={pendingValue}
+                                onChange={(event) => handlePendingAmountChange(dataset.id, Number(event.target.value))}
+                                className="inventory-table__input"
+                              />
+                              <span className="inventory-table__input-label">unidades</span>
+                            </div>
+                            <div className="inventory-table__btn-group">
                               <button
                                 type="button"
                                 onClick={() => handleAdjust(dataset.id, 'add')}
-                                className="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inventory-table__btn inventory-table__btn--add"
                                 disabled={actionLoading}
                               >
-                                <Plus className="h-3 w-3" />
+                                <Plus className="h-4 w-4" />
                                 Añadir
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleAdjust(dataset.id, 'subtract')}
-                                className="inline-flex items-center gap-1 rounded-md bg-rose-500 px-2 py-1 text-xs font-medium text-white hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inventory-table__btn inventory-table__btn--subtract"
                                 disabled={actionLoading}
                               >
-                                <Minus className="h-3 w-3" />
+                                <Minus className="h-4 w-4" />
                                 Restar
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400">Solo administradores pueden ajustar inventario</span>
+                          <span className="text-sm text-slate-400 italic">Solo administradores pueden ajustar</span>
                         )}
                       </td>
                     </tr>
@@ -544,131 +617,142 @@ export function InventoryPage() {
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
         </>
       ) : (
         // Inventory Items Tab
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">Gestión de Items de Inventario</h2>
+        <div className="inventory-items-section">
+          <div className="inventory-items-header">
+            <div>
+              <h3 className="inventory-items-title">Gestión de Items de Inventario</h3>
+              <p className="inventory-items-subtitle">Administra productos, precios y control de calidad</p>
+            </div>
             {canManageItems && (
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                className="inventory-items-create-btn"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-5 w-5" />
                 Nuevo Item
               </button>
             )}
           </div>
 
           {itemsError && (
-            <div className="rounded-md bg-rose-50 p-4">
-              <p className="text-sm text-rose-700">{itemsError}</p>
+            <div className="inventory-items-error">
+              <AlertTriangle className="h-5 w-5" />
+              <p>{itemsError}</p>
             </div>
           )}
 
           {/* Create/Edit Form */}
           {(showCreateForm || editingItem) && (
-            <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-medium text-slate-900 mb-4">
-                {editingItem ? 'Editar Item' : 'Crear Nuevo Item'}
-              </h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Nombre</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Código</label>
-                  <input
-                    type="text"
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Cantidad</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">PVP (€)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.pvp}
-                    onChange={(e) => setFormData({ ...formData, pvp: Number(e.target.value) })}
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Coste (€)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.cost}
-                    onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Dataset (opcional)</label>
-                  <select
-                    value={formData.datasetId || ''}
-                    onChange={(e) => setFormData({ ...formData, datasetId: e.target.value || undefined })}
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="">Seleccionar dataset...</option>
-                    {datasets.map((dataset) => (
-                      <option key={dataset.id} value={dataset.id}>
-                        {dataset.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Dashboard (opcional)</label>
-                  <select
-                    value={formData.dashboardId || ''}
-                    onChange={(e) => setFormData({ ...formData, dashboardId: e.target.value || undefined })}
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="">Seleccionar dashboard...</option>
-                    {dashboards.map((dashboard) => (
-                      <option key={dashboard._id} value={dashboard._id}>
-                        {dashboard.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="inventory-form-modal">
+              <div className="inventory-form-header">
+                <h4 className="inventory-form-title">
+                  {editingItem ? 'Editar Item' : 'Crear Nuevo Item'}
+                </h4>
+                <p className="inventory-form-subtitle">
+                  {editingItem ? 'Modifica los detalles del item seleccionado' : 'Añade un nuevo producto al inventario'}
+                </p>
               </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={editingItem ? cancelEdit : () => setShowCreateForm(false)}
-                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={editingItem ? handleUpdateItem : handleCreateItem}
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                >
-                  {editingItem ? 'Actualizar' : 'Crear'}
-                </button>
+              <div className="inventory-form-content">
+                <div className="inventory-form-grid">
+                  <div className="inventory-form-group">
+                    <label className="inventory-form-label">Nombre</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="inventory-form-input"
+                    />
+                  </div>
+                  <div className="inventory-form-group">
+                    <label className="inventory-form-label">Código</label>
+                    <input
+                      type="text"
+                      value={formData.code}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                      className="inventory-form-input"
+                    />
+                  </div>
+                  <div className="inventory-form-group">
+                    <label className="inventory-form-label">Cantidad</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
+                      className="inventory-form-input"
+                    />
+                  </div>
+                  <div className="inventory-form-group">
+                    <label className="inventory-form-label">PVP ({currency.symbol})</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.pvp}
+                      onChange={(e) => setFormData({ ...formData, pvp: Number(e.target.value) })}
+                      className="inventory-form-input"
+                    />
+                  </div>
+                  <div className="inventory-form-group">
+                    <label className="inventory-form-label">Coste ({currency.symbol})</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.cost}
+                      onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
+                      className="inventory-form-input"
+                    />
+                  </div>
+                  <div className="inventory-form-group">
+                    <label className="inventory-form-label">Dataset (opcional)</label>
+                    <select
+                      value={formData.datasetId || ''}
+                      onChange={(e) => setFormData({ ...formData, datasetId: e.target.value || undefined })}
+                      className="inventory-form-input"
+                    >
+                      <option value="">Seleccionar dataset...</option>
+                      {datasets.map((dataset) => (
+                        <option key={dataset.id} value={dataset.id}>
+                          {dataset.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="inventory-form-group">
+                    <label className="inventory-form-label">Dashboard (opcional)</label>
+                    <select
+                      value={formData.dashboardId || ''}
+                      onChange={(e) => setFormData({ ...formData, dashboardId: e.target.value || undefined })}
+                      className="inventory-form-input"
+                    >
+                      <option value="">Seleccionar dashboard...</option>
+                      {dashboards.map((dashboard) => (
+                        <option key={dashboard._id} value={dashboard._id}>
+                          {dashboard.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="inventory-form-actions">
+                  <button
+                    onClick={editingItem ? cancelEdit : () => setShowCreateForm(false)}
+                    className="inventory-form-btn inventory-form-btn--cancel"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={editingItem ? handleUpdateItem : handleCreateItem}
+                    className="inventory-form-btn inventory-form-btn--primary"
+                  >
+                    {editingItem ? 'Actualizar' : 'Crear'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -679,58 +763,82 @@ export function InventoryPage() {
               <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
             </div>
           ) : (
-            <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
+            <div className="inventory-items-table-section">
+              <table className="inventory-items-table">
+                <thead className="inventory-items-table__header">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Nombre</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Cantidad</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">PVP</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Coste</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Dataset</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Dashboard</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Estado</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Acciones</th>
+                    <th className="inventory-items-table__header">Nombre</th>
+                    <th className="inventory-items-table__header">Código</th>
+                    <th className="inventory-items-table__header">Cantidad</th>
+                    <th className="inventory-items-table__header">PVP</th>
+                    <th className="inventory-items-table__header">Coste</th>
+                    <th className="inventory-items-table__header">Dataset</th>
+                    <th className="inventory-items-table__header">Dashboard</th>
+                    <th className="inventory-items-table__header">Estado</th>
+                    <th className="inventory-items-table__header">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
+                <tbody className="inventory-items-table__body">
                   {items.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{item.name}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{item.code}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{item.quantity}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">€{item.pvp.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">€{item.cost.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">
+                      <td className="inventory-items-table__body">
+                        <div className="inventory-items-table__product-cell">
+                          <div className="inventory-items-table__product-icon">
+                            <PackageCheck className="inventory-items-table__product-icon-svg" />
+                          </div>
+                          <div>
+                            <div className="inventory-items-table__product-name">{item.name}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="inventory-items-table__body">
+                        <span className="inventory-items-table__code">{item.code}</span>
+                      </td>
+                      <td className="inventory-items-table__body">
+                        <div>
+                          <div className="inventory-items-table__quantity">{item.quantity}</div>
+                          <div className="inventory-items-table__quantity-label">unidades</div>
+                        </div>
+                      </td>
+                      <td className="inventory-items-table__body">
+                        <span className="inventory-items-table__price inventory-items-table__price--pvp">
+                          {formatAmount(item.pvp)}
+                        </span>
+                      </td>
+                      <td className="inventory-items-table__body">
+                        <span className="inventory-items-table__price inventory-items-table__price--cost">
+                          {formatAmount(item.cost)}
+                        </span>
+                      </td>
+                      <td className="inventory-items-table__body">
                         {item.datasetId ? datasets.find(d => d.id === item.datasetId)?.name || 'Cargando...' : '-'}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">
+                      <td className="inventory-items-table__body">
                         {item.dashboardId ? dashboards.find(d => d._id === item.dashboardId)?.name || 'Cargando...' : '-'}
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                          item.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
-                          item.status === 'rejected' ? 'bg-rose-100 text-rose-700' :
-                          'bg-amber-100 text-amber-700'
+                      <td className="inventory-items-table__body">
+                        <span className={`inventory-items-table__status-badge ${
+                          item.status === 'approved' ? 'inventory-items-table__status-badge--approved' :
+                          item.status === 'rejected' ? 'inventory-items-table__status-badge--rejected' :
+                          'inventory-items-table__status-badge--pending'
                         }`}>
                           {item.status === 'approved' ? 'Aprobado' :
                            item.status === 'rejected' ? 'Rechazado' :
                            'Pendiente'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm">
+                      <td className="inventory-items-table__body">
                         {canManageItems && (
-                          <div className="flex items-center gap-2">
+                          <div className="inventory-items-table__actions">
                             <button
                               onClick={() => startEdit(item)}
-                              className="text-indigo-600 hover:text-indigo-900"
+                              className="inventory-items-table__action-btn inventory-items-table__action-btn--edit"
                             >
                               <Edit className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteItem(item.id)}
-                              className="text-rose-600 hover:text-rose-900"
+                              className="inventory-items-table__action-btn inventory-items-table__action-btn--delete"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -738,14 +846,14 @@ export function InventoryPage() {
                               <>
                                 <button
                                   onClick={() => handleApproveItem(item.id)}
-                                  className="text-emerald-600 hover:text-emerald-900"
+                                  className="inventory-items-table__action-btn inventory-items-table__action-btn--approve"
                                   title="Aprobar item"
                                 >
                                   <PackageCheck className="h-4 w-4" />
                                 </button>
                                 <button
                                   onClick={() => handleRejectItem(item.id)}
-                                  className="text-rose-600 hover:text-rose-900"
+                                  className="inventory-items-table__action-btn inventory-items-table__action-btn--reject"
                                   title="Rechazar item"
                                 >
                                   <X className="h-4 w-4" />
@@ -760,8 +868,12 @@ export function InventoryPage() {
                 </tbody>
               </table>
               {items.length === 0 && !itemsLoading && (
-                <div className="py-8 text-center text-slate-500">
-                  No hay items de inventario. {canManageItems && 'Crea el primero.'}
+                <div className="inventory-empty-state">
+                  <PackageCheck className="inventory-empty-state__icon" />
+                  <h3 className="inventory-empty-state__title">No hay items de inventario</h3>
+                  <p className="inventory-empty-state__message">
+                    {canManageItems ? 'Crea el primero para comenzar.' : 'No tienes permisos para gestionar items.'}
+                  </p>
                 </div>
               )}
             </div>

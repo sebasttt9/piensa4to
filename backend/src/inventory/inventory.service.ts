@@ -1,6 +1,6 @@
 import { Inject, Injectable, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_CLIENT, SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { AnalyticsService, OverviewAnalytics } from '../analytics/analytics.service';
 import { CreateInventoryItemDto, UpdateInventoryItemDto } from './dto/inventory-item.dto';
 
@@ -110,15 +110,65 @@ export class InventoryService {
     ) { }
 
     async getInventory(ownerId: string): Promise<InventorySummary> {
-        const [datasets, dashboards, adjustments, overview] = await Promise.all([
+        // Fetch all required data
+        const [datasets, dashboards, adjustments] = await Promise.all([
             this.fetchDatasets(ownerId),
             this.fetchDashboards(ownerId),
             this.fetchAdjustments(ownerId),
-            this.safeGetOverview(ownerId),
         ]);
 
-        const records = this.buildRecords(datasets, dashboards, adjustments);
-        const totals = this.buildTotals(records, dashboards.length);
+        // Create adjustment lookup map
+        const adjustmentMap = new Map<string, number>();
+        adjustments.forEach(adj => {
+            adjustmentMap.set(adj.dataset_id, adj.adjustment);
+        });
+
+        // Build inventory records
+        const records: InventoryRecord[] = datasets.map(dataset => {
+            const adjustment = adjustmentMap.get(dataset.id) ?? 0;
+            const baseUnits = dataset.row_count ?? 0;
+            const total = baseUnits + adjustment;
+
+            // Find linked dashboards
+            const linkedDashboards = dashboards.filter(dashboard =>
+                dashboard.dataset_ids?.includes(dataset.id)
+            );
+
+            return {
+                dataset: {
+                    id: dataset.id,
+                    name: dataset.name,
+                    status: dataset.status,
+                    rowCount: baseUnits,
+                    updatedAt: dataset.updated_at,
+                    tags: dataset.tags ?? [],
+                },
+                dashboards: linkedDashboards.map(dashboard => ({
+                    id: dashboard.id,
+                    name: dashboard.name,
+                    updatedAt: dashboard.updated_at,
+                })),
+                adjustment,
+                total,
+            };
+        });
+
+        // Calculate totals
+        const totals = {
+            baseUnits: records.reduce((sum, record) => sum + record.dataset.rowCount, 0),
+            adjustedUnits: records.reduce((sum, record) => sum + record.total, 0),
+            datasetsWithAlerts: records.filter(record => record.total < 0).length,
+            dashboardsLinked: dashboards.length,
+        };
+
+        // Get analytics overview if available
+        let overview: OverviewAnalytics | null = null;
+        try {
+            overview = await this.analyticsService.getOverview(ownerId);
+        } catch (error) {
+            // Analytics might not be available, continue without it
+            console.warn('Could not fetch analytics overview:', error);
+        }
 
         return {
             overview,
@@ -325,6 +375,7 @@ export class InventoryService {
 
     // Inventory Items CRUD
     async createItem(ownerId: string, dto: CreateInventoryItemDto, userRole: string = 'user'): Promise<InventoryItem> {
+        console.log('Creating inventory item for ownerId:', ownerId, 'dto:', dto);
         // Validate dataset/dashboard ownership if provided
         if (dto.datasetId) {
             await this.ensureDatasetOwnership(ownerId, dto.datasetId);
@@ -355,10 +406,11 @@ export class InventoryService {
             .single();
 
         if (error) {
+            console.error('Error creating inventory item:', error);
             if (error.code === '23505') {
                 throw new BadRequestException('El código ya existe');
             }
-            throw new InternalServerErrorException('No se pudo crear el item de inventario');
+            throw new InternalServerErrorException(`No se pudo crear el item de inventario: ${error.message}`);
         }
 
         return this.mapToInventoryItem(data as InventoryItemRow);

@@ -41,6 +41,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY);
+  console.log('API Request:', config.method?.toUpperCase(), config.url, 'Token present:', !!token);
   if (token) {
     config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
@@ -49,8 +50,12 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('API Response:', response.status, response.config.method?.toUpperCase(), response.config.url);
+    return response;
+  },
   (error) => {
+    console.error('API Error:', error.response?.status, error.response?.data, error.message);
     if (error.response?.status === 401) {
       localStorage.removeItem(TOKEN_KEY);
       if (typeof window !== 'undefined') {

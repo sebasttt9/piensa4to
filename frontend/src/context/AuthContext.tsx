@@ -72,9 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const cached = localStorage.getItem(STORAGE_KEY);
+    const token = localStorage.getItem(TOKEN_KEY);
+    console.log('AuthProvider init - cached user:', !!cached, 'token:', !!token);
     if (!cached) return null;
     try {
-      return JSON.parse(cached) as AuthUser;
+      const parsed = JSON.parse(cached) as AuthUser;
+      console.log('AuthProvider - parsed user:', parsed);
+      return parsed;
     } catch (error) {
       console.error('Failed to parse cached session', error);
       return null;
@@ -103,13 +107,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    console.log('AuthContext.signIn called with email:', email);
     setLoading(true);
     try {
+      console.log('Making login request...');
       const { data } = await api.post('/auth/login', { email, password });
+      console.log('Login response:', data);
       const nextUser = mapApiUser(data.user);
+      console.log('Mapped user:', nextUser);
       setUser(nextUser);
       persistUser(nextUser, data.accessToken);
+      console.log('User signed in successfully');
     } catch (error) {
+      console.error('Login error:', error);
       setUser(null);
       persistUser(null);
       throw new Error(resolveErrorMessage(error));

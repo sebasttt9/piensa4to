@@ -383,7 +383,9 @@ export interface UpdateInventoryItemInput extends Partial<CreateInventoryItemInp
 export const inventoryItemsAPI = {
     // Listar items de inventario
     list: async () => {
+        console.log('inventoryItemsAPI.list() called');
         const response = await api.get<InventoryItem[]>('/inventory/items');
+        console.log('API response received:', response.status, response.data);
         return response.data;
     },
 
