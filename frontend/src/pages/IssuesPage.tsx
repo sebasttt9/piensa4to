@@ -81,9 +81,10 @@ export function IssuesPage() {
   };
 
   const openCreateForm = () => {
-    console.log('Abriendo modal de nuevo reporte');
+    console.log('Abriendo modal de nuevo reporte - showForm antes:', showForm);
     resetForm();
     setShowForm(true);
+    console.log('Abriendo modal de nuevo reporte - showForm después:', true);
   };
 
   const openEditForm = (issue: Issue) => {
@@ -186,36 +187,167 @@ export function IssuesPage() {
   }
 
   return (
-    <div className="issues-page">
-      <header className="issues-header">
-        <h1 className="issues-title">Reportes y Gastos Logísticos</h1>
-        <p className="issues-subtitle">Análisis de compras, devoluciones y errores operativos</p>
+    <div className="issues-page" style={{
+      padding: '2rem',
+      maxWidth: '1400px',
+      margin: '0 auto',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '2rem',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+      minHeight: '100vh',
+      color: '#ffffff'
+    }}>
+      <header className="issues-header" style={{
+        marginBottom: '2rem'
+      }}>
+        <h1 className="issues-title" style={{
+          fontSize: '2rem',
+          fontWeight: '700',
+          color: '#ffffff',
+          marginBottom: '0.5rem',
+          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+        }}>
+          Reportes y Gastos Logísticos
+        </h1>
+        <p className="issues-subtitle" style={{
+          color: '#e2e8f0',
+          marginBottom: '1.5rem'
+        }}>
+          Análisis de compras, devoluciones y errores operativos
+        </p>
         <button
           className="issues-add-button"
           onClick={openCreateForm}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.75rem 1.5rem',
+            background: 'linear-gradient(135deg, #00d4ff, #45b7d1)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
         >
-          <Plus className="issues-add-button__icon" />
+          <Plus className="issues-add-button__icon" style={{ width: '20px', height: '20px' }} />
           Nuevo Reporte
         </button>
       </header>
 
-      <div className="issues-content">
-        <div className="issues-stats">
-        <div className="issues-stat">
-          <h3>Total Reportes</h3>
-          <p>{issues.length}</p>
+      <div className="issues-content" style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: '2rem',
+        marginBottom: '3rem'
+      }}>
+        <div className="issues-stats" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: '1rem'
+        }}>
+        <div className="issues-stat" style={{
+          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+          borderRadius: '16px',
+          padding: '2rem',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+          border: '1px solid #334155',
+          transition: 'all 0.3s ease',
+          textAlign: 'center'
+        }}>
+          <h3 style={{
+            fontSize: '0.875rem',
+            color: '#cbd5e1',
+            marginBottom: '0.75rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            fontWeight: '600'
+          }}>Total Reportes</h3>
+          <p style={{
+            fontSize: '2.25rem',
+            fontWeight: '800',
+            color: '#ffffff',
+            margin: 0,
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+          }}>{issues.length}</p>
         </div>
-        <div className="issues-stat">
-          <h3>Pendientes</h3>
-          <p>{issues.filter(i => i.status === 'pendiente').length}</p>
+        <div className="issues-stat" style={{
+          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+          borderRadius: '16px',
+          padding: '2rem',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+          border: '1px solid #334155',
+          transition: 'all 0.3s ease',
+          textAlign: 'center'
+        }}>
+          <h3 style={{
+            fontSize: '0.875rem',
+            color: '#cbd5e1',
+            marginBottom: '0.75rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            fontWeight: '600'
+          }}>Pendientes</h3>
+          <p style={{
+            fontSize: '2.25rem',
+            fontWeight: '800',
+            color: '#ffffff',
+            margin: 0,
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+          }}>{issues.filter(i => i.status === 'pendiente').length}</p>
         </div>
-        <div className="issues-stat">
-          <h3>Resueltos</h3>
-          <p>{issues.filter(i => i.status === 'resuelto').length}</p>
+        <div className="issues-stat" style={{
+          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+          borderRadius: '16px',
+          padding: '2rem',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+          border: '1px solid #334155',
+          transition: 'all 0.3s ease',
+          textAlign: 'center'
+        }}>
+          <h3 style={{
+            fontSize: '0.875rem',
+            color: '#cbd5e1',
+            marginBottom: '0.75rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            fontWeight: '600'
+          }}>Resueltos</h3>
+          <p style={{
+            fontSize: '2.25rem',
+            fontWeight: '800',
+            color: '#ffffff',
+            margin: 0,
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+          }}>{issues.filter(i => i.status === 'resuelto').length}</p>
         </div>
-        <div className="issues-stat">
-          <h3>Costo Total</h3>
-          <p>{formatCurrency(issues.reduce((sum, i) => sum + (i.amount || 0), 0))}</p>
+        <div className="issues-stat" style={{
+          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+          borderRadius: '16px',
+          padding: '2rem',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+          border: '1px solid #334155',
+          transition: 'all 0.3s ease',
+          textAlign: 'center'
+        }}>
+          <h3 style={{
+            fontSize: '0.875rem',
+            color: '#cbd5e1',
+            marginBottom: '0.75rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            fontWeight: '600'
+          }}>Costo Total</h3>
+          <p style={{
+            fontSize: '2.25rem',
+            fontWeight: '800',
+            color: '#ffffff',
+            margin: 0,
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+          }}>{formatCurrency(issues.reduce((sum, i) => sum + (i.amount || 0), 0))}</p>
         </div>
         <div className="issues-stat">
           <h3>Compras</h3>
@@ -334,12 +466,32 @@ export function IssuesPage() {
       </div>
       </div>
 
-      <div className="issues-list">
+      <div className="issues-list" style={{
+        display: 'grid',
+        gap: '1rem'
+      }}>
         {issues.length === 0 ? (
-          <div className="issues-empty">
-            <Package className="issues-empty__icon" />
-            <h3>No hay reportes registrados</h3>
-            <p>Registra el primer reporte logístico</p>
+          <div className="issues-empty" style={{
+            textAlign: 'center',
+            padding: '3rem',
+            background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+            borderRadius: '16px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            border: '1px solid #334155'
+          }}>
+            <Package style={{
+              width: '64px',
+              height: '64px',
+              margin: '0 auto 1rem',
+              color: '#64748b'
+            }} />
+            <h3 style={{
+              color: '#ffffff',
+              marginBottom: '0.5rem'
+            }}>No hay reportes registrados</h3>
+            <p style={{
+              color: '#94a3b8'
+            }}>Registra el primer reporte logístico</p>
           </div>
         ) : (
           issues.map((issue) => {
@@ -347,49 +499,84 @@ export function IssuesPage() {
             const TypeIcon = typeInfo.icon;
 
             return (
-              <div key={issue.id} className="issues-item">
-                <div className="issues-item__header">
-                  <div className="issues-item__type">
+              <div key={issue.id} className="issues-item" style={{
+                background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                border: '1px solid #334155',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    marginBottom: '0.5rem'
+                  }}>
                     <TypeIcon
-                      className="issues-item__type-icon"
-                      style={{ color: typeInfo.color }}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        color: typeInfo.color
+                      }}
                     />
-                    <span className="issues-item__type-label">{typeInfo.label}</span>
+                    <span style={{
+                      color: '#e2e8f0',
+                      fontWeight: '600'
+                    }}>{typeInfo.label}</span>
+                    <span style={{
+                      backgroundColor: STATUS_COLORS[issue.status as keyof typeof STATUS_COLORS],
+                      color: '#ffffff',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '20px',
+                      fontSize: '0.8rem',
+                      fontWeight: '500'
+                    }}>{issue.status}</span>
                   </div>
-                  <div
-                    className="issues-item__status"
-                    style={{ backgroundColor: STATUS_COLORS[issue.status] }}
-                  >
-                    {issue.status}
-                  </div>
-                </div>
-
-                <div className="issues-item__content">
-                  <p className="issues-item__description">{issue.description}</p>
+                  <p style={{
+                    color: '#ffffff',
+                    marginBottom: '0.5rem'
+                  }}>{issue.description}</p>
                   {issue.amount && (
-                    <p className="issues-item__amount">{formatCurrency(issue.amount)}</p>
-                  )}
-                  {issue.inventoryItem && (
-                    <p className="issues-item__item">Item: {issue.inventoryItem.name}</p>
+                    <p style={{
+                      color: '#00d4ff',
+                      fontWeight: '600'
+                    }}>{formatCurrency(issue.amount)}</p>
                   )}
                 </div>
-
-                <div className="issues-item__footer">
-                  <span className="issues-item__date">{formatDate(issue.createdAt)}</span>
-                  <div className="issues-item__actions">
-                    <button
-                      className="issues-item__action issues-item__action--edit"
-                      onClick={() => openEditForm(issue)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      className="issues-item__action issues-item__action--delete"
-                      onClick={() => handleDelete(issue.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                <div style={{
+                  display: 'flex',
+                  gap: '0.5rem'
+                }}>
+                  <button
+                    onClick={() => openEditForm(issue)}
+                    style={{
+                      background: 'rgba(59, 130, 246, 0.2)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      color: '#3b82f6',
+                      padding: '0.5rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Edit style={{ width: '16px', height: '16px' }} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(issue.id)}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#ef4444',
+                      padding: '0.5rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Trash2 style={{ width: '16px', height: '16px' }} />
+                  </button>
                 </div>
               </div>
             );
@@ -399,10 +586,20 @@ export function IssuesPage() {
 
       {/* Modal del formulario */}
       {showForm && (
-        <div className="issues-modal-overlay" onClick={closeForm}>
-          <div className="issues-modal" onClick={e => e.stopPropagation()}>
-            <div className="issues-modal-header">
-              <h2 className="issues-modal-title">
+          <div
+          className="issues-modal-overlay"
+          onClick={closeForm}
+        >
+          <div
+            className="issues-modal"
+            onClick={e => e.stopPropagation()}
+          >
+            <div
+              className="issues-modal-header"
+            >
+              <h2
+                className="issues-modal-title"
+              >
                 {editingIssue ? 'Editar Reporte' : 'Nuevo Reporte'}
               </h2>
               <button
@@ -413,9 +610,16 @@ export function IssuesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="issues-form">
+            <form
+              onSubmit={handleSubmit}
+              className="issues-form"
+            >
               <div className="issues-form-group">
-                <label className="issues-form-label">Tipo de Reporte *</label>
+                <label
+                  className="issues-form-label"
+                >
+                  Tipo de Reporte *
+                </label>
                 <select
                   name="type"
                   value={formData.type}
@@ -432,7 +636,11 @@ export function IssuesPage() {
               </div>
 
               <div className="issues-form-group">
-                <label className="issues-form-label">Descripción *</label>
+                <label
+                  className="issues-form-label"
+                >
+                  Descripción *
+                </label>
                 <textarea
                   name="description"
                   value={formData.description}
@@ -445,7 +653,11 @@ export function IssuesPage() {
               </div>
 
               <div className="issues-form-group">
-                <label className="issues-form-label">Costo (opcional)</label>
+                <label
+                  className="issues-form-label"
+                >
+                  Costo (opcional)
+                </label>
                 <input
                   type="number"
                   name="amount"
@@ -459,7 +671,11 @@ export function IssuesPage() {
               </div>
 
               <div className="issues-form-group">
-                <label className="issues-form-label">Item del Inventario (opcional)</label>
+                <label
+                  className="issues-form-label"
+                >
+                  Item del Inventario (opcional)
+                </label>
                 <select
                   name="inventoryItemId"
                   value={formData.inventoryItemId}
@@ -475,7 +691,9 @@ export function IssuesPage() {
                 </select>
               </div>
 
-              <div className="issues-form-actions">
+              <div
+                className="issues-form-actions"
+              >
                 <button
                   type="button"
                   onClick={closeForm}
@@ -497,7 +715,6 @@ export function IssuesPage() {
         </div>
       )}
 
-      {/* Aquí iría el formulario modal para crear/editar, pero por simplicidad lo omito por ahora */}
     </div>
   );
 }

@@ -1,30 +1,36 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_CLIENT, SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { CreateIssueDto } from './dto/create-issue.dto';
 import { UpdateIssueDto } from './dto/update-issue.dto';
 import { UsersService } from '../users/users.service';
+import { UserEntity } from '../users/entities/user.entity';
+import { UserSyncService } from '../users/user-sync.service';
 
 @Injectable()
 export class IssuesService {
     constructor(
         @Inject(SUPABASE_DATA_CLIENT)
         private readonly supabase: SupabaseClient,
+        @Inject(SUPABASE_CLIENT)
+        private readonly mainSupabase: SupabaseClient,
         private readonly usersService: UsersService,
+        private readonly userSyncService: UserSyncService,
     ) { }
 
-    async create(createIssueDto: CreateIssueDto, userId: string) {
-        // Validate that the user exists
-        const user = await this.usersService.findById(userId);
-        if (!user) {
-            throw new Error('Usuario no encontrado. Por favor, vuelve a iniciar sesión.');
+    async create(createIssueDto: CreateIssueDto, user: UserEntity) {
+        // Ensure user exists in datasets database and get the correct ID for foreign key
+        const datasetUser = await this.userSyncService.findOrCreateUserInDataDb(user.email);
+
+        if (!datasetUser) {
+            throw new Error('No se pudo sincronizar el usuario en la base de datos de datos');
         }
 
         const { data, error } = await this.supabase
             .from('issues')
             .insert({
                 ...createIssueDto,
-                createdById: userId,
+                createdById: datasetUser.id,
             })
             .select()
             .single();

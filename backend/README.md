@@ -2,43 +2,72 @@
 
 Backend de la plataforma **DataPulse**. Expone un API REST modular para autenticación, gestión de datasets, dashboards inteligentes y análisis automático de archivos CSV/XLSX.
 
+### Arquitectura
+
+- **Dos bases de datos Supabase separadas**:
+  - **Base principal**: Autenticación y usuarios (`users`, `auth`)
+  - **Base de datos**: Issues, inventory, datasets y analytics (`issues`, `inventory`, `datasets`, `analytics`)
+- **Sincronización automática de usuarios** entre bases de datos para mantener consistencia de foreign keys
+- **JWT + roles (admin/analista)** mediante Passport y estrategias personalizadas basadas en email
+
 ### Características principales
 
 - **JWT + roles (admin/analista)** mediante Passport y estrategias personalizadas.
 - **Carga de datasets** con Multer en memoria, parsing con PapaParse/XLSX y persistencia en Supabase Postgres.
 - **Servicio de análisis** que detecta tipos de columnas, calcula estadísticas y propone visualizaciones.
 - **Gestión de dashboards** guardados por usuario con validaciones de ownership respaldadas en Supabase.
+- **Sistema de issues/tickets** con foreign keys a usuarios sincronizados automáticamente.
 - **Configuración centralizada** con `@nestjs/config` y `ConfigService`.
 - **Capa común** con decoradores (`@CurrentUser`, `@Roles`), guards y utilidades de detección de tipos.
+- **Seguridad production-ready**: CORS configurado por entorno, credenciales solo por variables de entorno.
 
 ### Requisitos
 
 - Node.js >= 18
-- Cuenta de Supabase con base de datos Postgres
+- Dos proyectos Supabase separados (uno para auth/users, otro para datos)
+- Variables de entorno configuradas (ver `.env.example`)
 
 ### Variables de entorno
 
 Duplicar `.env.example` como `.env` y ajustar valores:
 
-```
+```bash
+# Base de datos principal (auth/users)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# Base de datos de datos (issues/inventory/datasets)
+SUPABASE_DATA_URL=https://your-data-project.supabase.co
+SUPABASE_DATA_ANON_KEY=your-data-anon-key-here
+SUPABASE_DATA_SERVICE_ROLE_KEY=your-data-service-role-key-here
+
+# JWT y seguridad
+JWT_SECRET=your-jwt-secret-here
+CORS_ORIGINS=https://your-frontend.com,http://localhost:3000
+
+# Configuración de aplicación
+NODE_ENV=production
 PORT=3000
-SUPABASE_PROJECT_ID=nqkodrksdcmzhxoeuidj
-SUPABASE_URL=https://nqkodrksdcmzhxoeuidj.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=super-secret
-SUPABASE_DATA_PROJECT_ID=nqkodrksdcmzhxoeuidj
-SUPABASE_DATA_URL=https://nqkodrksdcmzhxoeuidj.supabase.co
-SUPABASE_DATA_SERVICE_ROLE_KEY=super-secret
-JWT_SECRET=superchangeme
-JWT_EXPIRATION=1h
-FILE_MAX_SIZE=5242880
-FILE_PREVIEW_LIMIT=50
-SEED_EXPERIMENTAL_USERS=true
-SEED_EXPERIMENTAL_USER_PASSWORD=DemoUser123!
-SEED_EXPERIMENTAL_ADMIN_PASSWORD=DemoAdmin123!
-SEED_EXPERIMENTAL_SUPERADMIN_PASSWORD=DemoRoot123!
 ```
 
-> Las variables `SEED_EXPERIMENTAL_*` son opcionales y se usan únicamente en entornos de desarrollo. Desactiva la siembra automática definiendo `SEED_EXPERIMENTAL_USERS=false` en despliegues productivos.
+> **Importante**: Nunca incluyas credenciales reales en el código. Todas las configuraciones sensibles deben venir de variables de entorno.
+
+### Sincronización de Usuarios
+
+El sistema utiliza **dos bases de datos Supabase separadas** para mantener la separación entre autenticación y datos operativos. La sincronización automática de usuarios asegura que:
+
+- Los usuarios se crean primero en la base principal (auth)
+- Al crear issues o acceder a datos, se sincronizan automáticamente a la base de datos
+- Las foreign keys entre `issues.createdById` y `users.id` funcionan correctamente
+- La consistencia se mantiene sin foreign keys entre proyectos Supabase
+
+### Seguridad Production-Ready
+
+- **CORS configurado por entorno**: Solo origenes específicos permitidos
+- **Credenciales solo por variables de entorno**: No hay valores por defecto en código
+- **JWT basado en email**: Validación robusta de identidad de usuario
+- **Logging estructurado**: Seguimiento de operaciones críticas
 
 ### Instalación
 

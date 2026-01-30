@@ -34,7 +34,12 @@ let UsersInitializer = UsersInitializer_1 = class UsersInitializer {
             : roles_enum_1.UserRole.Admin;
         if (!email || !password) {
             this.logger.warn('Default admin credentials are not configured. Skipping bootstrap user creation.');
-            await this.provisionExperimentalAccounts();
+            try {
+                await this.provisionExperimentalAccounts();
+            }
+            catch (error) {
+                this.logger.error('Failed to provision experimental accounts:', error);
+            }
             return;
         }
         const existing = await this.usersService.findByEmail(email);
@@ -74,7 +79,7 @@ let UsersInitializer = UsersInitializer_1 = class UsersInitializer {
                 this.logger.warn('Skipping experimental account without email or password.');
                 continue;
             }
-            const existing = await this.usersService.findByEmail(email);
+            const existing = await this.usersService.findByEmail(email).catch(() => null);
             if (existing) {
                 this.logger.log(`Experimental user '${email}' already exists.`);
                 continue;

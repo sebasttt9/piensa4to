@@ -1,19 +1,19 @@
 declare const _default: () => {
     port: number;
     supabase: {
-        projectId: string;
-        url: string;
-        anonKey: string;
-        serviceRoleKey: string;
+        projectId: string | undefined;
+        url: string | undefined;
+        anonKey: string | undefined;
+        serviceRoleKey: string | undefined;
         datasets: {
-            projectId: string;
-            url: string;
-            anonKey: string;
-            serviceRoleKey: string;
+            projectId: string | undefined;
+            url: string | undefined;
+            anonKey: string | undefined;
+            serviceRoleKey: string | undefined;
         };
     };
     auth: {
-        jwtSecret: string;
+        jwtSecret: string | undefined;
         jwtExpiration: string;
     };
     seed: {

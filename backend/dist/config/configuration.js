@@ -3,34 +3,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = () => ({
     port: parseInt(process.env.PORT ?? '3000', 10),
     supabase: {
-        projectId: process.env.SUPABASE_PROJECT_ID ?? 'bggsqbvrpenahcppvuyc',
-        url: process.env.SUPABASE_URL ??
-            (process.env.SUPABASE_PROJECT_ID
-                ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co`
-                : 'https://bggsqbvrpenahcppvuyc.supabase.co'),
-        anonKey: process.env.SUPABASE_ANON_KEY ??
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnZ3NxYnZycGVuYWhjcHB2dXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMjc4MTksImV4cCI6MjA4NDcwMzgxOX0.NTQzDrNuNxqbtPzTNBoCjW3UrNTvtBl_apl9xrYcmVQ',
-        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ??
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnZ3NxYnZycGVuYWhjcHB2dXljIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Nzc0NzI4MiwiZXhwIjoyMDgzMzIzMjgyfQ.j32e8oZwZDSgXOGbVRqnVcqdkGyclPIFTzmy29cb8Hw',
+        projectId: process.env.SUPABASE_PROJECT_ID,
+        url: process.env.SUPABASE_URL,
+        anonKey: process.env.SUPABASE_ANON_KEY,
+        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
         datasets: {
-            projectId: process.env.SUPABASE_DATA_PROJECT_ID ??
-                process.env.SUPABASE_PROJECT_ID ??
-                'nqkodrksdcmzhxoeuidj',
-            url: process.env.SUPABASE_DATA_URL ??
-                (process.env.SUPABASE_DATA_PROJECT_ID
-                    ? `https://${process.env.SUPABASE_DATA_PROJECT_ID}.supabase.co`
-                    : process.env.SUPABASE_PROJECT_ID
-                        ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co`
-                        : 'https://nqkodrksdcmzhxoeuidj.supabase.co'),
-            anonKey: process.env.SUPABASE_DATA_ANON_KEY ??
-                process.env.SUPABASE_ANON_KEY ??
-                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xa29kcmtzZGNtemh4b2V1aWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMjc4MTksImV4cCI6MjA4NDcwMzgxOX0.NTQzDrNuNxqbtPzTNBoCjW3UrNTvtBl_apl9xrYcmVQ',
-            serviceRoleKey: process.env.SUPABASE_DATA_SERVICE_ROLE_KEY ??
-                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xa29kcmtzZGNtemh4b2V1aWRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTEyNzgxOSwiZXhwIjoyMDg0NzAzODE5fQ.DK8cTAE7ovECixgdZLFw2frKWn2fh1n2GFhllzBd30c',
+            projectId: process.env.SUPABASE_DATA_PROJECT_ID,
+            url: process.env.SUPABASE_DATA_URL,
+            anonKey: process.env.SUPABASE_DATA_ANON_KEY,
+            serviceRoleKey: process.env.SUPABASE_DATA_SERVICE_ROLE_KEY,
         },
     },
     auth: {
-        jwtSecret: process.env.JWT_SECRET ?? 'dev-secret',
+        jwtSecret: process.env.JWT_SECRET,
         jwtExpiration: process.env.JWT_EXPIRATION ?? '24h',
     },
     seed: {
@@ -41,12 +26,8 @@ exports.default = () => ({
             role: process.env.DEFAULT_ADMIN_ROLE ?? 'admin',
         },
         experimentalUsers: {
-            enabled: process.env.SEED_EXPERIMENTAL_USERS === 'true'
-                ? true
-                : process.env.SEED_EXPERIMENTAL_USERS === 'false'
-                    ? false
-                    : (process.env.NODE_ENV ?? 'development') !== 'production',
-            users: [
+            enabled: process.env.SEED_EXPERIMENTAL_USERS === 'true' && (process.env.NODE_ENV ?? 'development') === 'development',
+            users: process.env.SEED_EXPERIMENTAL_USERS === 'true' ? [
                 {
                     email: process.env.SEED_EXPERIMENTAL_USER_EMAIL ?? 'demo.user@datapulse.local',
                     password: process.env.SEED_EXPERIMENTAL_USER_PASSWORD ?? 'DemoUser123!',
@@ -65,7 +46,7 @@ exports.default = () => ({
                     name: process.env.SEED_EXPERIMENTAL_SUPERADMIN_NAME ?? 'Demo Superadmin',
                     role: 'superadmin',
                 },
-            ],
+            ] : [],
         },
     },
     uploads: {
@@ -112,7 +93,7 @@ exports.default = () => ({
     security: {
         enableHelmet: process.env.HELMET_ENABLED !== 'false',
         enableCors: process.env.CORS_ENABLED !== 'false',
-        corsOrigin: process.env.CORS_ORIGIN ?? '*',
+        corsOrigin: process.env.CORS_ORIGIN ?? (process.env.NODE_ENV === 'production' ? 'https://yourdomain.com' : 'http://localhost:5174'),
         rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW ?? '900000', 10),
         rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX ?? '100', 10),
     },

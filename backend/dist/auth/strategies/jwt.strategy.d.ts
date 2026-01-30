@@ -9,6 +9,6 @@ export declare class JwtStrategy extends JwtStrategy_base {
     private readonly configService;
     private readonly usersService;
     constructor(configService: ConfigService, usersService: UsersService);
-    validate(payload: JwtPayload): Promise<Omit<import("../../users/entities/user.entity").UserEntity, "passwordHash">>;
+    validate(payload: JwtPayload): Promise<import("../../users/entities/user.entity").UserEntity | null>;
 }
 export {};

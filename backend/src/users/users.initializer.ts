@@ -37,7 +37,11 @@ export class UsersInitializer implements OnApplicationBootstrap {
 
         if (!email || !password) {
             this.logger.warn('Default admin credentials are not configured. Skipping bootstrap user creation.');
-            await this.provisionExperimentalAccounts();
+            try {
+                await this.provisionExperimentalAccounts();
+            } catch (error) {
+                this.logger.error('Failed to provision experimental accounts:', error);
+            }
             return;
         }
 
@@ -85,7 +89,7 @@ export class UsersInitializer implements OnApplicationBootstrap {
                 continue;
             }
 
-            const existing = await this.usersService.findByEmail(email);
+            const existing = await this.usersService.findByEmail(email).catch(() => null);
             if (existing) {
                 this.logger.log(`Experimental user '${email}' already exists.`);
                 continue;

@@ -13,7 +13,7 @@ export class IssuesController {
 
     @Post()
     create(@Body() createIssueDto: CreateIssueDto, @CurrentUser() user: UserEntity) {
-        return this.issuesService.create(createIssueDto, user.id);
+        return this.issuesService.create(createIssueDto, user);
     }
 
     @Get()
