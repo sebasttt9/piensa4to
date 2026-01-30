@@ -157,6 +157,106 @@ let AnalysisService = class AnalysisService {
         }
         return suggestions.slice(0, 10);
     }
+    async analyzeDataset(rows, manualColumns) {
+        const rowCount = rows.length;
+        let columnStats;
+        if (manualColumns && manualColumns.length > 0) {
+            columnStats = manualColumns.map((column) => this.buildManualColumnStats(column, rows));
+        }
+        else {
+            const columns = this.extractColumns(rows);
+            columnStats = columns.map((column) => this.buildColumnStats(column, rows));
+        }
+        const chartSuggestions = this.buildChartSuggestions(columnStats);
+        return { rowCount, columns: columnStats, chartSuggestions };
+    }
+    buildManualColumnStats(columnDef, rows) {
+        const values = rows.map((row) => row[columnDef.name]);
+        const meaningfulValues = values.filter((value) => value !== null && value !== undefined && value !== '');
+        const emptyValues = values.length - meaningfulValues.length;
+        const sampleValues = meaningfulValues.slice(0, 5);
+        const type = this.mapManualTypeToSystemType(columnDef.type);
+        const baseStats = {
+            column: columnDef.name,
+            type,
+            emptyValues,
+            uniqueValues: new Set(meaningfulValues.map((value) => String(value)))
+                .size,
+            sampleValues,
+        };
+        if (type === 'number') {
+            const numericValues = meaningfulValues
+                .map((value) => {
+                const num = typeof value === 'number' ? value : parseFloat(String(value));
+                return isNaN(num) ? null : num;
+            })
+                .filter((value) => value !== null);
+            if (numericValues.length > 0) {
+                const summary = {
+                    min: Math.min(...numericValues),
+                    max: Math.max(...numericValues),
+                    average: numericValues.reduce((a, b) => a + b, 0) / numericValues.length,
+                    sum: numericValues.reduce((a, b) => a + b, 0),
+                    count: numericValues.length,
+                };
+                baseStats.summary = summary;
+            }
+        }
+        else if (type === 'string') {
+            const valueCounts = {};
+            meaningfulValues.forEach((value) => {
+                const key = String(value);
+                valueCounts[key] = (valueCounts[key] || 0) + 1;
+            });
+            const topValues = Object.entries(valueCounts)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10)
+                .map(([value, count]) => ({ value, count }));
+            const summary = {
+                topValues,
+            };
+            baseStats.summary = summary;
+        }
+        else if (type === 'date') {
+            const dateValues = meaningfulValues
+                .map((value) => new Date(value))
+                .filter((date) => !isNaN(date.getTime()));
+            if (dateValues.length > 0) {
+                const sortedDates = dateValues.sort((a, b) => a.getTime() - b.getTime());
+                const summary = {
+                    start: sortedDates[0].toISOString(),
+                    end: sortedDates[sortedDates.length - 1].toISOString(),
+                    granularity: 'day',
+                };
+                baseStats.summary = summary;
+            }
+        }
+        return baseStats;
+    }
+    mapManualTypeToSystemType(manualType) {
+        switch (manualType) {
+            case 'number':
+                return 'number';
+            case 'boolean':
+            case 'string':
+                return 'string';
+            case 'date':
+                return 'date';
+            default:
+                return 'string';
+        }
+    }
+    calculateMedian(values) {
+        const sorted = [...values].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+    calculateStd(values) {
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        const squareDiffs = values.map((value) => Math.pow(value - mean, 2));
+        const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length;
+        return Math.sqrt(avgSquareDiff);
+    }
 };
 exports.AnalysisService = AnalysisService;
 exports.AnalysisService = AnalysisService = __decorate([

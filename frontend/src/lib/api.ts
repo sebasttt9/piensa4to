@@ -2,37 +2,6 @@ import axios from 'axios';
 
 const TOKEN_KEY = 'datapulse.token';
 
-const resolveBaseURL = () => {
-  const candidates: Array<string | undefined> = [];
-
-  try {
-    const env = (import.meta as { env?: Record<string, string> }).env;
-    candidates.push(env?.VITE_API_URL);
-  } catch {
-
-  }
-
-  const globalProcess = typeof globalThis === 'object' && 'process' in globalThis
-    ? (globalThis as { process?: { env?: Record<string, string> } }).process
-    : undefined;
-
-  if (globalProcess?.env) {
-    candidates.push(globalProcess.env.VITE_API_URL);
-  }
-
-  const raw = candidates.find((value): value is string => typeof value === 'string' && value.length > 0);
-  if (!raw) {
-    return '/api';
-  }
-
-  const normalized = raw.trim().replace(/\/+$/, '');
-  if (normalized.length === 0) {
-    return '/api';
-  }
-
-  return normalized.toLowerCase().endsWith('/api') ? normalized : `${normalized}/api`;
-};
-
 const api = axios.create({
   // Usar el proxy de Vite para desarrollo
   baseURL: '/api',

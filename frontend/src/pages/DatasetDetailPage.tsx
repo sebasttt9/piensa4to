@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Share2, TrendingUp, Database, FileText, Clock, AlertTriangle, CheckCircle, Edit2, Trash2, RefreshCw, Columns, HardDrive, Calendar } from 'lucide-react';
+import { Download, Share2, TrendingUp, Database, FileText, Clock, AlertTriangle, CheckCircle, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { datasetsAPI, type Dataset } from '../lib/services';
@@ -316,7 +316,8 @@ export function DatasetDetailPage() {
         </div>
         <div className="dataset-detail-header__actions">
           <Button
-            variant="secondary"
+            variant="custom"
+            className="button--transparent"
             onClick={() => void handleExport()}
             disabled={exporting || actionLoading}
           >
@@ -324,6 +325,8 @@ export function DatasetDetailPage() {
             {exporting ? 'Exportando…' : 'Exportar datos'}
           </Button>
           <Button
+            variant="custom"
+            className="button--transparent"
             onClick={() => { setFeedback({ type: 'success', message: 'En breve podrás compartir datasets con tu equipo.' }); }}
             disabled={actionLoading}
           >
@@ -333,7 +336,8 @@ export function DatasetDetailPage() {
           {canManageDataset && (
             <>
               <Button
-                variant="secondary"
+                variant="custom"
+                className="button--transparent"
                 onClick={() => void handleRename()}
                 disabled={actionLoading}
               >
@@ -389,7 +393,7 @@ export function DatasetDetailPage() {
               Mostrando {previewRows.length} de {preview.total.toLocaleString('es-ES')} registros
             </p>
           </div>
-          <Button size="sm" variant="secondary" onClick={() => void loadDataset()}>
+          <Button size="sm" className="button--transparent" onClick={() => void loadDataset()}>
             <RefreshCw className="w-4 h-4" />
             Actualizar
           </Button>
@@ -436,7 +440,7 @@ export function DatasetDetailPage() {
               Cuando el procesamiento esté completo podrás generar reportes automáticos y dashboards inteligentes.
             </p>
           </div>
-          <Button className="dataset-detail-actions__button" onClick={() => {}}>
+          <Button className="dataset-detail-actions__button" onClick={() => navigate('/app/insights')}>
             <TrendingUp className="w-4 h-4" />
             Explorar análisis
           </Button>

@@ -8,6 +8,7 @@ import {
   DateSummary,
   CategoricalSummary,
 } from './interfaces/dataset-analysis.interface';
+import { ManualColumnDto } from './dto/create-manual-dataset.dto';
 
 @Injectable()
 export class AnalysisService {
@@ -194,5 +195,135 @@ export class AnalysisService {
     }
 
     return suggestions.slice(0, 10);
+  }
+
+  async analyzeDataset(
+    rows: Record<string, unknown>[],
+    manualColumns?: ManualColumnDto[],
+  ): Promise<DatasetAnalysis> {
+    const rowCount = rows.length;
+
+    let columnStats: ColumnStats[];
+
+    if (manualColumns && manualColumns.length > 0) {
+      // Usar columnas definidas manualmente
+      columnStats = manualColumns.map((column) =>
+        this.buildManualColumnStats(column, rows),
+      );
+    } else {
+      // Extraer columnas automáticamente de los datos
+      const columns = this.extractColumns(rows);
+      columnStats = columns.map((column) =>
+        this.buildColumnStats(column, rows),
+      );
+    }
+
+    const chartSuggestions = this.buildChartSuggestions(columnStats);
+
+    return { rowCount, columns: columnStats, chartSuggestions };
+  }
+
+  private buildManualColumnStats(
+    columnDef: ManualColumnDto,
+    rows: Record<string, unknown>[],
+  ): ColumnStats {
+    const values = rows.map((row) => row[columnDef.name]);
+    const meaningfulValues = values.filter(
+      (value) => value !== null && value !== undefined && value !== '',
+    );
+    const emptyValues = values.length - meaningfulValues.length;
+    const sampleValues = meaningfulValues.slice(0, 5);
+
+    // Convertir el tipo manual a los tipos del sistema
+    const type = this.mapManualTypeToSystemType(columnDef.type);
+
+    const baseStats: ColumnStats = {
+      column: columnDef.name,
+      type,
+      emptyValues,
+      uniqueValues: new Set(meaningfulValues.map((value) => String(value)))
+        .size,
+      sampleValues,
+    };
+
+    // Agregar estadísticas específicas según el tipo
+    if (type === 'number') {
+      const numericValues = meaningfulValues
+        .map((value) => {
+          const num = typeof value === 'number' ? value : parseFloat(String(value));
+          return isNaN(num) ? null : num;
+        })
+        .filter((value) => value !== null) as number[];
+
+      if (numericValues.length > 0) {
+        const summary: NumericSummary = {
+          min: Math.min(...numericValues),
+          max: Math.max(...numericValues),
+          average: numericValues.reduce((a, b) => a + b, 0) / numericValues.length,
+          sum: numericValues.reduce((a, b) => a + b, 0),
+          count: numericValues.length,
+        };
+        baseStats.summary = summary;
+      }
+    } else if (type === 'string') {
+      const valueCounts: Record<string, number> = {};
+      meaningfulValues.forEach((value) => {
+        const key = String(value);
+        valueCounts[key] = (valueCounts[key] || 0) + 1;
+      });
+
+      const topValues = Object.entries(valueCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([value, count]) => ({ value, count }));
+
+      const summary: CategoricalSummary = {
+        topValues,
+      };
+      baseStats.summary = summary;
+    } else if (type === 'date') {
+      const dateValues = meaningfulValues
+        .map((value) => new Date(value as string | number | Date))
+        .filter((date) => !isNaN(date.getTime()));
+
+      if (dateValues.length > 0) {
+        const sortedDates = dateValues.sort((a, b) => a.getTime() - b.getTime());
+        const summary: DateSummary = {
+          start: sortedDates[0].toISOString(),
+          end: sortedDates[sortedDates.length - 1].toISOString(),
+          granularity: 'day', // Default granularity
+        };
+        baseStats.summary = summary;
+      }
+    }
+
+    return baseStats;
+  }
+
+  private mapManualTypeToSystemType(manualType: string): 'number' | 'date' | 'string' {
+    switch (manualType) {
+      case 'number':
+        return 'number';
+      case 'boolean':
+      case 'string':
+        return 'string';
+      case 'date':
+        return 'date';
+      default:
+        return 'string';
+    }
+  }
+
+  private calculateMedian(values: number[]): number {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+
+  private calculateStd(values: number[]): number {
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const squareDiffs = values.map((value) => Math.pow(value - mean, 2));
+    const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length;
+    return Math.sqrt(avgSquareDiff);
   }
 }

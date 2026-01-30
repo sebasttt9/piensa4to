@@ -384,8 +384,8 @@ export class InventoryService {
             await this.ensureDashboardOwnership(ownerId, dto.dashboardId);
         }
 
-        // Determine initial status based on user role
-        const initialStatus = userRole === 'user' ? 'pending' : 'approved';
+        // All items start as pending, regardless of user role
+        const initialStatus = 'pending';
 
         const { data, error } = await this.supabase
             .from(this.itemsTable)
@@ -399,8 +399,8 @@ export class InventoryService {
                 pvp: dto.pvp,
                 cost: dto.cost,
                 status: initialStatus,
-                approved_by: initialStatus === 'approved' ? ownerId : null,
-                approved_at: initialStatus === 'approved' ? new Date().toISOString() : null,
+                approved_by: null,
+                approved_at: null,
             })
             .select()
             .single();
@@ -443,11 +443,11 @@ export class InventoryService {
             .select('*')
             .eq('id', itemId);
 
- 
+
         if (userRole === 'admin' || userRole === 'superadmin') {
 
         } else {
-  
+
             query = query.eq('owner_id', ownerId);
         }
 

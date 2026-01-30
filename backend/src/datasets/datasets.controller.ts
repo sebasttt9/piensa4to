@@ -19,6 +19,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { UserEntity } from '../users/entities/user.entity';
 import { UploadDatasetDto } from './dto/upload-dataset.dto';
+import { CreateManualDatasetDto } from './dto/create-manual-dataset.dto';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/constants/roles.enum';
@@ -63,6 +64,15 @@ export class DatasetsController {
     @Body() dto: UploadDatasetDto,
   ) {
     return this.datasetsService.create(user.id, dto);
+  }
+
+  @Post('manual')
+  @Roles(UserRole.Admin, UserRole.User)
+  createManual(
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+    @Body() dto: CreateManualDatasetDto,
+  ) {
+    return this.datasetsService.createManual(user.id, dto);
   }
 
   @Put(':id')

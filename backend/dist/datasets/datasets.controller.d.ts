@@ -1,6 +1,7 @@
 import { DatasetsService } from './datasets.service';
 import type { UserEntity } from '../users/entities/user.entity';
 import { UploadDatasetDto } from './dto/upload-dataset.dto';
+import { CreateManualDatasetDto } from './dto/create-manual-dataset.dto';
 export declare class DatasetsController {
     private readonly datasetsService;
     constructor(datasetsService: DatasetsService);
@@ -12,6 +13,7 @@ export declare class DatasetsController {
     }>;
     findOne(user: Omit<UserEntity, 'passwordHash'>, id: string): Promise<import("./entities/dataset.entity").DatasetEntity>;
     create(user: Omit<UserEntity, 'passwordHash'>, dto: UploadDatasetDto): Promise<import("./entities/dataset.entity").DatasetEntity>;
+    createManual(user: Omit<UserEntity, 'passwordHash'>, dto: CreateManualDatasetDto): Promise<import("./entities/dataset.entity").DatasetEntity>;
     update(user: Omit<UserEntity, 'passwordHash'>, id: string, dto: Partial<UploadDatasetDto>): Promise<import("./entities/dataset.entity").DatasetEntity>;
     uploadFile(user: Omit<UserEntity, 'passwordHash'>, id: string, file: Express.Multer.File): Promise<import("./entities/dataset.entity").DatasetEntity>;
     getPreview(user: Omit<UserEntity, 'passwordHash'>, id: string, limit?: number): Promise<{

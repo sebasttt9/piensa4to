@@ -46,6 +46,20 @@ export interface CreateDatasetInput {
     tags?: string[];
 }
 
+export interface ManualColumn {
+    name: string;
+    type: 'string' | 'number' | 'boolean' | 'date';
+    description?: string;
+}
+
+export interface CreateManualDatasetInput {
+    name: string;
+    description?: string;
+    tags?: string[];
+    columns: ManualColumn[];
+    data: Record<string, any>[];
+}
+
 export const datasetsAPI = {
     // Listar todos los datasets del usuario
     list: async (page = 1, limit = 10) => {
@@ -71,6 +85,16 @@ export const datasetsAPI = {
             return response.data;
         } catch (error) {
             throw new Error(resolveApiError(error, 'No se pudo crear el dataset.'));
+        }
+    },
+
+    // Crear un dataset manual con datos personalizados
+    createManual: async (input: CreateManualDatasetInput) => {
+        try {
+            const response = await api.post<Dataset>('/datasets/manual', input);
+            return response.data;
+        } catch (error) {
+            throw new Error(resolveApiError(error, 'No se pudo crear el dataset manual.'));
         }
     },
 

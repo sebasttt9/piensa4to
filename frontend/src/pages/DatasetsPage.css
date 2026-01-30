@@ -110,6 +110,21 @@
   box-shadow: 0 16px 42px rgba(59, 130, 246, 0.3);
 }
 
+.datasets-manual-button {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.24),
+    rgba(16, 185, 129, 0.3)
+  );
+  box-shadow: 0 12px 30px rgba(34, 197, 94, 0.2);
+}
+
+.datasets-manual-button:hover {
+  border-color: rgba(34, 197, 94, 0.75);
+  box-shadow: 0 16px 42px rgba(34, 197, 94, 0.3);
+}
+
 .datasets-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

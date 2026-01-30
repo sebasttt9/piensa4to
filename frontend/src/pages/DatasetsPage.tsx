@@ -19,7 +19,7 @@ export function DatasetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { roleAtLeast } = useAuth();
-  const canManageDatasets = roleAtLeast('admin');
+  const canManageDatasets = roleAtLeast('user');
 
   const loadDatasets = useCallback(async () => {
     setLoading(true);
@@ -145,6 +145,10 @@ export function DatasetsPage() {
             <Link to="/app/upload" className="datasets-upload-button">
               <PlusCircle className="w-5 h-5" />
               Cargar nuevo dataset
+            </Link>
+            <Link to="/app/manual-dataset" className="datasets-upload-button datasets-manual-button">
+              <Database className="w-5 h-5" />
+              Crear dataset manual
             </Link>
           </div>
         )}

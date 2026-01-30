@@ -19,6 +19,7 @@ const datasets_service_1 = require("./datasets.service");
 const jwt_auth_guard_1 = require("../common/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
 const upload_dataset_dto_1 = require("./dto/upload-dataset.dto");
+const create_manual_dataset_dto_1 = require("./dto/create-manual-dataset.dto");
 const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const roles_enum_1 = require("../common/constants/roles.enum");
@@ -47,6 +48,9 @@ let DatasetsController = class DatasetsController {
     }
     create(user, dto) {
         return this.datasetsService.create(user.id, dto);
+    }
+    createManual(user, dto) {
+        return this.datasetsService.createManual(user.id, dto);
     }
     update(user, id, dto) {
         return this.datasetsService.update(user.id, id, dto);
@@ -111,6 +115,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, upload_dataset_dto_1.UploadDatasetDto]),
     __metadata("design:returntype", void 0)
 ], DatasetsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('manual'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin, roles_enum_1.UserRole.User),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_manual_dataset_dto_1.CreateManualDatasetDto]),
+    __metadata("design:returntype", void 0)
+], DatasetsController.prototype, "createManual", null);
 __decorate([
     (0, common_1.Put)(':id'),
     (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),

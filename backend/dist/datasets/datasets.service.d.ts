@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { UploadDatasetDto } from './dto/upload-dataset.dto';
+import { CreateManualDatasetDto } from './dto/create-manual-dataset.dto';
 import { AnalysisService } from './analysis.service';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { DatasetEntity } from './entities/dataset.entity';
@@ -12,6 +13,7 @@ export declare class DatasetsService {
     private readonly tableName;
     constructor(supabase: SupabaseClient, analysisService: AnalysisService, configService: ConfigService);
     create(ownerId: string, dto: UploadDatasetDto): Promise<DatasetEntity>;
+    createManual(ownerId: string, dto: CreateManualDatasetDto): Promise<DatasetEntity>;
     uploadDataset(ownerId: string, datasetId: string, file: Express.Multer.File): Promise<DatasetEntity>;
     update(ownerId: string, datasetId: string, dto: Partial<UploadDatasetDto>): Promise<DatasetEntity>;
     findAll(ownerId: string, userRole?: string, skip?: number, limit?: number): Promise<DatasetEntity[]>;
@@ -21,5 +23,7 @@ export declare class DatasetsService {
     remove(ownerId: string, datasetId: string): Promise<void>;
     private resolveExtension;
     private parseFile;
+    private validateManualData;
+    private validateColumnType;
     private toEntity;
 }

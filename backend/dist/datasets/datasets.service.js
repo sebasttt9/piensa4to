@@ -89,6 +89,35 @@ let DatasetsService = class DatasetsService {
         }
         return this.toEntity(data);
     }
+    async createManual(ownerId, dto) {
+        this.validateManualData(dto.columns, dto.data);
+        const previewLimit = this.configService.get('uploads.previewLimit', 50) ?? 50;
+        const preview = dto.data.slice(0, previewLimit);
+        this.dataCache.set(`manual_${Date.now()}`, dto.data);
+        const analysis = await this.analysisService.analyzeDataset(dto.data, dto.columns);
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .insert({
+            owner_id: ownerId,
+            name: dto.name,
+            description: dto.description ?? null,
+            status: 'processed',
+            tags: dto.tags ?? [],
+            preview,
+            row_count: dto.data.length,
+            column_count: dto.columns.length,
+            analysis,
+            file_type: 'manual',
+            filename: null,
+            file_size: null,
+        })
+            .select('*')
+            .single();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo crear el dataset manual');
+        }
+        return this.toEntity(data);
+    }
     async uploadDataset(ownerId, datasetId, file) {
         if (!file) {
             throw new common_1.BadRequestException('Debe adjuntar un archivo CSV o Excel.');
@@ -309,6 +338,64 @@ let DatasetsService = class DatasetsService {
             raw: true,
         });
         return data;
+    }
+    validateManualData(columns, data) {
+        if (columns.length === 0) {
+            throw new common_1.BadRequestException('Debe definir al menos una columna');
+        }
+        if (data.length === 0) {
+            throw new common_1.BadRequestException('Debe proporcionar al menos una fila de datos');
+        }
+        const columnNames = columns.map(col => col.name);
+        if (new Set(columnNames).size !== columnNames.length) {
+            throw new common_1.BadRequestException('Los nombres de las columnas deben ser únicos');
+        }
+        for (let i = 0; i < data.length; i++) {
+            const row = data[i];
+            for (const column of columns) {
+                if (!(column.name in row)) {
+                    throw new common_1.BadRequestException(`Fila ${i + 1}: Falta la columna '${column.name}'`);
+                }
+                const value = row[column.name];
+                this.validateColumnType(column, value, i + 1);
+            }
+            const rowKeys = Object.keys(row);
+            const extraColumns = rowKeys.filter(key => !columnNames.includes(key));
+            if (extraColumns.length > 0) {
+                throw new common_1.BadRequestException(`Fila ${i + 1}: Columnas no definidas encontradas: ${extraColumns.join(', ')}`);
+            }
+        }
+    }
+    validateColumnType(column, value, rowNumber) {
+        const errorPrefix = `Fila ${rowNumber}, columna '${column.name}':`;
+        if (value === null || value === undefined || value === '') {
+            return;
+        }
+        switch (column.type) {
+            case 'string':
+                if (typeof value !== 'string') {
+                    throw new common_1.BadRequestException(`${errorPrefix} Se esperaba un texto, pero se recibió ${typeof value}`);
+                }
+                break;
+            case 'number':
+                if (typeof value !== 'number' && isNaN(Number(value))) {
+                    throw new common_1.BadRequestException(`${errorPrefix} Se esperaba un número, pero se recibió ${typeof value}`);
+                }
+                break;
+            case 'boolean':
+                if (typeof value !== 'boolean' && !['true', 'false', '1', '0'].includes(String(value).toLowerCase())) {
+                    throw new common_1.BadRequestException(`${errorPrefix} Se esperaba un valor booleano (true/false), pero se recibió ${typeof value}`);
+                }
+                break;
+            case 'date':
+                const date = new Date(value);
+                if (isNaN(date.getTime())) {
+                    throw new common_1.BadRequestException(`${errorPrefix} Se esperaba una fecha válida, pero se recibió ${value}`);
+                }
+                break;
+            default:
+                throw new common_1.BadRequestException(`${errorPrefix} Tipo de columna no válido: ${column.type}`);
+        }
     }
     toEntity(row) {
         return {

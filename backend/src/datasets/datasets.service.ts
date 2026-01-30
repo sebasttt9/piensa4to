@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { UploadDatasetDto } from './dto/upload-dataset.dto';
+import { CreateManualDatasetDto, ManualColumnDto } from './dto/create-manual-dataset.dto';
 import { AnalysisService } from './analysis.service';
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
@@ -65,6 +66,48 @@ export class DatasetsService {
 
     if (error) {
       throw new InternalServerErrorException('No se pudo crear el dataset');
+    }
+
+    return this.toEntity(data);
+  }
+
+  async createManual(
+    ownerId: string,
+    dto: CreateManualDatasetDto,
+  ): Promise<DatasetEntity> {
+    // Validar que los datos coincidan con las columnas definidas
+    this.validateManualData(dto.columns, dto.data);
+
+    const previewLimit = this.configService.get<number>('uploads.previewLimit', 50) ?? 50;
+    const preview = dto.data.slice(0, previewLimit);
+
+    // Cache the full data for analysis
+    this.dataCache.set(`manual_${Date.now()}`, dto.data);
+
+    // Crear análisis automático
+    const analysis = await this.analysisService.analyzeDataset(dto.data, dto.columns);
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .insert({
+        owner_id: ownerId,
+        name: dto.name,
+        description: dto.description ?? null,
+        status: 'processed',
+        tags: dto.tags ?? [],
+        preview,
+        row_count: dto.data.length,
+        column_count: dto.columns.length,
+        analysis,
+        file_type: 'manual',
+        filename: null,
+        file_size: null,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudo crear el dataset manual');
     }
 
     return this.toEntity(data);
@@ -374,6 +417,84 @@ export class DatasetsService {
     });
 
     return data;
+  }
+
+  private validateManualData(columns: ManualColumnDto[], data: Record<string, any>[]): void {
+    if (columns.length === 0) {
+      throw new BadRequestException('Debe definir al menos una columna');
+    }
+
+    if (data.length === 0) {
+      throw new BadRequestException('Debe proporcionar al menos una fila de datos');
+    }
+
+    // Verificar nombres de columnas únicos
+    const columnNames = columns.map(col => col.name);
+    if (new Set(columnNames).size !== columnNames.length) {
+      throw new BadRequestException('Los nombres de las columnas deben ser únicos');
+    }
+
+    // Validar cada fila de datos
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+
+      // Verificar que todas las columnas definidas estén presentes
+      for (const column of columns) {
+        if (!(column.name in row)) {
+          throw new BadRequestException(`Fila ${i + 1}: Falta la columna '${column.name}'`);
+        }
+
+        // Validar tipo de dato
+        const value = row[column.name];
+        this.validateColumnType(column, value, i + 1);
+      }
+
+      // Verificar que no haya columnas extra
+      const rowKeys = Object.keys(row);
+      const extraColumns = rowKeys.filter(key => !columnNames.includes(key));
+      if (extraColumns.length > 0) {
+        throw new BadRequestException(`Fila ${i + 1}: Columnas no definidas encontradas: ${extraColumns.join(', ')}`);
+      }
+    }
+  }
+
+  private validateColumnType(column: ManualColumnDto, value: any, rowNumber: number): void {
+    const errorPrefix = `Fila ${rowNumber}, columna '${column.name}':`;
+
+    if (value === null || value === undefined || value === '') {
+      // Permitir valores nulos/undefined/vacíos para cualquier tipo
+      return;
+    }
+
+    switch (column.type) {
+      case 'string':
+        if (typeof value !== 'string') {
+          throw new BadRequestException(`${errorPrefix} Se esperaba un texto, pero se recibió ${typeof value}`);
+        }
+        break;
+
+      case 'number':
+        if (typeof value !== 'number' && isNaN(Number(value))) {
+          throw new BadRequestException(`${errorPrefix} Se esperaba un número, pero se recibió ${typeof value}`);
+        }
+        break;
+
+      case 'boolean':
+        if (typeof value !== 'boolean' && !['true', 'false', '1', '0'].includes(String(value).toLowerCase())) {
+          throw new BadRequestException(`${errorPrefix} Se esperaba un valor booleano (true/false), pero se recibió ${typeof value}`);
+        }
+        break;
+
+      case 'date':
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+          throw new BadRequestException(`${errorPrefix} Se esperaba una fecha válida, pero se recibió ${value}`);
+        }
+        break;
+
+      default:
+        throw new BadRequestException(`${errorPrefix} Tipo de columna no válido: ${column.type}`);
+    }
   }
 
   private toEntity(row: DatasetRow): DatasetEntity {
