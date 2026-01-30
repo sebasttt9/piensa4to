@@ -62,17 +62,34 @@ let DatasetsService = class DatasetsService {
     configService;
     maxRowsForPreview = 1000;
     dataCache = new Map();
+    tableName = 'datasets';
     constructor(supabase, analysisService, configService) {
         this.supabase = supabase;
         this.analysisService = analysisService;
         this.configService = configService;
     }
-    tableName = 'datasets';
-    async create(ownerId, dto) {
+    createAuthenticatedClient(token) {
+        const url = this.configService.get('supabase.url');
+        if (!url) {
+            throw new Error('Supabase URL not configured');
+        }
+        return (0, supabase_js_1.createClient)(url, this.configService.get('supabase.anonKey') || '', {
+            global: {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            },
+            auth: {
+                persistSession: false,
+            },
+        });
+    }
+    async create(ownerId, dto, token) {
         if (!dto.name) {
             throw new common_1.BadRequestException('El nombre del dataset es obligatorio');
         }
-        const { data, error } = await this.supabase
+        const client = token ? this.createAuthenticatedClient(token) : this.supabase;
+        const { data, error } = await client
             .from(this.tableName)
             .insert({
             owner_id: ownerId,
@@ -89,10 +106,11 @@ let DatasetsService = class DatasetsService {
         }
         return this.toEntity(data);
     }
-    async uploadDataset(ownerId, datasetId, file) {
+    async uploadDataset(ownerId, datasetId, file, token) {
         if (!file) {
             throw new common_1.BadRequestException('Debe adjuntar un archivo CSV o Excel.');
         }
+        const client = token ? this.createAuthenticatedClient(token) : this.supabase;
         await this.findOne(ownerId, datasetId);
         const extension = this.resolveExtension(file.originalname);
         const rows = await this.parseFile(file, extension);
@@ -103,7 +121,7 @@ let DatasetsService = class DatasetsService {
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
         this.dataCache.set(datasetId, rows);
         const preview = rows.slice(0, previewLimit);
-        const { data, error } = await this.supabase
+        const { data, error } = await client
             .from(this.tableName)
             .update({
             filename: file.originalname,
@@ -156,26 +174,37 @@ let DatasetsService = class DatasetsService {
         }
         return this.toEntity(data);
     }
-    async findAll(ownerId, skip = 0, limit = 10) {
+    async findAll(ownerId, userRole = 'user', skip = 0, limit = 10) {
         const rangeStart = skip;
         const rangeEnd = skip + limit - 1;
-        const { data, error } = await this.supabase
+        let query = this.supabase
             .from(this.tableName)
             .select('*')
-            .eq('owner_id', ownerId)
             .order('created_at', { ascending: false })
             .range(rangeStart, rangeEnd);
+        if (userRole === 'admin' || userRole === 'superadmin') {
+        }
+        else {
+            query = query.eq('owner_id', ownerId);
+        }
+        const { data, error } = await query;
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudieron listar los datasets');
         }
         return (data ?? []).map((row) => this.toEntity(row));
     }
-    async countByUser(ownerId) {
-        const { count, error } = await this.supabase
+    async countByUser(ownerId, userRole = 'user') {
+        let query = this.supabase
             .from(this.tableName)
-            .select('id', { count: 'exact', head: true })
-            .eq('owner_id', ownerId);
+            .select('id', { count: 'exact', head: true });
+        if (userRole === 'admin' || userRole === 'superadmin') {
+        }
+        else {
+            query = query.eq('owner_id', ownerId);
+        }
+        const { count, error } = await query;
         if (error) {
+            console.error('Error counting datasets:', error);
             throw new common_1.InternalServerErrorException('No se pudo contar los datasets');
         }
         return count ?? 0;

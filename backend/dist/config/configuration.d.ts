@@ -3,10 +3,12 @@ declare const _default: () => {
     supabase: {
         projectId: string;
         url: string;
+        anonKey: string;
         serviceRoleKey: string;
         datasets: {
             projectId: string;
             url: string;
+            anonKey: string;
             serviceRoleKey: string;
         };
     };

@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DatasetsService } from './datasets.service';
@@ -39,8 +40,8 @@ export class DatasetsController {
     const parsedLimit = Number(limit) || 10;
     const skip = (parsedPage - 1) * parsedLimit;
     const [datasets, total] = await Promise.all([
-      this.datasetsService.findAll(user.id, skip, parsedLimit),
-      this.datasetsService.countByUser(user.id),
+      this.datasetsService.findAll(user.id, user.role, skip, parsedLimit),
+      this.datasetsService.countByUser(user.id, user.role),
     ]);
     return {
       data: datasets,
@@ -60,8 +61,10 @@ export class DatasetsController {
   create(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Body() dto: UploadDatasetDto,
+    @Req() req: any,
   ) {
-    return this.datasetsService.create(user.id, dto);
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    return this.datasetsService.create(user.id, dto, token);
   }
 
   @Put(':id')
@@ -81,11 +84,13 @@ export class DatasetsController {
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
-    return this.datasetsService.uploadDataset(user.id, id, file);
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    return this.datasetsService.uploadDataset(user.id, id, file, token);
   }
 
   @Get(':id/preview')

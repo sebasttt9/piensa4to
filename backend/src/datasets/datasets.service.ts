@@ -4,7 +4,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { UploadDatasetDto } from './dto/upload-dataset.dto';
 import { AnalysisService } from './analysis.service';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { DatasetAnalysis } from './interfaces/dataset-analysis.interface';
 import { DatasetEntity } from './entities/dataset.entity';
@@ -31,6 +31,7 @@ interface DatasetRow {
 export class DatasetsService {
   private readonly maxRowsForPreview = 1000;
   private dataCache = new Map<string, Record<string, unknown>[]>();
+  private readonly tableName = 'datasets';
 
   constructor(
     @Inject(SUPABASE_DATA_CLIENT)
@@ -39,17 +40,36 @@ export class DatasetsService {
     private readonly configService: ConfigService,
   ) { }
 
-  private readonly tableName = 'datasets';
+  private createAuthenticatedClient(token: string): SupabaseClient {
+    const url = this.configService.get<string>('supabase.url');
+    if (!url) {
+      throw new Error('Supabase URL not configured');
+    }
+    return createClient(url, this.configService.get<string>('supabase.anonKey') || '', {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+      auth: {
+        persistSession: false,
+      },
+    });
+  }
 
   async create(
     ownerId: string,
     dto: UploadDatasetDto,
+    token?: string,
   ): Promise<DatasetEntity> {
     if (!dto.name) {
       throw new BadRequestException('El nombre del dataset es obligatorio');
     }
 
-    const { data, error } = await this.supabase
+    // Create authenticated client if token is provided
+    const client = token ? this.createAuthenticatedClient(token) : this.supabase;
+
+    const { data, error } = await client
       .from(this.tableName)
       .insert({
         owner_id: ownerId,
@@ -73,10 +93,14 @@ export class DatasetsService {
     ownerId: string,
     datasetId: string,
     file: Express.Multer.File,
+    token?: string,
   ): Promise<DatasetEntity> {
     if (!file) {
       throw new BadRequestException('Debe adjuntar un archivo CSV o Excel.');
     }
+
+    // Create authenticated client if token is provided
+    const client = token ? this.createAuthenticatedClient(token) : this.supabase;
 
     await this.findOne(ownerId, datasetId);
     const extension = this.resolveExtension(file.originalname);
@@ -95,7 +119,7 @@ export class DatasetsService {
     // Update dataset
     const preview = rows.slice(0, previewLimit);
 
-    const { data, error } = await this.supabase
+    const { data, error } = await client
       .from(this.tableName)
       .update({
         filename: file.originalname,
@@ -165,18 +189,29 @@ export class DatasetsService {
 
   async findAll(
     ownerId: string,
+    userRole: string = 'user',
     skip = 0,
     limit = 10,
   ): Promise<DatasetEntity[]> {
     const rangeStart = skip;
     const rangeEnd = skip + limit - 1;
 
-    const { data, error } = await this.supabase
+    let query = this.supabase
       .from(this.tableName)
       .select('*')
-      .eq('owner_id', ownerId)
       .order('created_at', { ascending: false })
       .range(rangeStart, rangeEnd);
+
+    // Filter based on user role
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      // Admins can see all datasets
+      // No additional filter needed
+    } else {
+      // Regular users can only see their own datasets
+      query = query.eq('owner_id', ownerId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw new InternalServerErrorException('No se pudieron listar los datasets');
@@ -185,13 +220,24 @@ export class DatasetsService {
     return (data ?? []).map((row) => this.toEntity(row));
   }
 
-  async countByUser(ownerId: string): Promise<number> {
-    const { count, error } = await this.supabase
+  async countByUser(ownerId: string, userRole: string = 'user'): Promise<number> {
+    let query = this.supabase
       .from(this.tableName)
-      .select('id', { count: 'exact', head: true })
-      .eq('owner_id', ownerId);
+      .select('id', { count: 'exact', head: true });
+
+    // Filter based on user role
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      // Admins can see all datasets
+      // No additional filter needed
+    } else {
+      // Regular users can only see their own datasets
+      query = query.eq('owner_id', ownerId);
+    }
+
+    const { count, error } = await query;
 
     if (error) {
+      console.error('Error counting datasets:', error);
       throw new InternalServerErrorException('No se pudo contar los datasets');
     }
 

@@ -124,8 +124,8 @@ export class DashboardsService {
       // Admins can see all dashboards
       // No additional filter needed
     } else {
-      // Regular users can only see their own dashboards or approved dashboards
-      query = query.or(`owner_id.eq.${ownerId},status.eq.approved`);
+      // Regular users can only see their own dashboards or public dashboards
+      query = query.or(`owner_id.eq.${ownerId},is_public.eq.true`);
     }
 
     const { data, error } = await query;
@@ -150,8 +150,8 @@ export class DashboardsService {
       // Admins can see all dashboards
       // No additional filter needed
     } else {
-      // Regular users can only see their own dashboards or approved dashboards
-      query = query.or(`owner_id.eq.${ownerId},status.eq.approved`);
+      // Regular users can only see their own dashboards or public dashboards
+      query = query.or(`owner_id.eq.${ownerId},is_public.eq.true`);
     }
 
     const { count, error } = await query;

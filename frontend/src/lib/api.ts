@@ -34,8 +34,8 @@ const resolveBaseURL = () => {
 };
 
 const api = axios.create({
-  // Prefer explicit environment base URL and fall back to the Vite proxy path.
-  baseURL: resolveBaseURL(),
+  // Usar el proxy de Vite para desarrollo
+  baseURL: '/api',
   withCredentials: true,
 });
 

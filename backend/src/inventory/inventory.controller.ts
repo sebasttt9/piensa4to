@@ -63,7 +63,7 @@ export class InventoryController {
     @Get('items')
     @Roles(UserRole.User)
     getItems(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
-        return this.inventoryService.getItems(user.id);
+        return this.inventoryService.getItems(user.id, user.role);
     }
 
     @Get('items/:id')
@@ -72,7 +72,7 @@ export class InventoryController {
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Param('id') itemId: string,
     ) {
-        return this.inventoryService.getItem(user.id, itemId);
+        return this.inventoryService.getItem(user.id, itemId, user.role);
     }
 
     @Put('items/:id')
@@ -82,7 +82,7 @@ export class InventoryController {
         @Param('id') itemId: string,
         @Body() dto: UpdateInventoryItemDto,
     ) {
-        return this.inventoryService.updateItem(user.id, itemId, dto);
+        return this.inventoryService.updateItem(user.id, itemId, dto, user.role);
     }
 
     @Patch('items/:id/approve')
@@ -101,6 +101,6 @@ export class InventoryController {
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Param('id') itemId: string,
     ) {
-        return this.inventoryService.deleteItem(user.id, itemId);
+        return this.inventoryService.deleteItem(user.id, itemId, user.role);
     }
 }

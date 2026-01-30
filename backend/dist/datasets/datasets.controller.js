@@ -32,8 +32,8 @@ let DatasetsController = class DatasetsController {
         const parsedLimit = Number(limit) || 10;
         const skip = (parsedPage - 1) * parsedLimit;
         const [datasets, total] = await Promise.all([
-            this.datasetsService.findAll(user.id, skip, parsedLimit),
-            this.datasetsService.countByUser(user.id),
+            this.datasetsService.findAll(user.id, user.role, skip, parsedLimit),
+            this.datasetsService.countByUser(user.id, user.role),
         ]);
         return {
             data: datasets,
@@ -45,17 +45,19 @@ let DatasetsController = class DatasetsController {
     findOne(user, id) {
         return this.datasetsService.findOne(user.id, id);
     }
-    create(user, dto) {
-        return this.datasetsService.create(user.id, dto);
+    create(user, dto, req) {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        return this.datasetsService.create(user.id, dto, token);
     }
     update(user, id, dto) {
         return this.datasetsService.update(user.id, id, dto);
     }
-    uploadFile(user, id, file) {
+    uploadFile(user, id, file, req) {
         if (!file) {
             throw new common_1.BadRequestException('No file provided');
         }
-        return this.datasetsService.uploadDataset(user.id, id, file);
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        return this.datasetsService.uploadDataset(user.id, id, file, token);
     }
     async getPreview(user, id, limit = 50) {
         const dataset = await this.datasetsService.findOne(user.id, id);
@@ -107,8 +109,9 @@ __decorate([
     (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin, roles_enum_1.UserRole.User),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, upload_dataset_dto_1.UploadDatasetDto]),
+    __metadata("design:paramtypes", [Object, upload_dataset_dto_1.UploadDatasetDto, Object]),
     __metadata("design:returntype", void 0)
 ], DatasetsController.prototype, "create", null);
 __decorate([
@@ -128,8 +131,9 @@ __decorate([
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.UploadedFile)()),
+    __param(3, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:paramtypes", [Object, String, Object, Object]),
     __metadata("design:returntype", void 0)
 ], DatasetsController.prototype, "uploadFile", null);
 __decorate([

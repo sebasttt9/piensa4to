@@ -1,7 +1,8 @@
--- Script para rehacer la base de datos con roles de usuario
--- Ejecutar en el SQL Editor de Supabase
+-- Script para la base de datos de datos: nqkodrksdcmzhxoeuidj
 
--- Primero, eliminar tablas existentes (en orden inverso de dependencias)
+-- Limpiar
+DROP TABLE IF EXISTS public.inventory_items CASCADE;
+
 DROP TABLE IF EXISTS public.inventory_adjustments CASCADE;
 
 DROP TABLE IF EXISTS public.dashboard_shares CASCADE;
@@ -10,29 +11,10 @@ DROP TABLE IF EXISTS public.dashboards CASCADE;
 
 DROP TABLE IF EXISTS public.datasets CASCADE;
 
-DROP TABLE IF EXISTS public.users CASCADE;
-
--- Eliminar función si existe
 DROP FUNCTION IF EXISTS public.set_updated_at () CASCADE;
-
--- Eliminar extensión si es necesario (opcional, ya que se recreará)
--- DROP EXTENSION IF EXISTS "uuid-ossp";
 
 -- Recrear extensión
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Recrear tabla de usuarios con roles
-CREATE TABLE IF NOT EXISTS public.users (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
-    email text UNIQUE NOT NULL,
-    name text NOT NULL,
-    role text NOT NULL CHECK (
-        role IN ('user', 'admin', 'superadmin')
-    ),
-    password_hash text NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
-);
 
 -- Función para actualizar updated_at
 CREATE OR REPLACE FUNCTION public.set_updated_at()
@@ -43,15 +25,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger para users
-CREATE TRIGGER users_set_updated_at
-BEFORE UPDATE ON public.users
-FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
-
 -- Recrear tabla de datasets
 CREATE TABLE IF NOT EXISTS public.datasets (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    owner_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    owner_id uuid NOT NULL,
     name text NOT NULL,
     description text NULL,
     filename text NULL,
@@ -74,7 +51,7 @@ FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
 -- Recrear tabla de dashboards
 CREATE TABLE IF NOT EXISTS public.dashboards (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    owner_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    owner_id uuid NOT NULL,
     name text NOT NULL,
     description text NULL,
     dataset_ids uuid[] NOT NULL DEFAULT '{}',
@@ -85,6 +62,8 @@ CREATE TABLE IF NOT EXISTS public.dashboards (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS dashboards_set_updated_at ON public.dashboards;
+
 CREATE TRIGGER dashboards_set_updated_at
 BEFORE UPDATE ON public.dashboards
 FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
@@ -93,7 +72,7 @@ FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
 CREATE TABLE IF NOT EXISTS public.dashboard_shares (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     dashboard_id uuid NOT NULL REFERENCES public.dashboards (id) ON DELETE CASCADE,
-    owner_id uuid NOT NULL REFERENCES public.users (id) ON DELETE CASCADE,
+    owner_id uuid NOT NULL,
     channel text NOT NULL CHECK (channel IN ('email', 'sms')),
     contact text NOT NULL,
     message text NULL,
@@ -106,7 +85,7 @@ CREATE TABLE IF NOT EXISTS public.dashboard_shares (
 -- Recrear tabla de inventory_adjustments
 CREATE TABLE IF NOT EXISTS public.inventory_adjustments (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
-    owner_id uuid NOT NULL REFERENCES public.users (id) ON DELETE CASCADE,
+    owner_id uuid NOT NULL,
     dataset_id uuid NOT NULL REFERENCES public.datasets (id) ON DELETE CASCADE,
     adjustment integer NOT NULL,
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -120,7 +99,7 @@ FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
 -- Nueva tabla para items de inventario
 CREATE TABLE IF NOT EXISTS public.inventory_items (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
-    owner_id uuid NOT NULL REFERENCES public.users (id) ON DELETE CASCADE,
+    owner_id uuid NOT NULL,
     dataset_id uuid REFERENCES public.datasets (id) ON DELETE SET NULL,
     dashboard_id uuid REFERENCES public.dashboards (id) ON DELETE SET NULL,
     name text NOT NULL,
@@ -135,59 +114,19 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
             'rejected'
         )
     ),
-    approved_by uuid REFERENCES public.users (id) ON DELETE SET NULL,
+    approved_by uuid,
     approved_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS inventory_items_set_updated_at ON public.inventory_items;
+
 CREATE TRIGGER inventory_items_set_updated_at
 BEFORE UPDATE ON public.inventory_items
 FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
 
--- Insertar usuarios demo (opcional, puedes ejecutar el seed-demo-users.sql después)
--- Aquí se incluye para completar el script
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-INSERT INTO
-    public.users (
-        email,
-        name,
-        role,
-        password_hash
-    )
-VALUES (
-        'demo.user@datapulse.local',
-        'Demo Usuario',
-        'user',
-        crypt (
-            'DemoUser123!',
-            gen_salt ('bf', 12)
-        )
-    ),
-    (
-        'demo.admin@datapulse.local',
-        'Demo Administrador',
-        'admin',
-        crypt (
-            'DemoAdmin123!',
-            gen_salt ('bf', 12)
-        )
-    ),
-    (
-        'demo.superadmin@datapulse.local',
-        'Demo Superadmin',
-        'superadmin',
-        crypt (
-            'DemoRoot123!',
-            gen_salt ('bf', 12)
-        )
-    ) ON CONFLICT (email) DO NOTHING;
-
--- Políticas RLS (Row Level Security) para controlar acceso por roles
--- Habilitar RLS en las tablas
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
+-- Habilitar RLS en las tablas de datos
 ALTER TABLE public.datasets ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.dashboards ENABLE ROW LEVEL SECURITY;
@@ -198,37 +137,12 @@ ALTER TABLE public.inventory_adjustments ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
 
--- Políticas para users: Los usuarios solo pueden ver/editar su propio perfil, admins pueden ver todos, superadmin todo
-CREATE POLICY "Users can view own profile" ON public.users FOR
-SELECT USING (auth.uid () = id);
+-- Políticas para datasets
+DROP POLICY IF EXISTS "Owners can manage datasets" ON public.datasets;
 
-CREATE POLICY "Admins can view all users" ON public.users FOR
-SELECT USING (
-        EXISTS (
-            SELECT 1
-            FROM public.users
-            WHERE
-                id = auth.uid ()
-                AND role IN ('admin', 'superadmin')
-        )
-    );
-
-CREATE POLICY "Users can update own profile" ON public.users FOR
-UPDATE USING (auth.uid () = id);
-
-CREATE POLICY "Admins can update users" ON public.users FOR
-UPDATE USING (
-    EXISTS (
-        SELECT 1
-        FROM public.users
-        WHERE
-            id = auth.uid ()
-            AND role IN ('admin', 'superadmin')
-    )
-);
-
--- Políticas para datasets: Propietarios pueden hacer todo, admins pueden ver
 CREATE POLICY "Owners can manage datasets" ON public.datasets FOR ALL USING (auth.uid () = owner_id);
+
+DROP POLICY IF EXISTS "Admins can view datasets" ON public.datasets;
 
 CREATE POLICY "Admins can view datasets" ON public.datasets FOR
 SELECT USING (
@@ -241,17 +155,25 @@ SELECT USING (
         )
     );
 
--- Políticas para inventory_adjustments: Owners manage
+-- Políticas para inventory_adjustments
+DROP POLICY IF EXISTS "Owners manage inventory adjustments" ON public.inventory_adjustments;
+
 CREATE POLICY "Owners manage inventory adjustments" ON public.inventory_adjustments FOR ALL USING (auth.uid () = owner_id);
 
--- Políticas para inventory_items: Users can create and view own, admins can manage all
+-- Políticas para inventory_items
+DROP POLICY IF EXISTS "Users can create inventory items" ON public.inventory_items;
+
 CREATE POLICY "Users can create inventory items" ON public.inventory_items FOR
 INSERT
 WITH
     CHECK (auth.uid () = owner_id);
 
+DROP POLICY IF EXISTS "Users can view own inventory items" ON public.inventory_items;
+
 CREATE POLICY "Users can view own inventory items" ON public.inventory_items FOR
 SELECT USING (auth.uid () = owner_id);
+
+DROP POLICY IF EXISTS "Admins can view all inventory items" ON public.inventory_items;
 
 CREATE POLICY "Admins can view all inventory items" ON public.inventory_items FOR
 SELECT USING (
@@ -264,11 +186,15 @@ SELECT USING (
         )
     );
 
+DROP POLICY IF EXISTS "Users can update own pending items" ON public.inventory_items;
+
 CREATE POLICY "Users can update own pending items" ON public.inventory_items FOR
 UPDATE USING (
     auth.uid () = owner_id
     AND status = 'pending'
 );
+
+DROP POLICY IF EXISTS "Admins can update all inventory items" ON public.inventory_items;
 
 CREATE POLICY "Admins can update all inventory items" ON public.inventory_items FOR
 UPDATE USING (
@@ -281,10 +207,14 @@ UPDATE USING (
     )
 );
 
+DROP POLICY IF EXISTS "Users can delete own pending items" ON public.inventory_items;
+
 CREATE POLICY "Users can delete own pending items" ON public.inventory_items FOR DELETE USING (
     auth.uid () = owner_id
     AND status = 'pending'
 );
+
+DROP POLICY IF EXISTS "Admins can delete any inventory items" ON public.inventory_items;
 
 CREATE POLICY "Admins can delete any inventory items" ON public.inventory_items FOR DELETE USING (
     EXISTS (
@@ -296,4 +226,25 @@ CREATE POLICY "Admins can delete any inventory items" ON public.inventory_items 
     )
 );
 
--- Nota: Después de ejecutar este script, ve a Supabase Dashboard > Settings > API > Reload Schema para actualizar el caché.
+-- Políticas para dashboards
+DROP POLICY IF EXISTS "Owners can manage dashboards" ON public.dashboards;
+
+CREATE POLICY "Owners can manage dashboards" ON public.dashboards FOR ALL USING (auth.uid () = owner_id);
+
+DROP POLICY IF EXISTS "Admins can view dashboards" ON public.dashboards;
+
+CREATE POLICY "Admins can view dashboards" ON public.dashboards FOR
+SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM public.users
+            WHERE
+                id = auth.uid ()
+                AND role IN ('admin', 'superadmin')
+        )
+    );
+
+-- Políticas para dashboard_shares
+DROP POLICY IF EXISTS "Owners can manage dashboard shares" ON public.dashboard_shares;
+
+CREATE POLICY "Owners can manage dashboard shares" ON public.dashboard_shares FOR ALL USING (auth.uid () = owner_id);

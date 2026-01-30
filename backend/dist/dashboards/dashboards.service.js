@@ -75,7 +75,7 @@ let DashboardsService = class DashboardsService {
         if (userRole === 'admin' || userRole === 'superadmin') {
         }
         else {
-            query = query.or(`owner_id.eq.${ownerId},status.eq.approved`);
+            query = query.or(`owner_id.eq.${ownerId},is_public.eq.true`);
         }
         const { data, error } = await query;
         if (error) {
@@ -92,7 +92,7 @@ let DashboardsService = class DashboardsService {
         if (userRole === 'admin' || userRole === 'superadmin') {
         }
         else {
-            query = query.or(`owner_id.eq.${ownerId},status.eq.approved`);
+            query = query.or(`owner_id.eq.${ownerId},is_public.eq.true`);
         }
         const { count, error } = await query;
         if (error) {

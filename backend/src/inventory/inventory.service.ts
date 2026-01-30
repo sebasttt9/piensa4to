@@ -416,12 +416,19 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async getItems(ownerId: string): Promise<InventoryItem[]> {
-        const { data, error } = await this.supabase
+    async getItems(ownerId: string, userRole: string = 'user'): Promise<InventoryItem[]> {
+        let query = this.supabase
             .from(this.itemsTable)
             .select('*')
-            .eq('owner_id', ownerId)
             .order('created_at', { ascending: false });
+
+        if (userRole === 'admin' || userRole === 'superadmin') {
+        } else {
+
+            query = query.eq('owner_id', ownerId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             throw new InternalServerErrorException('No se pudieron obtener los items de inventario');
@@ -430,13 +437,22 @@ export class InventoryService {
         return (data as InventoryItemRow[]).map(row => this.mapToInventoryItem(row));
     }
 
-    async getItem(ownerId: string, itemId: string): Promise<InventoryItem> {
-        const { data, error } = await this.supabase
+    async getItem(ownerId: string, itemId: string, userRole: string = 'user'): Promise<InventoryItem> {
+        let query = this.supabase
             .from(this.itemsTable)
             .select('*')
-            .eq('id', itemId)
-            .eq('owner_id', ownerId)
-            .single();
+            .eq('id', itemId);
+
+        // Filter based on user role
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            // Admins can see all items
+            // No additional filter needed
+        } else {
+            // Regular users can only see their own items
+            query = query.eq('owner_id', ownerId);
+        }
+
+        const { data, error } = await query.single();
 
         if (error || !data) {
             throw new NotFoundException('Item de inventario no encontrado');
@@ -445,9 +461,9 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async updateItem(ownerId: string, itemId: string, dto: UpdateInventoryItemDto): Promise<InventoryItem> {
+    async updateItem(ownerId: string, itemId: string, dto: UpdateInventoryItemDto, userRole: string = 'user'): Promise<InventoryItem> {
         // Validate ownership first
-        await this.getItem(ownerId, itemId);
+        await this.getItem(ownerId, itemId, userRole);
 
         // Validate new dataset/dashboard ownership if provided
         if (dto.datasetId) {
@@ -503,12 +519,22 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async deleteItem(ownerId: string, itemId: string): Promise<void> {
-        const { error } = await this.supabase
+    async deleteItem(ownerId: string, itemId: string, userRole: string = 'user'): Promise<void> {
+        let query = this.supabase
             .from(this.itemsTable)
             .delete()
-            .eq('id', itemId)
-            .eq('owner_id', ownerId);
+            .eq('id', itemId);
+
+        // Filter based on user role
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            // Admins can delete any item
+            // No additional filter needed
+        } else {
+            // Regular users can only delete their own items
+            query = query.eq('owner_id', ownerId);
+        }
+
+        const { error } = await query;
 
         if (error) {
             throw new InternalServerErrorException('No se pudo eliminar el item de inventario');

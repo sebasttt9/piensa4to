@@ -9,6 +9,9 @@ export default () => ({
       (process.env.SUPABASE_PROJECT_ID
         ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co`
         : 'https://bggsqbvrpenahcppvuyc.supabase.co'),
+    anonKey:
+      process.env.SUPABASE_ANON_KEY ??
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnZ3NxYnZycGVuYWhjcHB2dXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMjc4MTksImV4cCI6MjA4NDcwMzgxOX0.NTQzDrNuNxqbtPzTNBoCjW3UrNTvtBl_apl9xrYcmVQ',
     serviceRoleKey:
       process.env.SUPABASE_SERVICE_ROLE_KEY ??
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnZ3NxYnZycGVuYWhjcHB2dXljIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Nzc0NzI4MiwiZXhwIjoyMDgzMzIzMjgyfQ.j32e8oZwZDSgXOGbVRqnVcqdkGyclPIFTzmy29cb8Hw',
@@ -24,6 +27,10 @@ export default () => ({
           : process.env.SUPABASE_PROJECT_ID
             ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co`
             : 'https://nqkodrksdcmzhxoeuidj.supabase.co'),
+      anonKey:
+        process.env.SUPABASE_DATA_ANON_KEY ??
+        process.env.SUPABASE_ANON_KEY ??
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xa29kcmtzZGNtemh4b2V1aWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMjc4MTksImV4cCI6MjA4NDcwMzgxOX0.NTQzDrNuNxqbtPzTNBoCjW3UrNTvtBl_apl9xrYcmVQ',
       serviceRoleKey:
         process.env.SUPABASE_DATA_SERVICE_ROLE_KEY ??
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xa29kcmtzZGNtemh4b2V1aWRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTEyNzgxOSwiZXhwIjoyMDg0NzAzODE5fQ.DK8cTAE7ovECixgdZLFw2frKWn2fh1n2GFhllzBd30c',
