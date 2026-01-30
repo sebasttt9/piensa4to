@@ -61,10 +61,8 @@ export class DatasetsController {
   create(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Body() dto: UploadDatasetDto,
-    @Req() req: any,
   ) {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    return this.datasetsService.create(user.id, dto, token);
+    return this.datasetsService.create(user.id, dto);
   }
 
   @Put(':id')
@@ -84,13 +82,11 @@ export class DatasetsController {
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: any,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    return this.datasetsService.uploadDataset(user.id, id, file, token);
+    return this.datasetsService.uploadDataset(user.id, id, file);
   }
 
   @Get(':id/preview')

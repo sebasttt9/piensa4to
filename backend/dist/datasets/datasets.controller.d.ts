@@ -11,9 +11,9 @@ export declare class DatasetsController {
         limit: number;
     }>;
     findOne(user: Omit<UserEntity, 'passwordHash'>, id: string): Promise<import("./entities/dataset.entity").DatasetEntity>;
-    create(user: Omit<UserEntity, 'passwordHash'>, dto: UploadDatasetDto, req: any): Promise<import("./entities/dataset.entity").DatasetEntity>;
+    create(user: Omit<UserEntity, 'passwordHash'>, dto: UploadDatasetDto): Promise<import("./entities/dataset.entity").DatasetEntity>;
     update(user: Omit<UserEntity, 'passwordHash'>, id: string, dto: Partial<UploadDatasetDto>): Promise<import("./entities/dataset.entity").DatasetEntity>;
-    uploadFile(user: Omit<UserEntity, 'passwordHash'>, id: string, file: Express.Multer.File, req: any): Promise<import("./entities/dataset.entity").DatasetEntity>;
+    uploadFile(user: Omit<UserEntity, 'passwordHash'>, id: string, file: Express.Multer.File): Promise<import("./entities/dataset.entity").DatasetEntity>;
     getPreview(user: Omit<UserEntity, 'passwordHash'>, id: string, limit?: number): Promise<{
         data: Record<string, unknown>[];
         columns: string[];

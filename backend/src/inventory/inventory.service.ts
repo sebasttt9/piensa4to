@@ -443,12 +443,11 @@ export class InventoryService {
             .select('*')
             .eq('id', itemId);
 
-        // Filter based on user role
+ 
         if (userRole === 'admin' || userRole === 'superadmin') {
-            // Admins can see all items
-            // No additional filter needed
+
         } else {
-            // Regular users can only see their own items
+  
             query = query.eq('owner_id', ownerId);
         }
 

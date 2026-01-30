@@ -68,28 +68,11 @@ let DatasetsService = class DatasetsService {
         this.analysisService = analysisService;
         this.configService = configService;
     }
-    createAuthenticatedClient(token) {
-        const url = this.configService.get('supabase.url');
-        if (!url) {
-            throw new Error('Supabase URL not configured');
-        }
-        return (0, supabase_js_1.createClient)(url, this.configService.get('supabase.anonKey') || '', {
-            global: {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            },
-            auth: {
-                persistSession: false,
-            },
-        });
-    }
-    async create(ownerId, dto, token) {
+    async create(ownerId, dto) {
         if (!dto.name) {
             throw new common_1.BadRequestException('El nombre del dataset es obligatorio');
         }
-        const client = token ? this.createAuthenticatedClient(token) : this.supabase;
-        const { data, error } = await client
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .insert({
             owner_id: ownerId,
@@ -106,11 +89,10 @@ let DatasetsService = class DatasetsService {
         }
         return this.toEntity(data);
     }
-    async uploadDataset(ownerId, datasetId, file, token) {
+    async uploadDataset(ownerId, datasetId, file) {
         if (!file) {
             throw new common_1.BadRequestException('Debe adjuntar un archivo CSV o Excel.');
         }
-        const client = token ? this.createAuthenticatedClient(token) : this.supabase;
         await this.findOne(ownerId, datasetId);
         const extension = this.resolveExtension(file.originalname);
         const rows = await this.parseFile(file, extension);
@@ -121,7 +103,7 @@ let DatasetsService = class DatasetsService {
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
         this.dataCache.set(datasetId, rows);
         const preview = rows.slice(0, previewLimit);
-        const { data, error } = await client
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .update({
             filename: file.originalname,

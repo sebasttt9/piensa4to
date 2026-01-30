@@ -40,36 +40,17 @@ export class DatasetsService {
     private readonly configService: ConfigService,
   ) { }
 
-  private createAuthenticatedClient(token: string): SupabaseClient {
-    const url = this.configService.get<string>('supabase.url');
-    if (!url) {
-      throw new Error('Supabase URL not configured');
-    }
-    return createClient(url, this.configService.get<string>('supabase.anonKey') || '', {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-      auth: {
-        persistSession: false,
-      },
-    });
-  }
+
 
   async create(
     ownerId: string,
     dto: UploadDatasetDto,
-    token?: string,
   ): Promise<DatasetEntity> {
     if (!dto.name) {
       throw new BadRequestException('El nombre del dataset es obligatorio');
     }
 
-    // Create authenticated client if token is provided
-    const client = token ? this.createAuthenticatedClient(token) : this.supabase;
-
-    const { data, error } = await client
+    const { data, error } = await this.supabase
       .from(this.tableName)
       .insert({
         owner_id: ownerId,
@@ -93,14 +74,10 @@ export class DatasetsService {
     ownerId: string,
     datasetId: string,
     file: Express.Multer.File,
-    token?: string,
   ): Promise<DatasetEntity> {
     if (!file) {
       throw new BadRequestException('Debe adjuntar un archivo CSV o Excel.');
     }
-
-    // Create authenticated client if token is provided
-    const client = token ? this.createAuthenticatedClient(token) : this.supabase;
 
     await this.findOne(ownerId, datasetId);
     const extension = this.resolveExtension(file.originalname);
@@ -119,7 +96,7 @@ export class DatasetsService {
     // Update dataset
     const preview = rows.slice(0, previewLimit);
 
-    const { data, error } = await client
+    const { data, error } = await this.supabase
       .from(this.tableName)
       .update({
         filename: file.originalname,

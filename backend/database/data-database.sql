@@ -58,6 +58,9 @@ CREATE TABLE IF NOT EXISTS public.dashboards (
     layout jsonb NOT NULL DEFAULT '{}'::jsonb,
     charts jsonb NOT NULL DEFAULT '[]'::jsonb,
     is_public boolean NOT NULL DEFAULT false,
+    status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    approved_by uuid,
+    approved_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -140,13 +143,17 @@ ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
 -- Políticas para datasets
 DROP POLICY IF EXISTS "Owners can manage datasets" ON public.datasets;
 
-CREATE POLICY "Owners can manage datasets" ON public.datasets FOR ALL USING (auth.uid () = owner_id);
+CREATE POLICY "Owners can manage datasets" ON public.datasets FOR ALL USING (
+    auth.uid () IS NULL
+    OR auth.uid () = owner_id
+);
 
 DROP POLICY IF EXISTS "Admins can view datasets" ON public.datasets;
 
 CREATE POLICY "Admins can view datasets" ON public.datasets FOR
 SELECT USING (
-        EXISTS (
+        auth.uid () IS NULL
+        OR EXISTS (
             SELECT 1
             FROM public.users
             WHERE
@@ -158,7 +165,10 @@ SELECT USING (
 -- Políticas para inventory_adjustments
 DROP POLICY IF EXISTS "Owners manage inventory adjustments" ON public.inventory_adjustments;
 
-CREATE POLICY "Owners manage inventory adjustments" ON public.inventory_adjustments FOR ALL USING (auth.uid () = owner_id);
+CREATE POLICY "Owners manage inventory adjustments" ON public.inventory_adjustments FOR ALL USING (
+    auth.uid () IS NULL
+    OR auth.uid () = owner_id
+);
 
 -- Políticas para inventory_items
 DROP POLICY IF EXISTS "Users can create inventory items" ON public.inventory_items;
@@ -166,18 +176,25 @@ DROP POLICY IF EXISTS "Users can create inventory items" ON public.inventory_ite
 CREATE POLICY "Users can create inventory items" ON public.inventory_items FOR
 INSERT
 WITH
-    CHECK (auth.uid () = owner_id);
+    CHECK (
+        auth.uid () IS NULL
+        OR auth.uid () = owner_id
+    );
 
 DROP POLICY IF EXISTS "Users can view own inventory items" ON public.inventory_items;
 
 CREATE POLICY "Users can view own inventory items" ON public.inventory_items FOR
-SELECT USING (auth.uid () = owner_id);
+SELECT USING (
+        auth.uid () IS NULL
+        OR auth.uid () = owner_id
+    );
 
 DROP POLICY IF EXISTS "Admins can view all inventory items" ON public.inventory_items;
 
 CREATE POLICY "Admins can view all inventory items" ON public.inventory_items FOR
 SELECT USING (
-        EXISTS (
+        auth.uid () IS NULL
+        OR EXISTS (
             SELECT 1
             FROM public.users
             WHERE
@@ -190,15 +207,19 @@ DROP POLICY IF EXISTS "Users can update own pending items" ON public.inventory_i
 
 CREATE POLICY "Users can update own pending items" ON public.inventory_items FOR
 UPDATE USING (
-    auth.uid () = owner_id
-    AND status = 'pending'
+    auth.uid () IS NULL
+    OR (
+        auth.uid () = owner_id
+        AND status = 'pending'
+    )
 );
 
 DROP POLICY IF EXISTS "Admins can update all inventory items" ON public.inventory_items;
 
 CREATE POLICY "Admins can update all inventory items" ON public.inventory_items FOR
 UPDATE USING (
-    EXISTS (
+    auth.uid () IS NULL
+    OR EXISTS (
         SELECT 1
         FROM public.users
         WHERE
@@ -210,14 +231,18 @@ UPDATE USING (
 DROP POLICY IF EXISTS "Users can delete own pending items" ON public.inventory_items;
 
 CREATE POLICY "Users can delete own pending items" ON public.inventory_items FOR DELETE USING (
-    auth.uid () = owner_id
-    AND status = 'pending'
+    auth.uid () IS NULL
+    OR (
+        auth.uid () = owner_id
+        AND status = 'pending'
+    )
 );
 
 DROP POLICY IF EXISTS "Admins can delete any inventory items" ON public.inventory_items;
 
 CREATE POLICY "Admins can delete any inventory items" ON public.inventory_items FOR DELETE USING (
-    EXISTS (
+    auth.uid () IS NULL
+    OR EXISTS (
         SELECT 1
         FROM public.users
         WHERE
@@ -229,13 +254,17 @@ CREATE POLICY "Admins can delete any inventory items" ON public.inventory_items 
 -- Políticas para dashboards
 DROP POLICY IF EXISTS "Owners can manage dashboards" ON public.dashboards;
 
-CREATE POLICY "Owners can manage dashboards" ON public.dashboards FOR ALL USING (auth.uid () = owner_id);
+CREATE POLICY "Owners can manage dashboards" ON public.dashboards FOR ALL USING (
+    auth.uid () IS NULL
+    OR auth.uid () = owner_id
+);
 
 DROP POLICY IF EXISTS "Admins can view dashboards" ON public.dashboards;
 
 CREATE POLICY "Admins can view dashboards" ON public.dashboards FOR
 SELECT USING (
-        EXISTS (
+        auth.uid () IS NULL
+        OR EXISTS (
             SELECT 1
             FROM public.users
             WHERE
@@ -247,4 +276,7 @@ SELECT USING (
 -- Políticas para dashboard_shares
 DROP POLICY IF EXISTS "Owners can manage dashboard shares" ON public.dashboard_shares;
 
-CREATE POLICY "Owners can manage dashboard shares" ON public.dashboard_shares FOR ALL USING (auth.uid () = owner_id);
+CREATE POLICY "Owners can manage dashboard shares" ON public.dashboard_shares FOR ALL USING (
+    auth.uid () IS NULL
+    OR auth.uid () = owner_id
+);

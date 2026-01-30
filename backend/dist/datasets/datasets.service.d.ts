@@ -11,9 +11,8 @@ export declare class DatasetsService {
     private dataCache;
     private readonly tableName;
     constructor(supabase: SupabaseClient, analysisService: AnalysisService, configService: ConfigService);
-    private createAuthenticatedClient;
-    create(ownerId: string, dto: UploadDatasetDto, token?: string): Promise<DatasetEntity>;
-    uploadDataset(ownerId: string, datasetId: string, file: Express.Multer.File, token?: string): Promise<DatasetEntity>;
+    create(ownerId: string, dto: UploadDatasetDto): Promise<DatasetEntity>;
+    uploadDataset(ownerId: string, datasetId: string, file: Express.Multer.File): Promise<DatasetEntity>;
     update(ownerId: string, datasetId: string, dto: Partial<UploadDatasetDto>): Promise<DatasetEntity>;
     findAll(ownerId: string, userRole?: string, skip?: number, limit?: number): Promise<DatasetEntity[]>;
     countByUser(ownerId: string, userRole?: string): Promise<number>;
