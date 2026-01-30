@@ -72,6 +72,7 @@ let UsersService = class UsersService {
                 name: createUserDto.name,
                 role: createUserDto.role ?? roles_enum_1.UserRole.User,
                 password_hash: hashedPassword,
+                approved: false,
             })
                 .select()
                 .single();
@@ -159,6 +160,9 @@ let UsersService = class UsersService {
         if (changes.role) {
             updatePayload.role = changes.role;
         }
+        if (changes.approved !== undefined) {
+            updatePayload.approved = changes.approved;
+        }
         if (Object.keys(updatePayload).length === 0) {
             return this.findById(id);
         }
@@ -202,6 +206,7 @@ let UsersService = class UsersService {
             name: row.name,
             role: row.role,
             passwordHash: row.password_hash,
+            approved: row.approved,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };

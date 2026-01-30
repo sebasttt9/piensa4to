@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CloudUpload, LayoutDashboard, LineChart, ShieldCheck, Sparkles } from 'lucide-react';
+import { CloudUpload, LayoutDashboard, LineChart, ShieldCheck, Sparkles, CheckCircle, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './register.css';
 
@@ -10,17 +10,32 @@ export function RegisterPage() {
   const { register, loading } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmRegistration = async () => {
+    setShowConfirmModal(false);
     try {
       await register(form);
-      navigate('/app/overview');
+      // Mostrar mensaje de éxito y redirigir al login
+      alert('✅ Solicitud enviada exitosamente. El administrador revisará tu cuenta y te notificará cuando sea activada.');
+      navigate('/login');
     } catch (err) {
-      console.error(err);
-      setError('No pudimos crear tu cuenta. Inténtalo nuevamente.');
+      if (err instanceof Error) {
+        setError(err.message);
+        return;
+      }
+      setError('No pudimos procesar tu solicitud. Inténtalo nuevamente.');
     }
+  };
+
+  const handleCancelRegistration = () => {
+    setShowConfirmModal(false);
   };
 
   const primaryHighlights = [
@@ -190,6 +205,73 @@ export function RegisterPage() {
           </section>
         </section>
       </div>
+
+      {/* Modal de confirmación */}
+      {showConfirmModal && (
+        <div className="register-modal-overlay" onClick={handleCancelRegistration}>
+          <div className="register-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="register-modal-header">
+              <div className="register-modal-icon">
+                <CheckCircle className="h-8 w-8 text-green-500" />
+              </div>
+              <button
+                onClick={handleCancelRegistration}
+                className="register-modal-close"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="register-modal-content">
+              <h3 className="register-modal-title">Confirmar solicitud de cuenta</h3>
+              <p className="register-modal-text">
+                Tu solicitud de cuenta será enviada para revisión. El administrador
+                revisará tu información y te notificará cuando tu cuenta sea activada.
+                Una vez aprobada, podrás acceder a todas las funcionalidades de DataPulse.
+              </p>
+
+              <div className="register-modal-notice">
+                <div className="register-modal-notice-icon">
+                  <ShieldCheck className="h-5 w-5 text-blue-400" />
+                </div>
+                <p className="register-modal-notice-text">
+                  <strong>Nota:</strong> Todas las cuentas nuevas requieren aprobación
+                  administrativa antes de ser activadas.
+                </p>
+              </div>
+
+              <div className="register-modal-details">
+                <div className="register-modal-detail">
+                  <span className="register-modal-label">Nombre:</span>
+                  <span className="register-modal-value">{form.name}</span>
+                </div>
+                <div className="register-modal-detail">
+                  <span className="register-modal-label">Correo:</span>
+                  <span className="register-modal-value">{form.email}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="register-modal-actions">
+              <button
+                onClick={handleCancelRegistration}
+                className="register-modal-cancel"
+                disabled={loading}
+              >
+                Revisar datos
+              </button>
+              <button
+                onClick={handleConfirmRegistration}
+                className="register-modal-confirm"
+                disabled={loading}
+              >
+                {loading ? 'Enviando solicitud...' : 'Enviar solicitud'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

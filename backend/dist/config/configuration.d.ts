@@ -25,12 +25,7 @@ declare const _default: () => {
         };
         experimentalUsers: {
             enabled: boolean;
-            users: {
-                email: string;
-                password: string;
-                name: string;
-                role: string;
-            }[];
+            users: never[];
         };
     };
     uploads: {

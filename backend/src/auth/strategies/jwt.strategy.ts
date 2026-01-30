@@ -21,6 +21,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.usersService.findByEmail(payload.email).catch(() => {
       throw new UnauthorizedException('Usuario no autorizado');
     });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    if (!user.approved) {
+      throw new UnauthorizedException('Cuenta pendiente de aprobación por administrador');
+    }
+
     return user;
   }
 }

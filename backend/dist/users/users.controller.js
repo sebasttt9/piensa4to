@@ -40,6 +40,9 @@ let UsersController = class UsersController {
     update(id, dto) {
         return this.usersService.update(id, dto);
     }
+    approve(id) {
+        return this.usersService.update(id, { approved: true });
+    }
     remove(id) {
         return this.usersService.remove(id);
     }
@@ -83,7 +86,14 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "update", null);
 __decorate([
-    (0, common_1.Delete)(':id'),
+    (0, common_1.Patch)(':id/approve'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "approve", null);
+__decorate([
     (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),

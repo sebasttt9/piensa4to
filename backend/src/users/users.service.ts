@@ -13,6 +13,7 @@ interface UserRow {
   name: string;
   role: UserRole;
   password_hash: string;
+  approved: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +43,7 @@ export class UsersService {
           name: createUserDto.name,
           role: createUserDto.role ?? UserRole.User,
           password_hash: hashedPassword,
+          approved: false,
         })
         .select()
         .single();
@@ -147,6 +149,9 @@ export class UsersService {
     if (changes.role) {
       updatePayload.role = changes.role;
     }
+    if (changes.approved !== undefined) {
+      updatePayload.approved = changes.approved;
+    }
 
     if (Object.keys(updatePayload).length === 0) {
       return this.findById(id);
@@ -200,6 +205,7 @@ export class UsersService {
       name: row.name,
       role: row.role,
       passwordHash: row.password_hash,
+      approved: row.approved,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

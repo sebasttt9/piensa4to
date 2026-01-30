@@ -102,11 +102,17 @@ npm run build       # genera artefactos en dist/
 - `POST /api/dashboards` · Guardar dashboards personalizados
 - `GET /api/health` · Health check simple del servicio
 
-### Cuentas demo
+### Cuentas de Producción
 
-Cuando `SEED_EXPERIMENTAL_USERS` está habilitado (por defecto en desarrollo) se aprovisionan automáticamente tres cuentas desechables:
+Al iniciar la aplicación, se crean automáticamente las siguientes cuentas de usuario fijas:
 
-- Usuario: `demo.user@datapulse.local` · contraseña `DemoUser123!`
+- **Super Admin**: `superadmin@datapulse.local` / `SuperAdmin2024!`
+  - Tiene acceso completo a todas las funcionalidades del sistema
+- **Admin**: `admin@datapulse.local` / `Admin2024!`
+  - Tiene permisos administrativos pero limitados comparado con el super admin
+
+> **Nota**: Estas cuentas se crean automáticamente al iniciar el backend por primera vez. Si ya existen, no se modifican.
+
 - Administrador: `demo.admin@datapulse.local` · contraseña `DemoAdmin123!`
 - Superadmin: `demo.superadmin@datapulse.local` · contraseña `DemoRoot123!`
 

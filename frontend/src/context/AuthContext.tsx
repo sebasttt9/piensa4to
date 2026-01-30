@@ -118,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Login error:', error);
       setUser(null);
       persistUser(null);
-      throw new Error(resolveErrorMessage(error));
+      throw error; // Re-throw to let caller handle specific error types
     } finally {
       setLoading(false);
     }
@@ -128,13 +128,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await api.post('/auth/register', input);
-      await signIn(input.email, input.password);
+      // No hacer signIn automático - la cuenta necesita aprobación del admin
+      // await signIn(input.email, input.password);
     } catch (error) {
       throw new Error(resolveErrorMessage(error));
     } finally {
       setLoading(false);
     }
-  }, [signIn]);
+  }, []);
 
   const signOut = useCallback(() => {
     setUser(null);

@@ -26,27 +26,8 @@ exports.default = () => ({
             role: process.env.DEFAULT_ADMIN_ROLE ?? 'admin',
         },
         experimentalUsers: {
-            enabled: process.env.SEED_EXPERIMENTAL_USERS === 'true' && (process.env.NODE_ENV ?? 'development') === 'development',
-            users: process.env.SEED_EXPERIMENTAL_USERS === 'true' ? [
-                {
-                    email: process.env.SEED_EXPERIMENTAL_USER_EMAIL ?? 'demo.user@datapulse.local',
-                    password: process.env.SEED_EXPERIMENTAL_USER_PASSWORD ?? 'DemoUser123!',
-                    name: process.env.SEED_EXPERIMENTAL_USER_NAME ?? 'Demo Usuario',
-                    role: 'user',
-                },
-                {
-                    email: process.env.SEED_EXPERIMENTAL_ADMIN_EMAIL ?? 'demo.admin@datapulse.local',
-                    password: process.env.SEED_EXPERIMENTAL_ADMIN_PASSWORD ?? 'DemoAdmin123!',
-                    name: process.env.SEED_EXPERIMENTAL_ADMIN_NAME ?? 'Demo Administrador',
-                    role: 'admin',
-                },
-                {
-                    email: process.env.SEED_EXPERIMENTAL_SUPERADMIN_EMAIL ?? 'demo.superadmin@datapulse.local',
-                    password: process.env.SEED_EXPERIMENTAL_SUPERADMIN_PASSWORD ?? 'DemoRoot123!',
-                    name: process.env.SEED_EXPERIMENTAL_SUPERADMIN_NAME ?? 'Demo Superadmin',
-                    role: 'superadmin',
-                },
-            ] : [],
+            enabled: false,
+            users: [],
         },
     },
     uploads: {

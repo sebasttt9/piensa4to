@@ -71,6 +71,9 @@ let AuthService = class AuthService {
         if (!user) {
             throw new common_1.UnauthorizedException('Credenciales inválidas');
         }
+        if (!user.approved) {
+            throw new common_1.UnauthorizedException('Cuenta pendiente de aprobación por administrador');
+        }
         const isValid = await bcrypt.compare(password, user.passwordHash ?? '');
         if (!isValid) {
             throw new common_1.UnauthorizedException('Credenciales inválidas');

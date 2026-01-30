@@ -36,6 +36,10 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
+    if (!user.approved) {
+      throw new UnauthorizedException('Cuenta pendiente de aprobación por administrador');
+    }
+
     const isValid = await bcrypt.compare(password, user.passwordHash ?? '');
     if (!isValid) {
       throw new UnauthorizedException('Credenciales inválidas');

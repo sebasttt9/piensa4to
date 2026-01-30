@@ -7,5 +7,7 @@ export declare class UsersInitializer implements OnApplicationBootstrap {
     private readonly logger;
     constructor(usersService: UsersService, configService: ConfigService);
     onApplicationBootstrap(): Promise<void>;
+    private createProductionUsers;
+    private createDefaultAdminIfConfigured;
     private provisionExperimentalAccounts;
 }

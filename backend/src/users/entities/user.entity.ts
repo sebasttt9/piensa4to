@@ -6,6 +6,7 @@ export interface UserEntity {
     name: string;
     role: UserRole;
     passwordHash?: string;
+    approved: boolean;
     createdAt: string;
     updatedAt: string;
 }

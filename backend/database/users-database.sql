@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.users (
         role IN ('user', 'admin', 'superadmin')
     ),
     password_hash text NOT NULL,
+    approved boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -44,25 +45,29 @@ INSERT INTO
         email,
         name,
         role,
-        password_hash
+        password_hash,
+        approved
     )
 VALUES (
         'demo.user@datapulse.local',
         'Demo Usuario',
         'user',
-        '$2b$12$SB7c8cXKyNEf4x2yL0fZz.oRKUk3.Qt5QKZDZgftCu7D3fqfq2q6K'
+        '$2b$12$SB7c8cXKyNEf4x2yL0fZz.oRKUk3.Qt5QKZDZgftCu7D3fqfq2q6K',
+        true
     ),
     (
         'demo.admin@datapulse.local',
         'Demo Administrador',
         'admin',
-        '$2b$12$cYiVZC1oG5LV0pOwfqso6OGq20JhhbAoeQ0Os75mjufOIiGA.HEcG'
+        '$2b$12$cYiVZC1oG5LV0pOwfqso6OGq20JhhbAoeQ0Os75mjufOIiGA.HEcG',
+        true
     ),
     (
         'demo.superadmin@datapulse.local',
         'Demo Superadmin',
         'superadmin',
-        '$2b$12$JJ0jFQQSXJxnUTYAnBzjp.BKc4RMn4g9gBNYzzCTgO0NpXBKTl4vG'
+        '$2b$12$JJ0jFQQSXJxnUTYAnBzjp.BKc4RMn4g9gBNYzzCTgO0NpXBKTl4vG',
+        true
     ) ON CONFLICT (email) DO NOTHING;
 
 -- Habilitar RLS en users

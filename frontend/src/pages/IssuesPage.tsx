@@ -163,10 +163,6 @@ export function IssuesPage() {
     }).format(value);
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('es-ES');
-  };
-
   if (isLoading) {
     return (
       <div className="issues-page issues-page--loading">

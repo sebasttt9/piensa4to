@@ -26,6 +26,42 @@ export class UsersInitializer implements OnApplicationBootstrap {
     ) { }
 
     async onApplicationBootstrap(): Promise<void> {
+        // Crear usuarios fijos de producción
+        await this.createProductionUsers();
+
+        // Crear admin por defecto si está configurado (para compatibilidad)
+        await this.createDefaultAdminIfConfigured();
+    }
+
+    private async createProductionUsers(): Promise<void> {
+        const productionUsers = [
+            {
+                email: 'superadmin@datapulse.local',
+                password: 'SuperAdmin2024!',
+                name: 'Super Administrator',
+                role: UserRole.SuperAdmin,
+            },
+            {
+                email: 'admin@datapulse.local',
+                password: 'Admin2024!',
+                name: 'Administrator',
+                role: UserRole.Admin,
+            },
+        ];
+
+        for (const userData of productionUsers) {
+            const existing = await this.usersService.findByEmail(userData.email).catch(() => null);
+            if (existing) {
+                this.logger.log(`Production user '${userData.email}' already exists.`);
+                continue;
+            }
+
+            await this.usersService.create(userData);
+            this.logger.log(`Production user '${userData.email}' created successfully.`);
+        }
+    }
+
+    private async createDefaultAdminIfConfigured(): Promise<void> {
         const email = this.configService.get<string>('seed.admin.email');
         const password = this.configService.get<string>('seed.admin.password');
         const name = this.configService.get<string>('seed.admin.name') ?? 'DataPulse Admin';
@@ -36,73 +72,28 @@ export class UsersInitializer implements OnApplicationBootstrap {
             : UserRole.Admin;
 
         if (!email || !password) {
-            this.logger.warn('Default admin credentials are not configured. Skipping bootstrap user creation.');
-            try {
-                await this.provisionExperimentalAccounts();
-            } catch (error) {
-                this.logger.error('Failed to provision experimental accounts:', error);
-            }
+            this.logger.log('No additional admin configured via environment variables.');
             return;
         }
 
         const existing = await this.usersService.findByEmail(email);
         if (existing) {
-            this.logger.log(`Default admin '${email}' already exists.`);
-        } else {
-            await this.usersService.create({
-                email,
-                password,
-                name,
-                role,
-            });
-
-            this.logger.log(`Default admin '${email}' provisioned successfully.`);
+            this.logger.log(`Configured admin '${email}' already exists.`);
+            return;
         }
 
-        await this.provisionExperimentalAccounts();
+        await this.usersService.create({
+            email,
+            password,
+            name,
+            role,
+        });
+
+        this.logger.log(`Configured admin '${email}' provisioned successfully.`);
     }
 
     private async provisionExperimentalAccounts(): Promise<void> {
-        const experimentalSeed = this.configService.get<ExperimentalSeedConfig>('seed.experimentalUsers');
-        if (!experimentalSeed?.enabled) {
-            this.logger.log('Experimental user seeding disabled.');
-            return;
-        }
-
-        const accounts = experimentalSeed.users ?? [];
-        if (accounts.length === 0) {
-            this.logger.warn('Experimental user seeding enabled but no accounts configured.');
-            return;
-        }
-
-        const allowedRoles = new Set<string>(Object.values(UserRole));
-
-        for (const account of accounts) {
-            const email = account.email?.toLowerCase()?.trim();
-            const password = account.password;
-            const name = account.name?.trim() ?? 'DataPulse Demo';
-            const configuredRole = account.role?.toLowerCase() ?? UserRole.User;
-            const role = allowedRoles.has(configuredRole) ? configuredRole as UserRole : UserRole.User;
-
-            if (!email || !password) {
-                this.logger.warn('Skipping experimental account without email or password.');
-                continue;
-            }
-
-            const existing = await this.usersService.findByEmail(email).catch(() => null);
-            if (existing) {
-                this.logger.log(`Experimental user '${email}' already exists.`);
-                continue;
-            }
-
-            await this.usersService.create({
-                email,
-                password,
-                name,
-                role,
-            });
-
-            this.logger.log(`Experimental user '${email}' created successfully.`);
-        }
+        // Experimental user seeding has been disabled for production
+        this.logger.log('Experimental user seeding disabled for production environment.');
     }
 }

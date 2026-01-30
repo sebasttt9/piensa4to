@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ShieldCheck, RefreshCcw, UserPlus, Trash2, Users, Crown, Lock } from 'lucide-react';
+import { ShieldCheck, RefreshCcw, UserPlus, Trash2, Users, Crown, Clock, CheckCircle } from 'lucide-react';
 import { adminUsersAPI, type ManagedUser } from '../../lib/services';
 import { useAuth, type Role } from '../../context/AuthContext';
 import './AccountsPage.css';
@@ -65,12 +65,16 @@ export function AccountsPage() {
 
   const summary = useMemo(() => {
     const total = accounts.length;
-    const admins = accounts.filter((account) => account.role === 'admin').length;
-    const superadmins = accounts.filter((account) => account.role === 'superadmin').length;
-    const standardUsers = Math.max(total - admins - superadmins, 0);
+    const approved = accounts.filter((account) => account.approved).length;
+    const pending = accounts.filter((account) => !account.approved).length;
+    const admins = accounts.filter((account) => account.role === 'admin' && account.approved).length;
+    const superadmins = accounts.filter((account) => account.role === 'superadmin' && account.approved).length;
+    const standardUsers = Math.max(approved - admins - superadmins, 0);
 
     return {
       total,
+      approved,
+      pending,
       admins,
       superadmins,
       standardUsers,
@@ -86,6 +90,21 @@ export function AccountsPage() {
       setFeedback({ type: 'success', message: 'Rol actualizado correctamente.' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No pudimos actualizar el rol.';
+      setFeedback({ type: 'error', message });
+    } finally {
+      setProcessingId(null);
+    }
+  }, []);
+
+  const handleApprove = useCallback(async (accountId: string) => {
+    setProcessingId(accountId);
+    setFeedback(null);
+    try {
+      const updated = await adminUsersAPI.approve(accountId);
+      setAccounts((prev) => prev.map((account) => (account.id === accountId ? updated : account)));
+      setFeedback({ type: 'success', message: 'Cuenta aprobada correctamente.' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No pudimos aprobar la cuenta.';
       setFeedback({ type: 'error', message });
     } finally {
       setProcessingId(null);
@@ -149,8 +168,18 @@ export function AccountsPage() {
           </div>
           <div>
             <p className="accounts-metric__label">Cuentas activas</p>
-            <p className="accounts-metric__value">{summary.total.toLocaleString('es-ES')}</p>
-            <span className="accounts-metric__helper">Total provisionado</span>
+            <p className="accounts-metric__value">{summary.approved.toLocaleString('es-ES')}</p>
+            <span className="accounts-metric__helper">Aprobadas y activas</span>
+          </div>
+        </article>
+        <article className="accounts-metric">
+          <div className="accounts-metric__icon accounts-metric__icon--warning">
+            <Clock size={20} />
+          </div>
+          <div>
+            <p className="accounts-metric__label">Pendientes</p>
+            <p className="accounts-metric__value">{summary.pending.toLocaleString('es-ES')}</p>
+            <span className="accounts-metric__helper">Esperando aprobación</span>
           </div>
         </article>
         <article className="accounts-metric">
@@ -171,16 +200,6 @@ export function AccountsPage() {
             <p className="accounts-metric__label">Administradores</p>
             <p className="accounts-metric__value">{summary.admins.toLocaleString('es-ES')}</p>
             <span className="accounts-metric__helper">Gestión operativa</span>
-          </div>
-        </article>
-        <article className="accounts-metric">
-          <div className="accounts-metric__icon">
-            <Lock size={20} />
-          </div>
-          <div>
-            <p className="accounts-metric__label">Usuarios estándar</p>
-            <p className="accounts-metric__value">{summary.standardUsers.toLocaleString('es-ES')}</p>
-            <span className="accounts-metric__helper">Acceso limitado</span>
           </div>
         </article>
       </section>
@@ -209,6 +228,7 @@ export function AccountsPage() {
                 <tr>
                   <th>Nombre</th>
                   <th>Correo</th>
+                  <th>Estado</th>
                   <th>Rol</th>
                   <th>Creado</th>
                   <th className="accounts-table__actions">Acciones</th>
@@ -217,7 +237,7 @@ export function AccountsPage() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={5} className="accounts-table__empty accounts-table__empty--loading">
+                    <td colSpan={6} className="accounts-table__empty accounts-table__empty--loading">
                       Cargando cuentas…
                     </td>
                   </tr>
@@ -225,7 +245,7 @@ export function AccountsPage() {
 
                 {!loading && sortedAccounts.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="accounts-table__empty">
+                    <td colSpan={6} className="accounts-table__empty">
                       No hay cuentas registradas todavía.
                     </td>
                   </tr>
@@ -242,6 +262,21 @@ export function AccountsPage() {
                         <span className="accounts-table__email">{account.email}</span>
                       </td>
                       <td>
+                        <span className={`accounts-status ${account.approved ? 'accounts-status--approved' : 'accounts-status--pending'}`}>
+                          {account.approved ? (
+                            <>
+                              <CheckCircle size={14} />
+                              Aprobada
+                            </>
+                          ) : (
+                            <>
+                              <Clock size={14} />
+                              Pendiente
+                            </>
+                          )}
+                        </span>
+                      </td>
+                      <td>
                         <div className="accounts-role">
                           <span className={`accounts-role__badge accounts-role__badge--${account.role}`}>
                             {ROLE_LABEL[account.role]}
@@ -250,7 +285,7 @@ export function AccountsPage() {
                             className="accounts-role__select"
                             value={account.role}
                             onChange={(event) => handleRoleChange(account.id, event.target.value as Role)}
-                            disabled={isProcessing}
+                            disabled={isProcessing || !account.approved}
                           >
                             {roleOptions.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -264,15 +299,28 @@ export function AccountsPage() {
                         <span className="accounts-table__date">{formatDate(account.createdAt)}</span>
                       </td>
                       <td>
-                        <button
-                          type="button"
-                          className="accounts-delete"
-                          onClick={() => void handleDelete(account)}
-                          disabled={isProcessing}
-                        >
-                          <Trash2 size={14} />
-                          Eliminar
-                        </button>
+                        <div className="accounts-actions">
+                          {!account.approved && (
+                            <button
+                              type="button"
+                              className="accounts-approve"
+                              onClick={() => void handleApprove(account.id)}
+                              disabled={isProcessing}
+                            >
+                              <CheckCircle size={14} />
+                              Aprobar
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="accounts-delete"
+                            onClick={() => void handleDelete(account)}
+                            disabled={isProcessing}
+                          >
+                            <Trash2 size={14} />
+                            Eliminar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

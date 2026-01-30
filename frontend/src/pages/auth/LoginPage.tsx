@@ -23,6 +23,11 @@ export function LoginPage() {
       navigate('/app/overview');
     } catch (err) {
       if (err instanceof Error) {
+        // Check if it's a pending approval error
+        if (err.message.includes('pendiente de aprobación') || err.message.includes('pending')) {
+          navigate('/pending-approval');
+          return;
+        }
         setError(err.message);
         return;
       }

@@ -10,10 +10,11 @@ import { InventoryPage } from './pages/InventoryPage';
 import { IssuesPage } from './pages/IssuesPage';
 import { DatasetDetailPage } from './pages/DatasetDetailPage';
 import { ManualDatasetPage } from './pages/ManualDatasetPage';
-import { LoginPage } from './pages/auth/LoginPage';
-import { RegisterPage } from './pages/auth/RegisterPage';
+import { PendingApprovalPage } from './pages/auth/PendingApprovalPage';
 import SimpleLayoutDemo from './pages/SimpleLayoutDemo';
 import { AccountsPage } from './pages/admin/AccountsPage';
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/pending-approval" element={<PendingApprovalPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AuthenticatedApp />}>

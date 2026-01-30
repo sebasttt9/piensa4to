@@ -30,6 +30,12 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         const user = await this.usersService.findByEmail(payload.email).catch(() => {
             throw new common_1.UnauthorizedException('Usuario no autorizado');
         });
+        if (!user) {
+            throw new common_1.UnauthorizedException('Usuario no encontrado');
+        }
+        if (!user.approved) {
+            throw new common_1.UnauthorizedException('Cuenta pendiente de aprobación por administrador');
+        }
         return user;
     }
 };

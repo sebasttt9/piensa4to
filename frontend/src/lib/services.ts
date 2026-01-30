@@ -566,6 +566,7 @@ export interface ManagedUser {
     name: string;
     email: string;
     role: 'user' | 'admin' | 'superadmin';
+    approved: boolean;
     createdAt: string;
     updatedAt: string;
 }
@@ -576,8 +577,13 @@ export const adminUsersAPI = {
         return response.data;
     },
 
-    update: async (id: string, input: Partial<Pick<ManagedUser, 'role' | 'name'>>) => {
+    update: async (id: string, input: Partial<Pick<ManagedUser, 'role' | 'name' | 'approved'>>) => {
         const response = await api.patch<ManagedUser>(`/users/${id}`, input);
+        return response.data;
+    },
+
+    approve: async (id: string) => {
+        const response = await api.patch<ManagedUser>(`/users/${id}/approve`);
         return response.data;
     },
 
