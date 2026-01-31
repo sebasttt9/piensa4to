@@ -6,7 +6,7 @@ import { UploadDatasetDto } from './dto/upload-dataset.dto';
 import { CreateManualDatasetDto, ManualColumnDto } from './dto/create-manual-dataset.dto';
 import { AnalysisService } from './analysis.service';
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
-import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_CLIENT } from '../database/supabase.constants';
 import { DatasetAnalysis } from './interfaces/dataset-analysis.interface';
 import { DatasetEntity } from './entities/dataset.entity';
 
@@ -35,7 +35,7 @@ export class DatasetsService {
   private readonly tableName = 'datasets';
 
   constructor(
-    @Inject(SUPABASE_DATA_CLIENT)
+    @Inject(SUPABASE_CLIENT)
     private readonly supabase: SupabaseClient,
     private readonly analysisService: AnalysisService,
     private readonly configService: ConfigService,
@@ -136,6 +136,9 @@ export class DatasetsService {
     // Cache the full data for analysis
     this.dataCache.set(datasetId, rows);
 
+    // Perform analysis
+    const analysis = await this.analysisService.analyzeDataset(rows);
+
     // Update dataset
     const preview = rows.slice(0, previewLimit);
 
@@ -148,6 +151,7 @@ export class DatasetsService {
         row_count: rows.length,
         column_count: columns.length,
         preview,
+        analysis,
         status: 'processed',
       })
       .eq('id', datasetId)

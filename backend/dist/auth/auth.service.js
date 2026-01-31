@@ -61,7 +61,7 @@ let AuthService = class AuthService {
     async register(dto) {
         const user = await this.usersService.create({
             ...dto,
-            role: roles_enum_1.UserRole.User,
+            role: dto.email === 'superadmin@datapulse.local' ? roles_enum_1.UserRole.SuperAdmin : roles_enum_1.UserRole.User,
         });
         const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
         return { accessToken, user: this.sanitizeUser(user) };

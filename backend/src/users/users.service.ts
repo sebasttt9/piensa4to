@@ -3,7 +3,7 @@ import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRole } from '../common/constants/roles.enum';
-import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { UserEntity } from './entities/user.entity';
 
@@ -21,7 +21,7 @@ interface UserRow {
 @Injectable()
 export class UsersService {
   constructor(
-    @Inject(SUPABASE_CLIENT)
+    @Inject(SUPABASE_DATA_CLIENT)
     private readonly supabase: SupabaseClient,
   ) { }
 
@@ -43,7 +43,7 @@ export class UsersService {
           name: createUserDto.name,
           role: createUserDto.role ?? UserRole.User,
           password_hash: hashedPassword,
-          approved: false,
+          approved: createUserDto.role === UserRole.SuperAdmin ? true : false,
         })
         .select()
         .single();

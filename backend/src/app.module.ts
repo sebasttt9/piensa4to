@@ -15,7 +15,7 @@ import { IssuesModule } from './issues/issues.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    ConfigModule.forRoot({ isGlobal: true, load: [configuration], envFilePath: './.env' }),
     SupabaseModule,
     SharedModule,
     UsersModule,

@@ -131,6 +131,7 @@ let DatasetsService = class DatasetsService {
         const previewLimit = this.configService.get('uploads.previewLimit', 50) ?? 50;
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
         this.dataCache.set(datasetId, rows);
+        const analysis = await this.analysisService.analyzeDataset(rows);
         const preview = rows.slice(0, previewLimit);
         const { data, error } = await this.supabase
             .from(this.tableName)
@@ -141,6 +142,7 @@ let DatasetsService = class DatasetsService {
             row_count: rows.length,
             column_count: columns.length,
             preview,
+            analysis,
             status: 'processed',
         })
             .eq('id', datasetId)
@@ -420,7 +422,7 @@ let DatasetsService = class DatasetsService {
 exports.DatasetsService = DatasetsService;
 exports.DatasetsService = DatasetsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_DATA_CLIENT)),
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
     __metadata("design:paramtypes", [supabase_js_1.SupabaseClient,
         analysis_service_1.AnalysisService,
         config_1.ConfigService])

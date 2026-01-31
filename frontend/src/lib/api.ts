@@ -2,9 +2,13 @@ import axios from 'axios';
 
 const TOKEN_KEY = 'datapulse.token';
 
+// Usar VITE_API_URL si está definido, sino usar el proxy de Vite
+const baseURL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
+
 const api = axios.create({
-  // Usar el proxy de Vite para desarrollo
-  baseURL: '/api',
+  baseURL,
   withCredentials: true,
 });
 

@@ -104,7 +104,7 @@ export class InventoryService {
     private readonly dashboardsTable = 'dashboards';
 
     constructor(
-        @Inject(SUPABASE_DATA_CLIENT)
+        @Inject(SUPABASE_CLIENT)
         private readonly supabase: SupabaseClient,
         private readonly analyticsService: AnalyticsService,
     ) { }

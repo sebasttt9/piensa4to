@@ -30,7 +30,7 @@ exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            config_1.ConfigModule.forRoot({ isGlobal: true, load: [configuration_1.default] }),
+            config_1.ConfigModule.forRoot({ isGlobal: true, load: [configuration_1.default], envFilePath: './.env' }),
             supabase_module_1.SupabaseModule,
             shared_module_1.SharedModule,
             users_module_1.UsersModule,

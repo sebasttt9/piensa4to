@@ -93,10 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
     } else {
       localStorage.removeItem(STORAGE_KEY);
+      // Limpiar cualquier dato potencialmente problemático
+      localStorage.removeItem('datapulse.lastUserId');
+      localStorage.removeItem('datapulse.selectedUser');
     }
 
     if (token) {
       localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
     }
 
     applyAuthHeader(token);
@@ -111,6 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Login response:', data);
       const nextUser = mapApiUser(data.user);
       console.log('Mapped user:', nextUser);
+
+      // Pequeño delay para asegurar que todo esté configurado
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       setUser(nextUser);
       persistUser(nextUser, data.accessToken);
       console.log('User signed in successfully');

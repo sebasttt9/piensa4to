@@ -27,17 +27,9 @@ import { SUPABASE_CLIENT, SUPABASE_DATA_CLIENT } from './supabase.constants';
         },
         {
             provide: SUPABASE_DATA_CLIENT,
-            inject: [ConfigService],
-            useFactory: (configService: ConfigService): SupabaseClient => {
-                const primaryUrl = configService.get<string>('supabase.url');
-                const primaryServiceRoleKey = configService.get<string>('supabase.serviceRoleKey');
-                const dataUrl = configService.get<string>('supabase.datasets.url') ?? primaryUrl;
-                const dataServiceRoleKey =
-                    configService.get<string>('supabase.datasets.serviceRoleKey') ?? primaryServiceRoleKey;
-
-                if (!dataUrl || !dataServiceRoleKey) {
-                    throw new Error('Datasets Supabase credentials are not configured');
-                }
+            useFactory: (): SupabaseClient => {
+                const dataUrl = 'https://bggsqbvrpenahcppvuyc.supabase.co';
+                const dataServiceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnZ3NxYnZycGVuYWhjcHB2dXljIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Nzc0NzI4MiwiZXhwIjoyMDgzMzIzMjgyfQ.j32e8oZwZDSgXOGbVRqnVcqdkGyclPIFTzmy29cb8Hw';
 
                 return createClient(dataUrl, dataServiceRoleKey, {
                     auth: {

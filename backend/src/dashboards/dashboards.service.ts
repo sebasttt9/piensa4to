@@ -2,7 +2,7 @@ import { Inject, Injectable, NotFoundException, InternalServerErrorException, Ba
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { DatasetsService } from '../datasets/datasets.service';
-import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_CLIENT } from '../database/supabase.constants';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { DashboardEntity, DashboardChartEntity } from './entities/dashboard.entity';
 import { ShareDashboardDto, ShareChannel } from './dto/share-dashboard.dto';
@@ -54,7 +54,7 @@ export interface DashboardShareEntity {
 @Injectable()
 export class DashboardsService {
   constructor(
-    @Inject(SUPABASE_DATA_CLIENT)
+    @Inject(SUPABASE_CLIENT)
     private readonly supabase: SupabaseClient,
     private readonly datasetsService: DatasetsService,
   ) { }

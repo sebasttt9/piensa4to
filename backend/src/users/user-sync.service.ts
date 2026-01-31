@@ -1,18 +1,30 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT, SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { UserEntity } from '../users/entities/user.entity';
 
 @Injectable()
 export class UserSyncService {
     private readonly logger = new Logger(UserSyncService.name);
+    private dataServiceClient: SupabaseClient;
 
     constructor(
         @Inject(SUPABASE_CLIENT)
         private readonly mainSupabase: SupabaseClient,
         @Inject(SUPABASE_DATA_CLIENT)
         private readonly dataSupabase: SupabaseClient,
-    ) { }
+    ) {
+        // Crear un cliente de servicio que bypass RLS
+        this.dataServiceClient = createClient(
+            process.env.SUPABASE_DATA_URL || 'https://nqkodrksdcmzhxoeuidj.supabase.co',
+            process.env.SUPABASE_DATA_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xa29kcmtzZGNtemh4b2V1aWRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjkxMjc4MTksImV4cCI6MjA4NDcwMzgxOX0.NTQzDrNuNxqbtPzTNBoCjW3UrNTvtBl_apl9xrYcmVQ',
+            {
+                auth: {
+                    persistSession: false,
+                },
+            }
+        );
+    }
 
     /**
      * Sincroniza un usuario desde la base de datos principal a la de datos
@@ -38,7 +50,7 @@ export class UserSyncService {
             }
 
             // Crear usuario en la base de datos de datos
-            const { error: insertError } = await this.dataSupabase
+            const { error: insertError } = await this.dataServiceClient
                 .from('users')
                 .insert({
                     id: user.id, // Intentar usar el mismo ID
@@ -52,7 +64,7 @@ export class UserSyncService {
             if (insertError) {
                 // Si falla por ID duplicado, intentar sin ID (dejará que la DB genere uno)
                 if (insertError.code === '23505') { // unique_violation
-                    const { error: retryError } = await this.dataSupabase
+                    const { error: retryError } = await this.dataServiceClient
                         .from('users')
                         .insert({
                             email: user.email,

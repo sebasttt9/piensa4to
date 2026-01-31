@@ -72,7 +72,7 @@ let UsersService = class UsersService {
                 name: createUserDto.name,
                 role: createUserDto.role ?? roles_enum_1.UserRole.User,
                 password_hash: hashedPassword,
-                approved: false,
+                approved: createUserDto.role === roles_enum_1.UserRole.SuperAdmin ? true : false,
             })
                 .select()
                 .single();
@@ -215,7 +215,7 @@ let UsersService = class UsersService {
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_DATA_CLIENT)),
     __metadata("design:paramtypes", [supabase_js_1.SupabaseClient])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

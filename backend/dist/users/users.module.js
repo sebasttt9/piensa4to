@@ -11,7 +11,6 @@ const common_1 = require("@nestjs/common");
 const users_service_1 = require("./users.service");
 const users_controller_1 = require("./users.controller");
 const roles_guard_1 = require("../common/guards/roles.guard");
-const users_initializer_1 = require("./users.initializer");
 const supabase_module_1 = require("../database/supabase.module");
 const user_sync_service_1 = require("./user-sync.service");
 let UsersModule = class UsersModule {
@@ -21,7 +20,7 @@ exports.UsersModule = UsersModule = __decorate([
     (0, common_1.Module)({
         imports: [supabase_module_1.SupabaseModule],
         controllers: [users_controller_1.UsersController],
-        providers: [users_service_1.UsersService, roles_guard_1.RolesGuard, users_initializer_1.UsersInitializer, user_sync_service_1.UserSyncService],
+        providers: [users_service_1.UsersService, roles_guard_1.RolesGuard, user_sync_service_1.UserSyncService],
         exports: [users_service_1.UsersService, user_sync_service_1.UserSyncService],
     })
 ], UsersModule);

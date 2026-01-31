@@ -10,10 +10,10 @@ import { UserSyncService } from '../users/user-sync.service';
 @Injectable()
 export class IssuesService {
     constructor(
-        @Inject(SUPABASE_DATA_CLIENT)
-        private readonly supabase: SupabaseClient,
         @Inject(SUPABASE_CLIENT)
-        private readonly mainSupabase: SupabaseClient,
+        private readonly supabase: SupabaseClient,
+        @Inject(SUPABASE_DATA_CLIENT)
+        private readonly dataSupabase: SupabaseClient,
         private readonly usersService: UsersService,
         private readonly userSyncService: UserSyncService,
     ) { }
@@ -26,11 +26,14 @@ export class IssuesService {
             throw new Error('No se pudo sincronizar el usuario en la base de datos de datos');
         }
 
+        const { inventoryItemId, ...issueData } = createIssueDto;
+
         const { data, error } = await this.supabase
             .from('issues')
             .insert({
-                ...createIssueDto,
-                createdById: datasetUser.id,
+                ...issueData,
+                owner_id: datasetUser.id,
+                inventory_item_id: inventoryItemId,
             })
             .select()
             .single();
@@ -44,10 +47,10 @@ export class IssuesService {
             .from('issues')
             .select(`
         *,
-        createdBy:users(id, name),
+        owner:users(id, name),
         inventoryItem:inventory_items(id, name)
       `)
-            .order('createdAt', { ascending: false });
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
         return data;

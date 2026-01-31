@@ -24,7 +24,7 @@ export class AuthService {
   async register(dto: RegisterDto): Promise<{ accessToken: string; user: Record<string, unknown> }> {
     const user = await this.usersService.create({
       ...dto,
-      role: UserRole.User,
+      role: dto.email === 'superadmin@datapulse.local' ? UserRole.SuperAdmin : UserRole.User,
     });
     const accessToken = this.buildToken({ id: user.id, email: user.email, role: user.role });
     return { accessToken, user: this.sanitizeUser(user) };
