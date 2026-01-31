@@ -33,8 +33,8 @@ let DatasetsController = class DatasetsController {
         const parsedLimit = Number(limit) || 10;
         const skip = (parsedPage - 1) * parsedLimit;
         const [datasets, total] = await Promise.all([
-            this.datasetsService.findAll(user.id, user.role, skip, parsedLimit),
-            this.datasetsService.countByUser(user.id, user.role),
+            this.datasetsService.findAll(user.id, user.role, skip, parsedLimit, user.organizationId),
+            this.datasetsService.countByUser(user.id, user.role, user.organizationId),
         ]);
         return {
             data: datasets,
@@ -44,22 +44,22 @@ let DatasetsController = class DatasetsController {
         };
     }
     findOne(user, id) {
-        return this.datasetsService.findOne(user.id, id);
+        return this.datasetsService.findOne(user.id, id, user.role, user.organizationId);
     }
     create(user, dto) {
-        return this.datasetsService.create(user.id, dto);
+        return this.datasetsService.create(user.id, dto, user.organizationId);
     }
     createManual(user, dto) {
-        return this.datasetsService.createManual(user.id, dto);
+        return this.datasetsService.createManual(user.id, dto, user.organizationId);
     }
     update(user, id, dto) {
-        return this.datasetsService.update(user.id, id, dto);
+        return this.datasetsService.update(user.id, id, dto, user.role, user.organizationId);
     }
     uploadFile(user, id, file) {
         if (!file) {
             throw new common_1.BadRequestException('No file provided');
         }
-        return this.datasetsService.uploadDataset(user.id, id, file);
+        return this.datasetsService.uploadDataset(user.id, id, file, user.role, user.organizationId);
     }
     async getPreview(user, id, limit = 50) {
         const dataset = await this.datasetsService.findOne(user.id, id);
@@ -78,14 +78,14 @@ let DatasetsController = class DatasetsController {
         return { datasetId: id, message: 'Insights coming soon' };
     }
     async generateReport(user, id, format = 'json') {
-        await this.datasetsService.findOne(user.id, id);
+        await this.datasetsService.findOne(user.id, id, user.role, user.organizationId);
         if (format === 'json') {
             return { datasetId: id, message: 'JSON report coming soon' };
         }
         throw new common_1.BadRequestException('PDF export coming soon');
     }
     remove(user, id) {
-        return this.datasetsService.remove(user.id, id);
+        return this.datasetsService.remove(user.id, id, user.role, user.organizationId);
     }
 };
 exports.DatasetsController = DatasetsController;

@@ -24,6 +24,7 @@ const supabase_module_1 = require("./database/supabase.module");
 const analytics_module_1 = require("./analytics/analytics.module");
 const inventory_module_1 = require("./inventory/inventory.module");
 const issues_module_1 = require("./issues/issues.module");
+const organizations_module_1 = require("./organizations/organizations.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -40,6 +41,7 @@ exports.AppModule = AppModule = __decorate([
             analytics_module_1.AnalyticsModule,
             inventory_module_1.InventoryModule,
             issues_module_1.IssuesModule,
+            organizations_module_1.OrganizationsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

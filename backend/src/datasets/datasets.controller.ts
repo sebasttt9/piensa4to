@@ -41,8 +41,8 @@ export class DatasetsController {
     const parsedLimit = Number(limit) || 10;
     const skip = (parsedPage - 1) * parsedLimit;
     const [datasets, total] = await Promise.all([
-      this.datasetsService.findAll(user.id, user.role, skip, parsedLimit),
-      this.datasetsService.countByUser(user.id, user.role),
+      this.datasetsService.findAll(user.id, user.role, skip, parsedLimit, user.organizationId),
+      this.datasetsService.countByUser(user.id, user.role, user.organizationId),
     ]);
     return {
       data: datasets,
@@ -54,7 +54,7 @@ export class DatasetsController {
 
   @Get(':id')
   findOne(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
-    return this.datasetsService.findOne(user.id, id);
+    return this.datasetsService.findOne(user.id, id, user.role, user.organizationId);
   }
 
   @Post()
@@ -63,7 +63,7 @@ export class DatasetsController {
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Body() dto: UploadDatasetDto,
   ) {
-    return this.datasetsService.create(user.id, dto);
+    return this.datasetsService.create(user.id, dto, user.organizationId);
   }
 
   @Post('manual')
@@ -72,7 +72,7 @@ export class DatasetsController {
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Body() dto: CreateManualDatasetDto,
   ) {
-    return this.datasetsService.createManual(user.id, dto);
+    return this.datasetsService.createManual(user.id, dto, user.organizationId);
   }
 
   @Put(':id')
@@ -82,7 +82,7 @@ export class DatasetsController {
     @Param('id') id: string,
     @Body() dto: Partial<UploadDatasetDto>,
   ) {
-    return this.datasetsService.update(user.id, id, dto);
+    return this.datasetsService.update(user.id, id, dto, user.role, user.organizationId);
   }
 
   @Post(':id/upload')
@@ -96,7 +96,7 @@ export class DatasetsController {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
-    return this.datasetsService.uploadDataset(user.id, id, file);
+    return this.datasetsService.uploadDataset(user.id, id, file, user.role, user.organizationId);
   }
 
   @Get(':id/preview')
@@ -140,7 +140,7 @@ export class DatasetsController {
     @Query('format') format: 'json' | 'pdf' = 'json',
   ) {
     // Validate dataset ownership
-    await this.datasetsService.findOne(user.id, id);
+    await this.datasetsService.findOne(user.id, id, user.role, user.organizationId);
 
     if (format === 'json') {
       return { datasetId: id, message: 'JSON report coming soon' };
@@ -153,6 +153,6 @@ export class DatasetsController {
   @Delete(':id')
   @Roles(UserRole.Admin)
   remove(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
-    return this.datasetsService.remove(user.id, id);
+    return this.datasetsService.remove(user.id, id, user.role, user.organizationId);
   }
 }

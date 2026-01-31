@@ -68,7 +68,7 @@ let DatasetsService = class DatasetsService {
         this.analysisService = analysisService;
         this.configService = configService;
     }
-    async create(ownerId, dto) {
+    async create(ownerId, dto, organizationId) {
         if (!dto.name) {
             throw new common_1.BadRequestException('El nombre del dataset es obligatorio');
         }
@@ -76,6 +76,7 @@ let DatasetsService = class DatasetsService {
             .from(this.tableName)
             .insert({
             owner_id: ownerId,
+            organization_id: organizationId,
             name: dto.name,
             description: dto.description ?? null,
             status: 'pending',
@@ -89,7 +90,7 @@ let DatasetsService = class DatasetsService {
         }
         return this.toEntity(data);
     }
-    async createManual(ownerId, dto) {
+    async createManual(ownerId, dto, organizationId) {
         this.validateManualData(dto.columns, dto.data);
         const previewLimit = this.configService.get('uploads.previewLimit', 50) ?? 50;
         const preview = dto.data.slice(0, previewLimit);
@@ -99,6 +100,7 @@ let DatasetsService = class DatasetsService {
             .from(this.tableName)
             .insert({
             owner_id: ownerId,
+            organization_id: organizationId,
             name: dto.name,
             description: dto.description ?? null,
             status: 'processed',
@@ -118,11 +120,11 @@ let DatasetsService = class DatasetsService {
         }
         return this.toEntity(data);
     }
-    async uploadDataset(ownerId, datasetId, file) {
+    async uploadDataset(ownerId, datasetId, file, userRole = 'user', organizationId) {
         if (!file) {
             throw new common_1.BadRequestException('Debe adjuntar un archivo CSV o Excel.');
         }
-        await this.findOne(ownerId, datasetId);
+        await this.findOne(ownerId, datasetId, userRole, organizationId);
         const extension = this.resolveExtension(file.originalname);
         const rows = await this.parseFile(file, extension);
         if (rows.length === 0) {
@@ -157,8 +159,8 @@ let DatasetsService = class DatasetsService {
         }
         return this.toEntity(data);
     }
-    async update(ownerId, datasetId, dto) {
-        await this.findOne(ownerId, datasetId);
+    async update(ownerId, datasetId, dto, userRole = 'user', organizationId) {
+        await this.findOne(ownerId, datasetId, userRole, organizationId);
         const payload = {};
         if (dto.name !== undefined) {
             payload.name = dto.name;
@@ -170,15 +172,24 @@ let DatasetsService = class DatasetsService {
             payload.tags = dto.tags;
         }
         if (Object.keys(payload).length === 0) {
-            return this.findOne(ownerId, datasetId);
+            return this.findOne(ownerId, datasetId, userRole, organizationId);
         }
-        const { data, error } = await this.supabase
+        let query = this.supabase
             .from(this.tableName)
             .update(payload)
-            .eq('id', datasetId)
-            .eq('owner_id', ownerId)
-            .select('*')
-            .maybeSingle();
+            .eq('id', datasetId);
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            }
+            else {
+                query = query.eq('owner_id', ownerId);
+            }
+        }
+        else {
+            query = query.eq('owner_id', ownerId);
+        }
+        const { data, error } = await query.select('*').maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo actualizar el dataset');
         }
@@ -187,7 +198,7 @@ let DatasetsService = class DatasetsService {
         }
         return this.toEntity(data);
     }
-    async findAll(ownerId, userRole = 'user', skip = 0, limit = 10) {
+    async findAll(ownerId, userRole = 'user', skip = 0, limit = 10, organizationId) {
         const rangeStart = skip;
         const rangeEnd = skip + limit - 1;
         let query = this.supabase
@@ -196,6 +207,9 @@ let DatasetsService = class DatasetsService {
             .order('created_at', { ascending: false })
             .range(rangeStart, rangeEnd);
         if (userRole === 'admin' || userRole === 'superadmin') {
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            }
         }
         else {
             query = query.eq('owner_id', ownerId);
@@ -206,11 +220,14 @@ let DatasetsService = class DatasetsService {
         }
         return (data ?? []).map((row) => this.toEntity(row));
     }
-    async countByUser(ownerId, userRole = 'user') {
+    async countByUser(ownerId, userRole = 'user', organizationId) {
         let query = this.supabase
             .from(this.tableName)
             .select('id', { count: 'exact', head: true });
         if (userRole === 'admin' || userRole === 'superadmin') {
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            }
         }
         else {
             query = query.eq('owner_id', ownerId);
@@ -222,13 +239,23 @@ let DatasetsService = class DatasetsService {
         }
         return count ?? 0;
     }
-    async findOne(ownerId, datasetId) {
-        const { data, error } = await this.supabase
+    async findOne(ownerId, datasetId, userRole = 'user', organizationId) {
+        let query = this.supabase
             .from(this.tableName)
             .select('*')
-            .eq('id', datasetId)
-            .eq('owner_id', ownerId)
-            .maybeSingle();
+            .eq('id', datasetId);
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            }
+            else {
+                query = query.eq('owner_id', ownerId);
+            }
+        }
+        else {
+            query = query.eq('owner_id', ownerId);
+        }
+        const { data, error } = await query.maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo obtener el dataset');
         }
@@ -253,14 +280,23 @@ let DatasetsService = class DatasetsService {
         const preview = data?.preview ?? [];
         return preview.slice(0, limit);
     }
-    async remove(ownerId, datasetId) {
-        const { data, error } = await this.supabase
+    async remove(ownerId, datasetId, userRole = 'user', organizationId) {
+        let query = this.supabase
             .from(this.tableName)
             .delete()
-            .eq('id', datasetId)
-            .eq('owner_id', ownerId)
-            .select('id')
-            .maybeSingle();
+            .eq('id', datasetId);
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            }
+            else {
+                query = query.eq('owner_id', ownerId);
+            }
+        }
+        else {
+            query = query.eq('owner_id', ownerId);
+        }
+        const { data, error } = await query.select('id').maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo eliminar el dataset');
         }

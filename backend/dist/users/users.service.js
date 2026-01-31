@@ -207,6 +207,7 @@ let UsersService = class UsersService {
             role: row.role,
             passwordHash: row.password_hash,
             approved: row.approved,
+            organizationId: row.organization_id ?? undefined,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };

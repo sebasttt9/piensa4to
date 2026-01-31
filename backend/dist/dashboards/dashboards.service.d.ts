@@ -21,18 +21,18 @@ export declare class DashboardsService {
     private readonly tableName;
     private readonly shareTableName;
     private readonly datasetsJoinTable;
-    create(ownerId: string, dto: CreateDashboardDto, userRole?: string): Promise<DashboardEntity>;
-    findAll(ownerId: string, userRole?: string, skip?: number, limit?: number): Promise<DashboardEntity[]>;
-    countByUser(ownerId: string, userRole?: string): Promise<number>;
-    findOne(ownerId: string, id: string): Promise<DashboardEntity>;
-    update(ownerId: string, id: string, dto: UpdateDashboardDto): Promise<DashboardEntity>;
-    share(ownerId: string, id: string, isPublic: boolean): Promise<DashboardEntity>;
-    remove(ownerId: string, id: string): Promise<void>;
-    shareWithContact(ownerId: string, id: string, dto: ShareDashboardDto): Promise<DashboardShareEntity>;
-    export(ownerId: string, id: string, format: 'pdf' | 'json'): Promise<DashboardEntity | Buffer>;
+    create(ownerId: string, dto: CreateDashboardDto, userRole?: string, organizationId?: string): Promise<DashboardEntity>;
+    findAll(ownerId: string, userRole?: string, skip?: number, limit?: number, organizationId?: string): Promise<DashboardEntity[]>;
+    countByUser(ownerId: string, userRole?: string, organizationId?: string): Promise<number>;
+    findOne(ownerId: string, id: string, userRole?: string, organizationId?: string): Promise<DashboardEntity>;
+    update(ownerId: string, id: string, dto: UpdateDashboardDto, userRole?: string, organizationId?: string): Promise<DashboardEntity>;
+    share(ownerId: string, id: string, isPublic: boolean, userRole?: string, organizationId?: string): Promise<DashboardEntity>;
+    remove(ownerId: string, id: string, userRole?: string, organizationId?: string): Promise<void>;
+    shareWithContact(ownerId: string, id: string, dto: ShareDashboardDto, userRole?: string, organizationId?: string): Promise<DashboardShareEntity>;
+    export(ownerId: string, id: string, format: 'pdf' | 'json', userRole?: string, organizationId?: string): Promise<DashboardEntity | Buffer>;
     private toEntity;
     private toShareEntity;
     private replaceDashboardDatasets;
     private collectDatasetIds;
-    approveDashboard(ownerId: string, dashboardId: string, status: 'approved' | 'rejected'): Promise<DashboardEntity>;
+    approveDashboard(ownerId: string, dashboardId: string, status: 'approved' | 'rejected', userRole?: string, organizationId?: string): Promise<DashboardEntity>;
 }

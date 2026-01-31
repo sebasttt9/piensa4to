@@ -17,22 +17,22 @@ export class IssuesController {
     }
 
     @Get()
-    findAll() {
-        return this.issuesService.findAll();
+    findAll(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
+        return this.issuesService.findAll(user.id, user.role, user.organizationId);
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.issuesService.findOne(id);
+    findOne(@Param('id') id: string, @CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
+        return this.issuesService.findOne(id, user.id, user.role, user.organizationId);
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateIssueDto: UpdateIssueDto) {
-        return this.issuesService.update(id, updateIssueDto);
+    update(@Param('id') id: string, @Body() updateIssueDto: UpdateIssueDto, @CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
+        return this.issuesService.update(id, updateIssueDto, user.id, user.role, user.organizationId);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.issuesService.remove(id);
+    remove(@Param('id') id: string, @CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
+        return this.issuesService.remove(id, user.id, user.role, user.organizationId);
     }
 }

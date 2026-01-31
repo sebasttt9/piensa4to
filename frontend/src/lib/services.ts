@@ -592,6 +592,47 @@ export const adminUsersAPI = {
     },
 };
 
+/* ==================== ORGANIZATIONS API ==================== */
+
+export interface Organization {
+    id: string;
+    name: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateOrganizationInput {
+    name: string;
+    description?: string;
+}
+
+export interface UpdateOrganizationInput {
+    name?: string;
+    description?: string;
+}
+
+export const organizationsAPI = {
+    list: async () => {
+        const response = await api.get<Organization[]>('/organizations');
+        return response.data;
+    },
+
+    create: async (input: CreateOrganizationInput) => {
+        const response = await api.post<Organization>('/organizations', input);
+        return response.data;
+    },
+
+    update: async (id: string, input: UpdateOrganizationInput) => {
+        const response = await api.patch<Organization>(`/organizations/${id}`, input);
+        return response.data;
+    },
+
+    remove: async (id: string) => {
+        await api.delete(`/organizations/${id}`);
+    },
+};
+
 /* ==================== ISSUES API ==================== */
 
 export interface Issue {

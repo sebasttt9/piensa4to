@@ -12,6 +12,7 @@ import { SupabaseModule } from './database/supabase.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { IssuesModule } from './issues/issues.module';
+import { OrganizationsModule } from './organizations/organizations.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { IssuesModule } from './issues/issues.module';
     AnalyticsModule,
     InventoryModule,
     IssuesModule,
+    OrganizationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

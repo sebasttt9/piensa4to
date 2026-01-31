@@ -52,6 +52,8 @@ export class UsersController {
   approve(@Param('id') id: string) {
     return this.usersService.update(id, { approved: true });
   }
+
+  @Delete(':id')
   @Roles(UserRole.SuperAdmin)
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);

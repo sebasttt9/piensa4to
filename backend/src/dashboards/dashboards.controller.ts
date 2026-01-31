@@ -28,7 +28,7 @@ export class DashboardsController {
 
   @Post()
   create(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Body() dto: CreateDashboardDto) {
-    return this.dashboardsService.create(user.id, dto, user.role);
+    return this.dashboardsService.create(user.id, dto, user.role, user.organizationId);
   }
 
   @Get()
@@ -41,8 +41,8 @@ export class DashboardsController {
     const parsedLimit = Number(limit) || 10;
     const skip = (parsedPage - 1) * parsedLimit;
     const [dashboards, total] = await Promise.all([
-      this.dashboardsService.findAll(user.id, user.role, skip, parsedLimit),
-      this.dashboardsService.countByUser(user.id, user.role),
+      this.dashboardsService.findAll(user.id, user.role, skip, parsedLimit, user.organizationId),
+      this.dashboardsService.countByUser(user.id, user.role, user.organizationId),
     ]);
     return {
       data: dashboards,
@@ -54,7 +54,7 @@ export class DashboardsController {
 
   @Get(':id')
   findOne(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
-    return this.dashboardsService.findOne(user.id, id);
+    return this.dashboardsService.findOne(user.id, id, user.role, user.organizationId);
   }
 
   @Put(':id')
@@ -63,7 +63,7 @@ export class DashboardsController {
     @Param('id') id: string,
     @Body() dto: UpdateDashboardDto,
   ) {
-    return this.dashboardsService.update(user.id, id, dto);
+    return this.dashboardsService.update(user.id, id, dto, user.role, user.organizationId);
   }
 
   @Patch(':id/share')
@@ -72,7 +72,7 @@ export class DashboardsController {
     @Param('id') id: string,
     @Body() dto: { isPublic: boolean },
   ) {
-    return this.dashboardsService.share(user.id, id, dto.isPublic);
+    return this.dashboardsService.share(user.id, id, dto.isPublic, user.role, user.organizationId);
   }
 
   @Post(':id/share/invite')
@@ -81,12 +81,12 @@ export class DashboardsController {
     @Param('id') id: string,
     @Body() dto: ShareDashboardDto,
   ) {
-    return this.dashboardsService.shareWithContact(user.id, id, dto);
+    return this.dashboardsService.shareWithContact(user.id, id, dto, user.role, user.organizationId);
   }
 
   @Delete(':id')
   remove(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
-    return this.dashboardsService.remove(user.id, id);
+    return this.dashboardsService.remove(user.id, id, user.role, user.organizationId);
   }
 
   @Get(':id/export')
@@ -98,13 +98,13 @@ export class DashboardsController {
   ) {
     const normalizedFormat = format === 'pdf' ? 'pdf' : 'json';
     if (normalizedFormat === 'json') {
-      const dashboard = await this.dashboardsService.export(user.id, id, 'json');
+      const dashboard = await this.dashboardsService.export(user.id, id, 'json', user.role, user.organizationId);
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.json"`);
       return res.send(JSON.stringify(dashboard, null, 2));
     }
 
-    const pdfBuffer = await this.dashboardsService.export(user.id, id, 'pdf');
+    const pdfBuffer = await this.dashboardsService.export(user.id, id, 'pdf', user.role, user.organizationId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.pdf"`);
     return res.send(pdfBuffer);
@@ -112,6 +112,6 @@ export class DashboardsController {
 
   @Patch(':id/approve')
   approve(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string, @Body() dto: ApproveDashboardDto) {
-    return this.dashboardsService.approveDashboard(user.id, id, dto.status);
+    return this.dashboardsService.approveDashboard(user.id, id, dto.status, user.role, user.organizationId);
   }
 }

@@ -13,6 +13,7 @@ import { ManualDatasetPage } from './pages/ManualDatasetPage';
 import { PendingApprovalPage } from './pages/auth/PendingApprovalPage';
 import SimpleLayoutDemo from './pages/SimpleLayoutDemo';
 import { AccountsPage } from './pages/admin/AccountsPage';
+import { OrganizationsPage } from './pages/admin/OrganizationsPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="saved" element={<SavedDashboardsPage />} />
           <Route element={<ProtectedRoute allowedRoles="superadmin" />}>
             <Route path="admin/accounts" element={<AccountsPage />} />
+            <Route path="admin/organizations" element={<OrganizationsPage />} />
           </Route>
         </Route>
       </Route>

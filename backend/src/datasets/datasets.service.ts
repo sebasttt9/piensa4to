@@ -13,6 +13,7 @@ import { DatasetEntity } from './entities/dataset.entity';
 interface DatasetRow {
   id: string;
   owner_id: string;
+  organization_id: string;
   name: string;
   description: string | null;
   filename: string | null;
@@ -46,6 +47,7 @@ export class DatasetsService {
   async create(
     ownerId: string,
     dto: UploadDatasetDto,
+    organizationId?: string,
   ): Promise<DatasetEntity> {
     if (!dto.name) {
       throw new BadRequestException('El nombre del dataset es obligatorio');
@@ -55,6 +57,7 @@ export class DatasetsService {
       .from(this.tableName)
       .insert({
         owner_id: ownerId,
+        organization_id: organizationId,
         name: dto.name,
         description: dto.description ?? null,
         status: 'pending',
@@ -74,6 +77,7 @@ export class DatasetsService {
   async createManual(
     ownerId: string,
     dto: CreateManualDatasetDto,
+    organizationId?: string,
   ): Promise<DatasetEntity> {
     // Validar que los datos coincidan con las columnas definidas
     this.validateManualData(dto.columns, dto.data);
@@ -91,6 +95,7 @@ export class DatasetsService {
       .from(this.tableName)
       .insert({
         owner_id: ownerId,
+        organization_id: organizationId,
         name: dto.name,
         description: dto.description ?? null,
         status: 'processed',
@@ -117,12 +122,14 @@ export class DatasetsService {
     ownerId: string,
     datasetId: string,
     file: Express.Multer.File,
+    userRole: string = 'user',
+    organizationId?: string,
   ): Promise<DatasetEntity> {
     if (!file) {
       throw new BadRequestException('Debe adjuntar un archivo CSV o Excel.');
     }
 
-    await this.findOne(ownerId, datasetId);
+    await this.findOne(ownerId, datasetId, userRole, organizationId);
     const extension = this.resolveExtension(file.originalname);
     const rows = await this.parseFile(file, extension);
 
@@ -174,8 +181,10 @@ export class DatasetsService {
     ownerId: string,
     datasetId: string,
     dto: Partial<UploadDatasetDto>,
+    userRole: string = 'user',
+    organizationId?: string,
   ): Promise<DatasetEntity> {
-    await this.findOne(ownerId, datasetId);
+    await this.findOne(ownerId, datasetId, userRole, organizationId);
 
     const payload: Record<string, unknown> = {};
     if (dto.name !== undefined) {
@@ -189,16 +198,28 @@ export class DatasetsService {
     }
 
     if (Object.keys(payload).length === 0) {
-      return this.findOne(ownerId, datasetId);
+      return this.findOne(ownerId, datasetId, userRole, organizationId);
     }
 
-    const { data, error } = await this.supabase
+    let query = this.supabase
       .from(this.tableName)
       .update(payload)
-      .eq('id', datasetId)
-      .eq('owner_id', ownerId)
-      .select('*')
-      .maybeSingle();
+      .eq('id', datasetId);
+
+    // Filter based on user role and organization
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      // Admins and superadmins can update datasets from their organization
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      } else {
+        query = query.eq('owner_id', ownerId);
+      }
+    } else {
+      // Regular users can only update their own datasets
+      query = query.eq('owner_id', ownerId);
+    }
+
+    const { data, error } = await query.select('*').maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException('No se pudo actualizar el dataset');
@@ -216,6 +237,7 @@ export class DatasetsService {
     userRole: string = 'user',
     skip = 0,
     limit = 10,
+    organizationId?: string,
   ): Promise<DatasetEntity[]> {
     const rangeStart = skip;
     const rangeEnd = skip + limit - 1;
@@ -226,10 +248,12 @@ export class DatasetsService {
       .order('created_at', { ascending: false })
       .range(rangeStart, rangeEnd);
 
-    // Filter based on user role
+    // Filter based on user role and organization
     if (userRole === 'admin' || userRole === 'superadmin') {
-      // Admins can see all datasets
-      // No additional filter needed
+      // Admins and superadmins can see datasets from their organization
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      }
     } else {
       // Regular users can only see their own datasets
       query = query.eq('owner_id', ownerId);
@@ -244,15 +268,17 @@ export class DatasetsService {
     return (data ?? []).map((row) => this.toEntity(row));
   }
 
-  async countByUser(ownerId: string, userRole: string = 'user'): Promise<number> {
+  async countByUser(ownerId: string, userRole: string = 'user', organizationId?: string): Promise<number> {
     let query = this.supabase
       .from(this.tableName)
       .select('id', { count: 'exact', head: true });
 
-    // Filter based on user role
+    // Filter based on user role and organization
     if (userRole === 'admin' || userRole === 'superadmin') {
-      // Admins can see all datasets
-      // No additional filter needed
+      // Admins and superadmins can see datasets from their organization
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      }
     } else {
       // Regular users can only see their own datasets
       query = query.eq('owner_id', ownerId);
@@ -268,13 +294,26 @@ export class DatasetsService {
     return count ?? 0;
   }
 
-  async findOne(ownerId: string, datasetId: string): Promise<DatasetEntity> {
-    const { data, error } = await this.supabase
+  async findOne(ownerId: string, datasetId: string, userRole: string = 'user', organizationId?: string): Promise<DatasetEntity> {
+    let query = this.supabase
       .from(this.tableName)
       .select('*')
-      .eq('id', datasetId)
-      .eq('owner_id', ownerId)
-      .maybeSingle();
+      .eq('id', datasetId);
+
+    // Filter based on user role and organization
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      // Admins and superadmins can access datasets from their organization
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      } else {
+        query = query.eq('owner_id', ownerId);
+      }
+    } else {
+      // Regular users can only access their own datasets
+      query = query.eq('owner_id', ownerId);
+    }
+
+    const { data, error } = await query.maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException('No se pudo obtener el dataset');
@@ -311,14 +350,26 @@ export class DatasetsService {
     return preview.slice(0, limit);
   }
 
-  async remove(ownerId: string, datasetId: string): Promise<void> {
-    const { data, error } = await this.supabase
+  async remove(ownerId: string, datasetId: string, userRole: string = 'user', organizationId?: string): Promise<void> {
+    let query = this.supabase
       .from(this.tableName)
       .delete()
-      .eq('id', datasetId)
-      .eq('owner_id', ownerId)
-      .select('id')
-      .maybeSingle();
+      .eq('id', datasetId);
+
+    // Filter based on user role and organization
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      // Admins and superadmins can delete datasets from their organization
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      } else {
+        query = query.eq('owner_id', ownerId);
+      }
+    } else {
+      // Regular users can only delete their own datasets
+      query = query.eq('owner_id', ownerId);
+    }
+
+    const { data, error } = await query.select('id').maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException('No se pudo eliminar el dataset');

@@ -32,6 +32,7 @@ interface InventoryAdjustmentRow {
 interface InventoryItemRow {
     id: string;
     owner_id: string;
+    organization_id: string;
     dataset_id: string | null;
     dashboard_id: string | null;
     name: string;
@@ -374,7 +375,7 @@ export class InventoryService {
     }
 
     // Inventory Items CRUD
-    async createItem(ownerId: string, dto: CreateInventoryItemDto, userRole: string = 'user'): Promise<InventoryItem> {
+    async createItem(ownerId: string, dto: CreateInventoryItemDto, userRole: string = 'user', organizationId?: string): Promise<InventoryItem> {
         console.log('Creating inventory item for ownerId:', ownerId, 'dto:', dto);
         // Validate dataset/dashboard ownership if provided
         if (dto.datasetId) {
@@ -391,6 +392,7 @@ export class InventoryService {
             .from(this.itemsTable)
             .insert({
                 owner_id: ownerId,
+                organization_id: organizationId,
                 dataset_id: dto.datasetId || null,
                 dashboard_id: dto.dashboardId || null,
                 name: dto.name,
@@ -416,17 +418,23 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async getItems(ownerId: string, userRole: string = 'user'): Promise<InventoryItem[]> {
-        console.log('getItems called with ownerId:', ownerId, 'userRole:', userRole);
+    async getItems(ownerId: string, userRole: string = 'user', organizationId?: string): Promise<InventoryItem[]> {
+        console.log('getItems called with ownerId:', ownerId, 'userRole:', userRole, 'organizationId:', organizationId);
 
         let query = this.supabase
             .from(this.itemsTable)
             .select('*')
             .order('created_at', { ascending: false });
 
+        // Filter based on user role and organization
         if (userRole === 'admin' || userRole === 'superadmin') {
-            console.log('User is admin/superadmin, fetching all items');
+            // Admins and superadmins can see items from their organization
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            }
+            console.log('User is admin/superadmin, fetching items from organization:', organizationId);
         } else {
+            // Regular users can only see their own items
             console.log('User is regular user, filtering by owner_id:', ownerId);
             query = query.eq('owner_id', ownerId);
         }
@@ -442,17 +450,22 @@ export class InventoryService {
         return (data as InventoryItemRow[]).map(row => this.mapToInventoryItem(row));
     }
 
-    async getItem(ownerId: string, itemId: string, userRole: string = 'user'): Promise<InventoryItem> {
+    async getItem(ownerId: string, itemId: string, userRole: string = 'user', organizationId?: string): Promise<InventoryItem> {
         let query = this.supabase
             .from(this.itemsTable)
             .select('*')
             .eq('id', itemId);
 
-
+        // Filter based on user role and organization
         if (userRole === 'admin' || userRole === 'superadmin') {
-
+            // Admins and superadmins can access items from their organization
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            } else {
+                query = query.eq('owner_id', ownerId);
+            }
         } else {
-
+            // Regular users can only access their own items
             query = query.eq('owner_id', ownerId);
         }
 
@@ -465,9 +478,9 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async updateItem(ownerId: string, itemId: string, dto: UpdateInventoryItemDto, userRole: string = 'user'): Promise<InventoryItem> {
+    async updateItem(ownerId: string, itemId: string, dto: UpdateInventoryItemDto, userRole: string = 'user', organizationId?: string): Promise<InventoryItem> {
         // Validate ownership first
-        await this.getItem(ownerId, itemId, userRole);
+        await this.getItem(ownerId, itemId, userRole, organizationId);
 
         // Validate new dataset/dashboard ownership if provided
         if (dto.datasetId) {
@@ -486,13 +499,25 @@ export class InventoryService {
         if (dto.datasetId !== undefined) updateData.dataset_id = dto.datasetId;
         if (dto.dashboardId !== undefined) updateData.dashboard_id = dto.dashboardId;
 
-        const { data, error } = await this.supabase
+        let query = this.supabase
             .from(this.itemsTable)
             .update(updateData)
-            .eq('id', itemId)
-            .eq('owner_id', ownerId)
-            .select()
-            .single();
+            .eq('id', itemId);
+
+        // Filter based on user role and organization
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            // Admins and superadmins can update items from their organization
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            } else {
+                query = query.eq('owner_id', ownerId);
+            }
+        } else {
+            // Regular users can only update their own items
+            query = query.eq('owner_id', ownerId);
+        }
+
+        const { data, error } = await query.select().single();
 
         if (error) {
             if (error.code === '23505') {
@@ -504,17 +529,25 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async approveItem(ownerId: string, itemId: string, status: 'approved' | 'rejected'): Promise<InventoryItem> {
-        const { data, error } = await this.supabase
+    async approveItem(ownerId: string, itemId: string, status: 'approved' | 'rejected', userRole: string = 'user', organizationId?: string): Promise<InventoryItem> {
+        let query = this.supabase
             .from(this.itemsTable)
             .update({
                 status,
                 approved_by: ownerId,
                 approved_at: new Date().toISOString(),
             })
-            .eq('id', itemId)
-            .select()
-            .single();
+            .eq('id', itemId);
+
+        // Filter based on user role and organization
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            // Admins and superadmins can approve items from their organization
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            }
+        }
+
+        const { data, error } = await query.select().single();
 
         if (error) {
             throw new InternalServerErrorException('No se pudo actualizar el estado del item de inventario');
@@ -523,16 +556,20 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async deleteItem(ownerId: string, itemId: string, userRole: string = 'user'): Promise<void> {
+    async deleteItem(ownerId: string, itemId: string, userRole: string = 'user', organizationId?: string): Promise<void> {
         let query = this.supabase
             .from(this.itemsTable)
             .delete()
             .eq('id', itemId);
 
-        // Filter based on user role
+        // Filter based on user role and organization
         if (userRole === 'admin' || userRole === 'superadmin') {
-            // Admins can delete any item
-            // No additional filter needed
+            // Admins and superadmins can delete items from their organization
+            if (organizationId) {
+                query = query.eq('organization_id', organizationId);
+            } else {
+                query = query.eq('owner_id', ownerId);
+            }
         } else {
             // Regular users can only delete their own items
             query = query.eq('owner_id', ownerId);

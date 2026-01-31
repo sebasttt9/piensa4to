@@ -9,15 +9,15 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/constants/roles.enum';
 import { CreateInventoryItemDto, UpdateInventoryItemDto, ApproveInventoryItemDto } from './dto/inventory-item.dto';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
-import { Inject, InternalServerErrorException } from '@nestjs/common';
+import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { Inject, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class InventoryController {
     constructor(
         private readonly inventoryService: InventoryService,
-        @Inject(SUPABASE_DATA_CLIENT)
+        @Inject(SUPABASE_CLIENT)
         private readonly supabase: SupabaseClient,
     ) { }
 
@@ -74,20 +74,33 @@ export class InventoryController {
     @Patch('test/approve/:id')
     async testApproveItem(@Param('id') itemId: string, @Body() dto: { status: string }) {
         try {
+            // First check if item exists
+            const { data: existing, error: fetchError } = await this.supabase
+                .from('inventory_items')
+                .select('id')
+                .eq('id', itemId)
+                .single();
+
+            if (fetchError || !existing) {
+                return { error: 'Item not found', fetchError: fetchError?.message };
+            }
+
             const { data, error } = await this.supabase
                 .from('inventory_items')
-                .update({ status: dto.status })
+                .update({
+                    status: dto.status
+                })
                 .eq('id', itemId)
                 .select()
                 .single();
 
             if (error) {
-                throw error;
+                return { error: error.message, details: error };
             }
 
             return data;
-        } catch (error) {
-            throw new InternalServerErrorException('Error aprobando item de prueba');
+        } catch (err) {
+            return { error: 'Exception occurred', exception: err.message };
         }
     }
 
@@ -141,14 +154,14 @@ export class InventoryController {
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Body() dto: CreateInventoryItemDto,
     ) {
-        return this.inventoryService.createItem(user.id, dto, user.role);
+        return this.inventoryService.createItem(user.id, dto, user.role, user.organizationId);
     }
 
     @Get('items')
     @Roles(UserRole.User)
     getItems(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
-        console.log('GET /inventory/items called by user:', user.id, 'role:', user.role, 'email:', user.email);
-        return this.inventoryService.getItems(user.id, user.role);
+        console.log('GET /inventory/items called by user:', user.id, 'role:', user.role, 'email:', user.email, 'organizationId:', user.organizationId);
+        return this.inventoryService.getItems(user.id, user.role, user.organizationId);
     }
 
     @Get('items/:id')
@@ -157,7 +170,7 @@ export class InventoryController {
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Param('id') itemId: string,
     ) {
-        return this.inventoryService.getItem(user.id, itemId, user.role);
+        return this.inventoryService.getItem(user.id, itemId, user.role, user.organizationId);
     }
 
     @Put('items/:id')
@@ -167,7 +180,7 @@ export class InventoryController {
         @Param('id') itemId: string,
         @Body() dto: UpdateInventoryItemDto,
     ) {
-        return this.inventoryService.updateItem(user.id, itemId, dto, user.role);
+        return this.inventoryService.updateItem(user.id, itemId, dto, user.role, user.organizationId);
     }
 
     @Patch('items/:id/approve')
@@ -177,7 +190,7 @@ export class InventoryController {
         @Param('id') itemId: string,
         @Body() dto: ApproveInventoryItemDto,
     ) {
-        return this.inventoryService.approveItem(user.id, itemId, dto.status);
+        return this.inventoryService.approveItem(user.id, itemId, dto.status, user.role, user.organizationId);
     }
 
     @Delete('items/:id')
@@ -186,6 +199,6 @@ export class InventoryController {
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Param('id') itemId: string,
     ) {
-        return this.inventoryService.deleteItem(user.id, itemId, user.role);
+        return this.inventoryService.deleteItem(user.id, itemId, user.role, user.organizationId);
     }
 }

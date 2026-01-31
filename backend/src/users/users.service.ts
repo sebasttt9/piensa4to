@@ -14,6 +14,7 @@ interface UserRow {
   role: UserRole;
   password_hash: string;
   approved: boolean;
+  organization_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -206,6 +207,7 @@ export class UsersService {
       role: row.role,
       passwordHash: row.password_hash,
       approved: row.approved,
+      organizationId: row.organization_id ?? undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

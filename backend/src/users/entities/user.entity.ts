@@ -7,6 +7,7 @@ export interface UserEntity {
     role: UserRole;
     passwordHash?: string;
     approved: boolean;
+    organizationId?: string;
     createdAt: string;
     updatedAt: string;
 }

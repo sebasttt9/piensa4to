@@ -94,6 +94,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "approve", null);
 __decorate([
+    (0, common_1.Delete)(':id'),
     (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),

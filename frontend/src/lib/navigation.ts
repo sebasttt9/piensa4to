@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Database, UploadCloud, LineChart, LayoutGrid, ShieldCheck, Boxes, AlertTriangle } from 'lucide-react';
+import { BarChart3, Database, UploadCloud, LineChart, LayoutGrid, ShieldCheck, Boxes, AlertTriangle, Building2 } from 'lucide-react';
 
 export type AppRole = 'user' | 'admin' | 'superadmin';
 
@@ -19,6 +19,7 @@ export const appNavigation: AppNavigationItem[] = [
   { label: 'Subir archivo', to: '/app/upload', icon: UploadCloud, minRole: 'user' },
   { label: 'Dashboards guardados', to: '/app/saved', icon: LayoutGrid, minRole: 'user' },
   { label: 'IA Insights', to: '/app/insights', icon: LineChart, minRole: 'user' },
+  { label: 'Organizaciones', to: '/app/admin/organizations', icon: Building2, minRole: 'superadmin' },
   { label: 'Cuentas y roles', to: '/app/admin/accounts', icon: ShieldCheck, minRole: 'superadmin' },
 ];
 
