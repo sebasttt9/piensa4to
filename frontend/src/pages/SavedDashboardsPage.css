@@ -1,12 +1,7 @@
 .saved-dashboards-page {
   min-height: 100vh;
   padding: 32px 32px 64px;
-  background: radial-gradient(
-    120% 120% at 50% 0%,
-    #1c1f33 0%,
-    #080a16 70%,
-    #050510 100%
-  );
+  background: transparent;
   color: #f8fafc;
   font-family:
     "Inter",

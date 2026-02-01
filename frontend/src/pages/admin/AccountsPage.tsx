@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ShieldCheck, RefreshCcw, UserPlus, Trash2, Users, Crown, Clock, CheckCircle } from 'lucide-react';
+import { ShieldCheck, RefreshCcw, Trash2, Users, Crown, Clock, CheckCircle } from 'lucide-react';
 import { adminUsersAPI, type ManagedUser } from '../../lib/services';
 import { useAuth, type Role } from '../../context/AuthContext';
 import './AccountsPage.css';
@@ -138,28 +138,20 @@ export function AccountsPage() {
 
   return (
     <div className="accounts-page">
-      <section className="accounts-hero">
-        <div className="accounts-hero__icon">
-          <ShieldCheck size={28} />
+      <header className="accounts-header">
+        <div className="accounts-header__top">
+          <div className="accounts-header__icon">
+            <ShieldCheck size={24} />
+          </div>
+          <div className="accounts-header__titles">
+            <span className="accounts-header__eyebrow">Administración central</span>
+            <h1 className="accounts-header__title">Control de cuentas y roles</h1>
+          </div>
         </div>
-        <div className="accounts-hero__content">
-          <span className="accounts-hero__eyebrow">Administración central</span>
-          <h1 className="accounts-hero__title">Control de cuentas y roles</h1>
-          <p className="accounts-hero__subtitle">
-            Supervisa accesos, reasigna permisos y mantén la gobernanza de tu organización en un solo lugar.
-          </p>
-        </div>
-        <div className="accounts-hero__actions">
-          <button type="button" className="accounts-button accounts-button--ghost" onClick={() => void loadAccounts()} disabled={loading}>
-            <RefreshCcw size={16} />
-            Recargar
-          </button>
-          <button type="button" className="accounts-button" disabled>
-            <UserPlus size={16} />
-            Invitar usuario
-          </button>
-        </div>
-      </section>
+        <p className="accounts-header__subtitle">
+          Supervisa accesos, reasigna permisos y mantén la gobernanza de tu organización en un solo lugar.
+        </p>
+      </header>
 
       <section className="accounts-metrics">
         <article className="accounts-metric">
@@ -329,6 +321,18 @@ export function AccountsPage() {
             </table>
           </div>
         </div>
+        <footer className="accounts-table-card__footer">
+          <button
+            type="button"
+            className="accounts-icon-button"
+            onClick={() => void loadAccounts()}
+            disabled={loading}
+            aria-label="Recargar cuentas"
+            title="Recargar cuentas"
+          >
+            <RefreshCcw size={18} />
+          </button>
+        </footer>
       </section>
     </div>
   );

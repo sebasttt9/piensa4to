@@ -654,19 +654,30 @@
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
+  border-radius: 10px;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.12) 0%,
+    rgba(79, 70, 229, 0.16) 100%
+  );
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #e0e7ff;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
 .inventory-items-create-btn:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.18) 0%,
+    rgba(79, 70, 229, 0.22) 100%
+  );
+  border-color: rgba(99, 102, 241, 0.45);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
 .inventory-items-error {

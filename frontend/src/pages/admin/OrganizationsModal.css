@@ -2,129 +2,208 @@
 .organizations-page__modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(4, 6, 20, 0.78);
-  backdrop-filter: blur(6px) saturate(120%);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px) saturate(140%);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 9999;
-  padding: 28px;
+  padding: 32px;
+  overflow-y: auto;
   opacity: 1;
-  transition: opacity 160ms ease-in-out;
+  transition: opacity 180ms ease-in-out;
+  animation: modal-overlay-fade-in 220ms ease-out;
+}
+
+@keyframes modal-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .organizations-page__modal {
-  background: #0c1426;
-  border-radius: 16px;
-  border: 1px solid rgba(99, 102, 241, 0.16);
+  background: linear-gradient(to bottom, #0f172a 0%, #0a0f1e 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(99, 102, 241, 0.24);
   box-shadow:
-    0 24px 68px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(59, 130, 246, 0.08);
-  max-width: 640px;
+    0 28px 80px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(99, 102, 241, 0.12),
+    inset 0 1px 0 0 rgba(148, 163, 184, 0.08);
+  max-width: 620px;
   width: 100%;
-  max-height: 86vh;
+  max-height: 88vh;
   overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
   isolation: isolate;
   opacity: 1;
   transform: translateY(0);
   transition:
-    opacity 160ms ease-in-out,
-    transform 200ms ease-out;
+    opacity 180ms ease-in-out,
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modal-slide-up 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .organizations-page__modal-header {
-  align-items: baseline;
   display: flex;
   justify-content: space-between;
-  padding: 18px 22px 10px;
-  border-bottom: 1px solid #1f2937;
-  gap: 12px;
+  align-items: flex-start;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+  gap: 20px;
+  background: linear-gradient(
+    to bottom,
+    rgba(99, 102, 241, 0.03) 0%,
+    transparent 100%
+  );
 }
 
 .organizations-page__modal-header h3 {
   margin: 0;
-  font-size: 21px;
+  font-size: 22px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: #f1f5f9;
+  letter-spacing: -0.02em;
+  background: linear-gradient(to bottom, #ffffff 0%, #e2e8f0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .organizations-page__eyebrow {
   display: inline-block;
-  padding: 4px 8px;
-  border-radius: 8px;
+  padding: 5px 10px;
+  border-radius: 9px;
   font-size: 11px;
   font-weight: 600;
-  color: #cbd5e1;
-  background: #111827;
-  border: 1px solid #1f2937;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .organizations-page__subtitle {
-  margin: 6px 0 0;
-  color: rgba(229, 231, 235, 0.72);
+  margin: 8px 0 0;
+  color: rgba(203, 213, 225, 0.82);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
 }
 
 .organizations-page__step {
   display: inline-block;
-  margin-top: 6px;
-  padding: 4px 8px;
-  border-radius: 8px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
-  color: #cbd5e1;
-  background: rgba(59, 130, 246, 0.12);
-  border: 1px solid rgba(59, 130, 246, 0.22);
+  color: #e0e7ff;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.18) 0%,
+    rgba(79, 70, 229, 0.22) 100%
+  );
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
-.organizations-page__modal-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: #cbd5e1;
-  padding: 0;
-  transition:
-    color 120ms ease,
-    transform 160ms ease;
+.organizations-page__cancel-btn--close {
+  padding: 8px 12px;
+  font-size: 13px;
 }
 
-.organizations-page__modal-close:hover {
-  color: #fca5a5;
-  transform: scale(1.05);
-}
-
-.organizations-page__modal-close-icon {
-  width: 16px;
-  height: 16px;
+.organizations-page__modal-alert {
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.14) 0%,
+    rgba(220, 38, 38, 0.18) 100%
+  );
+  border: 1px solid rgba(239, 68, 68, 0.38);
+  color: #fecaca;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 500;
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.12);
 }
 
 .organizations-page__modal-body {
-  padding: 18px 24px 14px;
+  padding: 16px 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.organizations-page__modal-body-content {
+  animation: modal-body-slide 280ms ease-out;
+}
+
+.organizations-page__modal-body-content--forward {
+  animation-name: modal-slide-left;
+}
+
+.organizations-page__modal-body-content--backward {
+  animation-name: modal-slide-right;
+}
+
+@keyframes modal-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes modal-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .organizations-page__modal-footer {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: flex-end;
-  padding: 16px 22px 18px;
-  border-top: 1px solid #1f2937;
-  background: #0b1324;
+  padding: 14px 24px;
+  border-top: 1px solid rgba(99, 102, 241, 0.15);
+  background: linear-gradient(
+    to top,
+    rgba(99, 102, 241, 0.02) 0%,
+    transparent 100%
+  );
 }
 
 .organizations-page__field-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px 14px;
+  gap: 14px 16px;
 }
 
 @media (min-width: 720px) {
@@ -137,31 +216,92 @@
   }
 }
 
+.organizations-page__step-content {
+  grid-column: 1 / -1;
+}
+
+.organizations-page__step-content--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 16px;
+}
+
 .organizations-page__hint {
   display: block;
-  margin-top: 6px;
+  margin-top: 7px;
   font-size: 12px;
-  color: rgba(229, 231, 235, 0.55);
+  color: rgba(148, 163, 184, 0.72);
+  font-weight: 400;
+  letter-spacing: -0.005em;
 }
 
 .organizations-page__form-group input,
 .organizations-page__form-group textarea {
   min-height: 42px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.organizations-page__form-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .organizations-page__form-group textarea {
-  min-height: 96px;
+  min-height: 78px;
+  resize: vertical;
 }
 
-.organizations-page__form-group input,
-.organizations-page__form-group textarea {
-  background: #0b1220;
-  border-color: #1f2937;
-  box-shadow: none;
+.organizations-page__modal .organizations-page__form-group input,
+.organizations-page__modal .organizations-page__form-group textarea {
+  padding: 11px 12px;
+  background: #0a0f1e;
+  border: 1.5px solid rgba(99, 102, 241, 0.32);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+  border-radius: 10px;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #f1f5f9;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-.organizations-page__form-group input:focus,
-.organizations-page__form-group textarea:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+.organizations-page__modal .organizations-page__form-group input::placeholder,
+.organizations-page__modal
+  .organizations-page__form-group
+  textarea::placeholder {
+  color: rgba(148, 163, 184, 0.48);
+  font-weight: 400;
+}
+
+.organizations-page__modal .organizations-page__form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.96);
+  margin-bottom: 6px;
+  display: block;
+  letter-spacing: -0.01em;
+}
+
+.organizations-page__modal .organizations-page__form-group input:hover,
+.organizations-page__modal .organizations-page__form-group textarea:hover {
+  border-color: rgba(99, 102, 241, 0.48);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(99, 102, 241, 0.12);
+}
+
+.organizations-page__modal .organizations-page__form-group input:focus,
+.organizations-page__modal .organizations-page__form-group textarea:focus {
+  border-color: #6366f1;
+  background: #0c1220;
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.2),
+    0 0 0 4px rgba(99, 102, 241, 0.18),
+    0 2px 12px rgba(99, 102, 241, 0.15);
+  outline: none;
 }

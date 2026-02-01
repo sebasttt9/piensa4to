@@ -190,7 +190,6 @@ export function IssuesPage() {
       display: 'flex',
       flexDirection: 'column',
       gap: '2rem',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
       minHeight: '100vh',
       color: '#ffffff'
     }}>
@@ -215,21 +214,8 @@ export function IssuesPage() {
         <button
           className="issues-add-button"
           onClick={openCreateForm}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.75rem 1.5rem',
-            background: 'linear-gradient(135deg, #00d4ff, #45b7d1)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
         >
-          <Plus className="issues-add-button__icon" style={{ width: '20px', height: '20px' }} />
+          <Plus className="issues-add-button__icon" />
           Nuevo Reporte
         </button>
       </header>

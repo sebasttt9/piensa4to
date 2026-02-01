@@ -19,18 +19,7 @@
   position: relative;
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(124, 58, 237, 0.32),
-      transparent 48%
-    ),
-    radial-gradient(
-      circle at bottom right,
-      rgba(59, 130, 246, 0.28),
-      transparent 52%
-    ),
-    linear-gradient(135deg, #030617 0%, #111a43 52%, #050414 100%);
+  background: transparent;
   color: #e7ecff;
   font-family:
     "Inter",

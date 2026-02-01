@@ -1,12 +1,7 @@
 .upload-page {
   min-height: 100vh;
   padding: 32px;
-  background: radial-gradient(
-    125% 125% at 50% 0%,
-    #1d1f2f 0%,
-    #070811 65%,
-    #050510 100%
-  );
+  background: transparent;
   color: #f7f7fb;
   font-family:
     "Inter",
