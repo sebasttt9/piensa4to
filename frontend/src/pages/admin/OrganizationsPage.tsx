@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Building2, RefreshCcw, Plus, Trash2, Edit3, Save, X } from 'lucide-react';
+import { Building2, RefreshCcw, Plus, Trash2, Edit3, Save, X, Settings, ArrowRight } from 'lucide-react';
 import { organizationsAPI, type Organization, type CreateOrganizationInput, type UpdateOrganizationInput } from '../../lib/services';
+import { OrganizationManagementPage } from './OrganizationManagementPage';
 import './OrganizationsPage.css';
+import './OrganizationsModal.css';
 
 const formatDate = (value: string) => {
   const date = new Date(value);
@@ -24,16 +26,26 @@ export function OrganizationsPage() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createStep, setCreateStep] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedOrgForManagement, setSelectedOrgForManagement] = useState<Organization | null>(null);
 
   // Form states
   const [createForm, setCreateForm] = useState<CreateOrganizationInput>({
     name: '',
     description: '',
+    location: '',
+    owner: '',
+    ciRuc: '',
+    businessEmail: '',
   });
   const [editForm, setEditForm] = useState<UpdateOrganizationInput>({
     name: '',
     description: '',
+    location: '',
+    owner: '',
+    ciRuc: '',
+    businessEmail: '',
   });
 
   const loadOrganizations = useCallback(async () => {
@@ -51,6 +63,20 @@ export function OrganizationsPage() {
     }
   }, []);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (showCreateForm) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showCreateForm]);
+
   useEffect(() => {
     loadOrganizations();
   }, [loadOrganizations]);
@@ -60,7 +86,8 @@ export function OrganizationsPage() {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && showCreateForm) {
         setShowCreateForm(false);
-        setCreateForm({ name: '', description: '' });
+        setCreateStep(0);
+        setCreateForm({ name: '', description: '', location: '', owner: '', ciRuc: '', businessEmail: '' });
       }
     };
 
@@ -78,9 +105,27 @@ export function OrganizationsPage() {
     };
   }, [showCreateForm]);
 
+  const requiredStep1Filled = createForm.name.trim() !== '' && createForm.owner.trim() !== '';
+  const requiredStep2Filled =
+    createForm.location.trim() !== '' && createForm.ciRuc.trim() !== '' && createForm.businessEmail.trim() !== '';
+
+  const goNextStep = () => {
+    if (!requiredStep1Filled) {
+      setFeedback({ type: 'error', message: 'Completa Nombre y Dueño para continuar.' });
+      return;
+    }
+    setFeedback(null);
+    setCreateStep(1);
+  };
+
+  const resetCreateState = () => {
+    setCreateStep(0);
+    setCreateForm({ name: '', description: '', location: '', owner: '', ciRuc: '', businessEmail: '' });
+  };
+
   const handleCreate = async () => {
-    if (!createForm.name.trim()) {
-      setFeedback({ type: 'error', message: 'El nombre de la organización es obligatorio.' });
+    if (!requiredStep1Filled || !requiredStep2Filled) {
+      setFeedback({ type: 'error', message: 'Completa los campos obligatorios (Descripción es opcional).' });
       return;
     }
 
@@ -88,7 +133,7 @@ export function OrganizationsPage() {
     setFeedback(null);
     try {
       await organizationsAPI.create(createForm);
-      setCreateForm({ name: '', description: '' });
+      resetCreateState();
       setShowCreateForm(false);
       setFeedback({ type: 'success', message: 'Organización creada exitosamente.' });
       await loadOrganizations();
@@ -105,6 +150,10 @@ export function OrganizationsPage() {
     setEditForm({
       name: organization.name,
       description: organization.description || '',
+      location: organization.location || '',
+      owner: organization.owner || '',
+      ciRuc: organization.ciRuc || '',
+      businessEmail: organization.businessEmail || '',
     });
   };
 
@@ -121,7 +170,7 @@ export function OrganizationsPage() {
     try {
       await organizationsAPI.update(editingId, editForm);
       setEditingId(null);
-      setEditForm({ name: '', description: '' });
+      setEditForm({ name: '', description: '', location: '', owner: '', ciRuc: '', businessEmail: '' });
       setFeedback({ type: 'success', message: 'Organización actualizada exitosamente.' });
       await loadOrganizations();
     } catch (err) {
@@ -156,6 +205,15 @@ export function OrganizationsPage() {
     setEditForm({ name: '', description: '' });
   };
 
+  if (selectedOrgForManagement) {
+    return (
+      <OrganizationManagementPage
+        organization={selectedOrgForManagement}
+        onBack={() => setSelectedOrgForManagement(null)}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div className="organizations-page">
@@ -185,7 +243,10 @@ export function OrganizationsPage() {
           </button>
           <button
             className="organizations-page__create-btn"
-            onClick={() => setShowCreateForm(true)}
+            onClick={() => {
+              setCreateStep(0);
+              setShowCreateForm(true);
+            }}
           >
             <Plus className="organizations-page__create-icon" />
             Nueva Organización
@@ -211,69 +272,148 @@ export function OrganizationsPage() {
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowCreateForm(false);
-              setCreateForm({ name: '', description: '' });
+              resetCreateState();
             }
           }}
         >
           <div className="organizations-page__modal">
             <div className="organizations-page__modal-header">
-              <h3>Crear Nueva Organización</h3>
+              <div>
+                <span className="organizations-page__eyebrow">Nuevo registro</span>
+                <h3>Crear Nueva Organización</h3>
+                <p className="organizations-page__subtitle">Define los datos clave de la empresa para habilitar accesos y permisos.</p>
+                <span className="organizations-page__step">Paso {createStep + 1} de 2</span>
+              </div>
               <button
                 className="organizations-page__modal-close"
                 onClick={() => {
                   setShowCreateForm(false);
-                  setCreateForm({ name: '', description: '' });
+                  resetCreateState();
                 }}
+                aria-label="Cerrar"
               >
                 <X className="organizations-page__modal-close-icon" />
               </button>
             </div>
             <div className="organizations-page__modal-body">
-              <div className="organizations-page__form-group">
-                <label htmlFor="create-name">Nombre *</label>
-                <input
-                  id="create-name"
-                  type="text"
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Nombre de la organización"
-                  autoFocus
-                />
-              </div>
-              <div className="organizations-page__form-group">
-                <label htmlFor="create-description">Descripción</label>
-                <textarea
-                  id="create-description"
-                  value={createForm.description}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Descripción opcional"
-                  rows={4}
-                />
+              <div className="organizations-page__field-grid">
+                <div className="organizations-page__form-group">
+                  <label htmlFor="create-name">Nombre *</label>
+                  <input
+                    id="create-name"
+                    type="text"
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Nombre de la organización"
+                    autoFocus
+                  />
+                  <span className="organizations-page__hint">Será visible para admins y usuarios.</span>
+                </div>
+                <div className="organizations-page__form-group">
+                  <label htmlFor="create-owner">Dueño *</label>
+                  <input
+                    id="create-owner"
+                    type="text"
+                    value={createForm.owner}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, owner: e.target.value }))}
+                    placeholder="Nombre del propietario"
+                  />
+                </div>
+                {createStep === 0 && (
+                  <div className="organizations-page__form-group organizations-page__form-group--full">
+                    <label htmlFor="create-description">Descripción (opcional)</label>
+                    <textarea
+                      id="create-description"
+                      value={createForm.description}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Propósito, líneas de negocio o notas internas"
+                      rows={3}
+                    />
+                  </div>
+                )}
+
+                {createStep === 1 && (
+                  <>
+                    <div className="organizations-page__form-group">
+                      <label htmlFor="create-location">Ubicación *</label>
+                      <input
+                        id="create-location"
+                        type="text"
+                        value={createForm.location}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, location: e.target.value }))}
+                        placeholder="Ciudad, País"
+                      />
+                    </div>
+                    <div className="organizations-page__form-group">
+                      <label htmlFor="create-ciRuc">CI/RUC *</label>
+                      <input
+                        id="create-ciRuc"
+                        type="text"
+                        value={createForm.ciRuc}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, ciRuc: e.target.value }))}
+                        placeholder="Cédula de identidad o RUC"
+                      />
+                    </div>
+                    <div className="organizations-page__form-group organizations-page__form-group--full">
+                      <label htmlFor="create-businessEmail">Email Empresarial *</label>
+                      <input
+                        id="create-businessEmail"
+                        type="email"
+                        value={createForm.businessEmail}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, businessEmail: e.target.value }))}
+                        placeholder="email@empresa.com"
+                      />
+                      <span className="organizations-page__hint">Usa un correo corporativo para notificaciones.</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="organizations-page__modal-footer">
-              <button
-                className="organizations-page__cancel-btn"
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setCreateForm({ name: '', description: '' });
-                }}
-              >
-                <X className="organizations-page__cancel-icon" />
-                Cancelar
-              </button>
-              <button
-                className="organizations-page__submit-btn"
-                onClick={handleCreate}
-                disabled={processingId === 'create'}
-              >
-                {processingId === 'create' ? (
-                  <RefreshCcw className="organizations-page__submit-icon organizations-page__submit-icon--spinning" />
-                ) : (
-                  <Save className="organizations-page__submit-icon" />
-                )}
-                Crear
-              </button>
+              {createStep === 0 ? (
+                <>
+                  <button
+                    className="organizations-page__cancel-btn"
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      resetCreateState();
+                    }}
+                  >
+                    <X className="organizations-page__cancel-icon" />
+                    Cancelar
+                  </button>
+                  <button
+                    className="organizations-page__submit-btn"
+                    onClick={goNextStep}
+                    disabled={processingId === 'create'}
+                  >
+                    Siguiente
+                    <ArrowRight className="organizations-page__submit-icon" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    className="organizations-page__cancel-btn"
+                    onClick={() => setCreateStep(0)}
+                  >
+                    <X className="organizations-page__cancel-icon" />
+                    Anterior
+                  </button>
+                  <button
+                    className="organizations-page__submit-btn"
+                    onClick={handleCreate}
+                    disabled={processingId === 'create'}
+                  >
+                    {processingId === 'create' ? (
+                      <RefreshCcw className="organizations-page__submit-icon organizations-page__submit-icon--spinning" />
+                    ) : (
+                      <Save className="organizations-page__submit-icon" />
+                    )}
+                    Crear
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -349,6 +489,13 @@ export function OrganizationsPage() {
                       </>
                     ) : (
                       <>
+                        <button
+                          className="organizations-page__manage-btn"
+                          onClick={() => setSelectedOrgForManagement(organization)}
+                          title="Gestionar organización"
+                        >
+                          <Settings className="organizations-page__manage-icon" />
+                        </button>
                         <button
                           className="organizations-page__edit-btn"
                           onClick={() => handleEdit(organization)}

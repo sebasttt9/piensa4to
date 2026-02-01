@@ -5,6 +5,7 @@ import { CreateManualDatasetDto } from './dto/create-manual-dataset.dto';
 export declare class DatasetsController {
     private readonly datasetsService;
     constructor(datasetsService: DatasetsService);
+    private validateOrganization;
     findAll(user: Omit<UserEntity, 'passwordHash'>, page?: number, limit?: number): Promise<{
         data: import("./entities/dataset.entity").DatasetEntity[];
         total: number;

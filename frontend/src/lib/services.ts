@@ -598,6 +598,10 @@ export interface Organization {
     id: string;
     name: string;
     description?: string;
+    location?: string;
+    owner?: string;
+    ciRuc?: string;
+    businessEmail?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -605,11 +609,19 @@ export interface Organization {
 export interface CreateOrganizationInput {
     name: string;
     description?: string;
+    location?: string;
+    owner?: string;
+    ciRuc?: string;
+    businessEmail?: string;
 }
 
 export interface UpdateOrganizationInput {
     name?: string;
     description?: string;
+    location?: string;
+    owner?: string;
+    ciRuc?: string;
+    businessEmail?: string;
 }
 
 export const organizationsAPI = {

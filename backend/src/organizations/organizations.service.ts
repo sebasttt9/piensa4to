@@ -8,6 +8,10 @@ interface OrganizationRow {
     id: string;
     name: string;
     description: string | null;
+    location: string | null;
+    owner: string | null;
+    ci_ruc: string | null;
+    business_email: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -27,11 +31,16 @@ export class OrganizationsService {
             .insert({
                 name: dto.name,
                 description: dto.description ?? null,
+                location: dto.location ?? null,
+                owner: dto.owner ?? null,
+                ci_ruc: dto.ciRuc ?? null,
+                business_email: dto.businessEmail ?? null,
             })
             .select('*')
             .single();
 
         if (error) {
+            console.error('Supabase error creando organización', error);
             throw new InternalServerErrorException('No se pudo crear la organización');
         }
 
@@ -45,6 +54,7 @@ export class OrganizationsService {
             .order('created_at', { ascending: false });
 
         if (error) {
+            console.error('Supabase error listando organizaciones', error);
             throw new InternalServerErrorException('No se pudieron listar las organizaciones');
         }
 
@@ -59,6 +69,9 @@ export class OrganizationsService {
             .single();
 
         if (error || !data) {
+            if (error) {
+                console.error('Supabase error obteniendo organización', error);
+            }
             throw new NotFoundException('Organización no encontrada');
         }
 
@@ -74,6 +87,9 @@ export class OrganizationsService {
             .single();
 
         if (error || !data) {
+            if (error) {
+                console.error('Supabase error actualizando organización', error);
+            }
             throw new NotFoundException('Organización no encontrada');
         }
 
@@ -87,6 +103,7 @@ export class OrganizationsService {
             .eq('id', id);
 
         if (error) {
+            console.error('Supabase error eliminando organización', error);
             throw new InternalServerErrorException('No se pudo eliminar la organización');
         }
     }
@@ -96,6 +113,10 @@ export class OrganizationsService {
             id: row.id,
             name: row.name,
             description: row.description ?? undefined,
+            location: row.location ?? undefined,
+            owner: row.owner ?? undefined,
+            ciRuc: row.ci_ruc ?? undefined,
+            businessEmail: row.business_email ?? undefined,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };

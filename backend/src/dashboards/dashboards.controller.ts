@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -26,9 +27,15 @@ import type { Response } from 'express';
 export class DashboardsController {
   constructor(private readonly dashboardsService: DashboardsService) { }
 
+  private validateOrganization(organizationId?: string): string {
+    // Fallback para entornos donde aún no se asigna organizationId al usuario
+    return organizationId ?? 'default-org';
+  }
+
   @Post()
   create(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Body() dto: CreateDashboardDto) {
-    return this.dashboardsService.create(user.id, dto, user.role, user.organizationId);
+    const organizationId = this.validateOrganization(user.organizationId);
+    return this.dashboardsService.create(user.id, dto, user.role, organizationId);
   }
 
   @Get()
@@ -37,12 +44,13 @@ export class DashboardsController {
     @Query('page') page = 1,
     @Query('limit') limit = 10,
   ) {
+    const organizationId = this.validateOrganization(user.organizationId);
     const parsedPage = Number(page) || 1;
     const parsedLimit = Number(limit) || 10;
     const skip = (parsedPage - 1) * parsedLimit;
     const [dashboards, total] = await Promise.all([
-      this.dashboardsService.findAll(user.id, user.role, skip, parsedLimit, user.organizationId),
-      this.dashboardsService.countByUser(user.id, user.role, user.organizationId),
+      this.dashboardsService.findAll(user.id, user.role, skip, parsedLimit, organizationId),
+      this.dashboardsService.countByUser(user.id, user.role, organizationId),
     ]);
     return {
       data: dashboards,
@@ -54,7 +62,8 @@ export class DashboardsController {
 
   @Get(':id')
   findOne(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
-    return this.dashboardsService.findOne(user.id, id, user.role, user.organizationId);
+    const organizationId = this.validateOrganization(user.organizationId);
+    return this.dashboardsService.findOne(user.id, id, user.role, organizationId);
   }
 
   @Put(':id')
@@ -63,7 +72,8 @@ export class DashboardsController {
     @Param('id') id: string,
     @Body() dto: UpdateDashboardDto,
   ) {
-    return this.dashboardsService.update(user.id, id, dto, user.role, user.organizationId);
+    const organizationId = this.validateOrganization(user.organizationId);
+    return this.dashboardsService.update(user.id, id, dto, user.role, organizationId);
   }
 
   @Patch(':id/share')
@@ -72,7 +82,8 @@ export class DashboardsController {
     @Param('id') id: string,
     @Body() dto: { isPublic: boolean },
   ) {
-    return this.dashboardsService.share(user.id, id, dto.isPublic, user.role, user.organizationId);
+    const organizationId = this.validateOrganization(user.organizationId);
+    return this.dashboardsService.share(user.id, id, dto.isPublic, user.role, organizationId);
   }
 
   @Post(':id/share/invite')
@@ -81,12 +92,14 @@ export class DashboardsController {
     @Param('id') id: string,
     @Body() dto: ShareDashboardDto,
   ) {
-    return this.dashboardsService.shareWithContact(user.id, id, dto, user.role, user.organizationId);
+    const organizationId = this.validateOrganization(user.organizationId);
+    return this.dashboardsService.shareWithContact(user.id, id, dto, user.role, organizationId);
   }
 
   @Delete(':id')
   remove(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
-    return this.dashboardsService.remove(user.id, id, user.role, user.organizationId);
+    const organizationId = this.validateOrganization(user.organizationId);
+    return this.dashboardsService.remove(user.id, id, user.role, organizationId);
   }
 
   @Get(':id/export')
@@ -96,15 +109,16 @@ export class DashboardsController {
     @Query('format') format = 'json',
     @Res() res: Response,
   ) {
+    const organizationId = this.validateOrganization(user.organizationId);
     const normalizedFormat = format === 'pdf' ? 'pdf' : 'json';
     if (normalizedFormat === 'json') {
-      const dashboard = await this.dashboardsService.export(user.id, id, 'json', user.role, user.organizationId);
+      const dashboard = await this.dashboardsService.export(user.id, id, 'json', user.role, organizationId);
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.json"`);
       return res.send(JSON.stringify(dashboard, null, 2));
     }
 
-    const pdfBuffer = await this.dashboardsService.export(user.id, id, 'pdf', user.role, user.organizationId);
+    const pdfBuffer = await this.dashboardsService.export(user.id, id, 'pdf', user.role, organizationId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.pdf"`);
     return res.send(pdfBuffer);
@@ -112,6 +126,7 @@ export class DashboardsController {
 
   @Patch(':id/approve')
   approve(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string, @Body() dto: ApproveDashboardDto) {
-    return this.dashboardsService.approveDashboard(user.id, id, dto.status, user.role, user.organizationId);
+    const organizationId = this.validateOrganization(user.organizationId);
+    return this.dashboardsService.approveDashboard(user.id, id, dto.status, user.role, organizationId);
   }
 }

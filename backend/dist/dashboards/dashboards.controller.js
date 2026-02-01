@@ -26,16 +26,21 @@ let DashboardsController = class DashboardsController {
     constructor(dashboardsService) {
         this.dashboardsService = dashboardsService;
     }
+    validateOrganization(organizationId) {
+        return organizationId ?? 'default-org';
+    }
     create(user, dto) {
-        return this.dashboardsService.create(user.id, dto, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.dashboardsService.create(user.id, dto, user.role, organizationId);
     }
     async findAll(user, page = 1, limit = 10) {
+        const organizationId = this.validateOrganization(user.organizationId);
         const parsedPage = Number(page) || 1;
         const parsedLimit = Number(limit) || 10;
         const skip = (parsedPage - 1) * parsedLimit;
         const [dashboards, total] = await Promise.all([
-            this.dashboardsService.findAll(user.id, user.role, skip, parsedLimit, user.organizationId),
-            this.dashboardsService.countByUser(user.id, user.role, user.organizationId),
+            this.dashboardsService.findAll(user.id, user.role, skip, parsedLimit, organizationId),
+            this.dashboardsService.countByUser(user.id, user.role, organizationId),
         ]);
         return {
             data: dashboards,
@@ -45,35 +50,42 @@ let DashboardsController = class DashboardsController {
         };
     }
     findOne(user, id) {
-        return this.dashboardsService.findOne(user.id, id, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.dashboardsService.findOne(user.id, id, user.role, organizationId);
     }
     update(user, id, dto) {
-        return this.dashboardsService.update(user.id, id, dto, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.dashboardsService.update(user.id, id, dto, user.role, organizationId);
     }
     share(user, id, dto) {
-        return this.dashboardsService.share(user.id, id, dto.isPublic, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.dashboardsService.share(user.id, id, dto.isPublic, user.role, organizationId);
     }
     shareWithContact(user, id, dto) {
-        return this.dashboardsService.shareWithContact(user.id, id, dto, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.dashboardsService.shareWithContact(user.id, id, dto, user.role, organizationId);
     }
     remove(user, id) {
-        return this.dashboardsService.remove(user.id, id, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.dashboardsService.remove(user.id, id, user.role, organizationId);
     }
     async export(user, id, format = 'json', res) {
+        const organizationId = this.validateOrganization(user.organizationId);
         const normalizedFormat = format === 'pdf' ? 'pdf' : 'json';
         if (normalizedFormat === 'json') {
-            const dashboard = await this.dashboardsService.export(user.id, id, 'json', user.role, user.organizationId);
+            const dashboard = await this.dashboardsService.export(user.id, id, 'json', user.role, organizationId);
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.json"`);
             return res.send(JSON.stringify(dashboard, null, 2));
         }
-        const pdfBuffer = await this.dashboardsService.export(user.id, id, 'pdf', user.role, user.organizationId);
+        const pdfBuffer = await this.dashboardsService.export(user.id, id, 'pdf', user.role, organizationId);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="dashboard-${id}.pdf"`);
         return res.send(pdfBuffer);
     }
     approve(user, id, dto) {
-        return this.dashboardsService.approveDashboard(user.id, id, dto.status, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.dashboardsService.approveDashboard(user.id, id, dto.status, user.role, organizationId);
     }
 };
 exports.DashboardsController = DashboardsController;

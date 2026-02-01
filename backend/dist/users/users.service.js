@@ -53,8 +53,10 @@ const supabase_constants_1 = require("../database/supabase.constants");
 const supabase_js_1 = require("@supabase/supabase-js");
 let UsersService = class UsersService {
     supabase;
-    constructor(supabase) {
+    supabaseData;
+    constructor(supabase, supabaseData) {
         this.supabase = supabase;
+        this.supabaseData = supabaseData;
     }
     tableName = 'users';
     async create(createUserDto) {
@@ -73,6 +75,7 @@ let UsersService = class UsersService {
                 role: createUserDto.role ?? roles_enum_1.UserRole.User,
                 password_hash: hashedPassword,
                 approved: createUserDto.role === roles_enum_1.UserRole.SuperAdmin ? true : false,
+                organization_id: createUserDto.organizationId ?? null,
             })
                 .select()
                 .single();
@@ -163,12 +166,15 @@ let UsersService = class UsersService {
         if (changes.approved !== undefined) {
             updatePayload.approved = changes.approved;
         }
+        if (changes.organizationId !== undefined) {
+            updatePayload.organization_id = changes.organizationId ?? null;
+        }
         if (Object.keys(updatePayload).length === 0) {
             return this.findById(id);
         }
         const { data, error } = await this.supabase
             .from(this.tableName)
-            .update(updatePayload)
+            .update({ ...updatePayload, updated_at: new Date().toISOString() })
             .eq('id', id)
             .select('*')
             .maybeSingle();
@@ -179,6 +185,91 @@ let UsersService = class UsersService {
             throw new common_1.NotFoundException('Usuario no encontrado');
         }
         return this.toPublicUser(data);
+    }
+    async assignOrganization(id, dto) {
+        const { data: orgData, error: orgError } = await this.supabaseData
+            .from('organizations')
+            .select('id')
+            .eq('id', dto.organizationId)
+            .maybeSingle();
+        if (orgError) {
+            throw new common_1.InternalServerErrorException('No se pudo verificar la organización');
+        }
+        if (!orgData) {
+            throw new common_1.NotFoundException('Organización no encontrada');
+        }
+        const approve = dto.approve ?? (dto.makeAdmin ? true : undefined);
+        const updatePayload = {
+            organization_id: dto.organizationId,
+            updated_at: new Date().toISOString(),
+        };
+        if (dto.makeAdmin) {
+            updatePayload.role = roles_enum_1.UserRole.Admin;
+        }
+        if (approve !== undefined) {
+            updatePayload.approved = approve;
+        }
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update(updatePayload)
+            .eq('id', id)
+            .select('*')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo asignar la organización al usuario');
+        }
+        if (!data) {
+            throw new common_1.NotFoundException('Usuario no encontrado');
+        }
+        return this.toPublicUser(data);
+    }
+    async updateProfile(id, changes) {
+        const updatePayload = {};
+        if (changes.name) {
+            updatePayload.name = changes.name;
+        }
+        if (Object.keys(updatePayload).length === 0) {
+            return this.findById(id);
+        }
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update(updatePayload)
+            .eq('id', id)
+            .select('*')
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo actualizar el perfil');
+        }
+        if (!data) {
+            throw new common_1.NotFoundException('Usuario no encontrado');
+        }
+        return this.toPublicUser(data);
+    }
+    async changePassword(id, currentPassword, newPassword) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+        if (error) {
+            throw new common_1.InternalServerErrorException('No se pudo obtener el usuario');
+        }
+        if (!data) {
+            throw new common_1.NotFoundException('Usuario no encontrado');
+        }
+        const userRow = data;
+        const isValid = await bcrypt.compare(currentPassword, userRow.password_hash ?? '');
+        if (!isValid) {
+            throw new common_1.BadRequestException('La contraseña actual no es correcta');
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        const { error: updateError } = await this.supabase
+            .from(this.tableName)
+            .update({ password_hash: hashedPassword })
+            .eq('id', id);
+        if (updateError) {
+            throw new common_1.InternalServerErrorException('No se pudo actualizar la contraseña');
+        }
     }
     async remove(id) {
         const { data, error } = await this.supabase
@@ -216,7 +307,9 @@ let UsersService = class UsersService {
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_DATA_CLIENT)),
-    __metadata("design:paramtypes", [supabase_js_1.SupabaseClient])
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
+    __param(1, (0, common_1.Inject)(supabase_constants_1.SUPABASE_DATA_CLIENT)),
+    __metadata("design:paramtypes", [supabase_js_1.SupabaseClient,
+        supabase_js_1.SupabaseClient])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

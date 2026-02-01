@@ -294,106 +294,6 @@
   animation: spin 1s linear infinite;
 }
 
-/* Modal Styles */
-.organizations-page__modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(5, 9, 30, 0.8);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.organizations-page__modal {
-  background: linear-gradient(
-    140deg,
-    rgba(15, 23, 42, 0.95),
-    rgba(30, 41, 59, 0.9)
-  );
-  border-radius: 20px;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  box-shadow: 0 32px 64px rgba(5, 9, 30, 0.6);
-  max-width: 500px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  animation: modalSlideIn 0.3s ease-out;
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.organizations-page__modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24px 28px 20px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-}
-
-.organizations-page__modal-header h3 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #f8fafc;
-  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.organizations-page__modal-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: none;
-  background: rgba(148, 163, 184, 0.1);
-  color: rgba(226, 232, 240, 0.7);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.organizations-page__modal-close:hover {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-  transform: scale(1.05);
-}
-
-.organizations-page__modal-close-icon {
-  width: 18px;
-  height: 18px;
-}
-
-.organizations-page__modal-body {
-  padding: 24px 28px;
-}
-
-.organizations-page__modal-footer {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  padding: 20px 28px 24px;
-  border-top: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(15, 23, 42, 0.3);
-}
-
 .organizations-page__table-container {
   max-width: 1120px;
   margin: 0 auto;
@@ -456,7 +356,8 @@
 .organizations-page__edit-btn,
 .organizations-page__save-btn,
 .organizations-page__cancel-edit-btn,
-.organizations-page__delete-btn {
+.organizations-page__delete-btn,
+.organizations-page__manage-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -475,6 +376,15 @@
 
 .organizations-page__edit-btn:hover {
   background: rgba(59, 130, 246, 0.2);
+}
+
+.organizations-page__manage-btn {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.organizations-page__manage-btn:hover {
+  background: rgba(139, 92, 246, 0.2);
 }
 
 .organizations-page__save-btn {
@@ -514,7 +424,8 @@
 .organizations-page__edit-icon,
 .organizations-page__save-icon,
 .organizations-page__cancel-edit-icon,
-.organizations-page__delete-icon {
+.organizations-page__delete-icon,
+.organizations-page__manage-icon {
   width: 16px;
   height: 16px;
 }

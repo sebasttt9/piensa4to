@@ -23,6 +23,9 @@ const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const roles_enum_1 = require("../common/constants/roles.enum");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
+const change_password_dto_1 = require("./dto/change-password.dto");
+const update_profile_dto_1 = require("./dto/update-profile.dto");
+const assign_organization_dto_1 = require("./dto/assign-organization.dto");
 let UsersController = class UsersController {
     usersService;
     constructor(usersService) {
@@ -30,6 +33,12 @@ let UsersController = class UsersController {
     }
     getProfile(user) {
         return user;
+    }
+    updateProfile(user, dto) {
+        return this.usersService.updateProfile(user.id, dto);
+    }
+    changePassword(user, dto) {
+        return this.usersService.changePassword(user.id, dto.currentPassword, dto.newPassword);
     }
     findAll() {
         return this.usersService.findAll();
@@ -39,6 +48,9 @@ let UsersController = class UsersController {
     }
     update(id, dto) {
         return this.usersService.update(id, dto);
+    }
+    assignOrganization(id, dto) {
+        return this.usersService.assignOrganization(id, dto);
     }
     approve(id) {
         return this.usersService.update(id, { approved: true });
@@ -61,6 +73,22 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "getProfile", null);
+__decorate([
+    (0, common_1.Put)('me'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_profile_dto_1.UpdateProfileDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "updateProfile", null);
+__decorate([
+    (0, common_1.Post)('change-password'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "changePassword", null);
 __decorate([
     (0, common_1.Get)(),
     (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
@@ -85,6 +113,15 @@ __decorate([
     __metadata("design:paramtypes", [String, update_user_dto_1.UpdateUserDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "update", null);
+__decorate([
+    (0, common_1.Patch)(':id/organization'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, assign_organization_dto_1.AssignOrganizationDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "assignOrganization", null);
 __decorate([
     (0, common_1.Patch)(':id/approve'),
     (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),

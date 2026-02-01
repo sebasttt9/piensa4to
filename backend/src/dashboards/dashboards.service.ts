@@ -2,7 +2,7 @@ import { Inject, Injectable, NotFoundException, InternalServerErrorException, Ba
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { DatasetsService } from '../datasets/datasets.service';
-import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { DashboardEntity, DashboardChartEntity } from './entities/dashboard.entity';
 import { ShareDashboardDto, ShareChannel } from './dto/share-dashboard.dto';
@@ -55,7 +55,7 @@ export interface DashboardShareEntity {
 @Injectable()
 export class DashboardsService {
   constructor(
-    @Inject(SUPABASE_CLIENT)
+    @Inject(SUPABASE_DATA_CLIENT)
     private readonly supabase: SupabaseClient,
     private readonly datasetsService: DatasetsService,
   ) { }
@@ -64,10 +64,14 @@ export class DashboardsService {
   private readonly shareTableName = 'dashboard_shares';
   private readonly datasetsJoinTable = 'dashboard_datasets';
 
-  async create(ownerId: string, dto: CreateDashboardDto, userRole: string = 'user', organizationId?: string): Promise<DashboardEntity> {
+  async create(ownerId: string, dto: CreateDashboardDto, userRole: string = 'user', organizationId: string): Promise<DashboardEntity> {
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para crear dashboards');
+    }
+
     if (dto.datasetIds && dto.datasetIds.length > 0) {
       for (const datasetId of dto.datasetIds) {
-        await this.datasetsService.findOne(ownerId, datasetId);
+        await this.datasetsService.findOne(ownerId, datasetId, userRole, organizationId);
       }
     }
 
@@ -111,33 +115,22 @@ export class DashboardsService {
     userRole: string = 'user',
     skip = 0,
     limit = 10,
-    organizationId?: string,
+    organizationId: string,
   ): Promise<DashboardEntity[]> {
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para listar dashboards');
+    }
+
     const rangeStart = skip;
     const rangeEnd = skip + limit - 1;
 
-    let query = this.supabase
+    // All users in the same organization can see all dashboards from that organization
+    const { data, error } = await this.supabase
       .from(this.tableName)
       .select('*')
+      .eq('organization_id', organizationId)
       .order('updated_at', { ascending: false })
       .range(rangeStart, rangeEnd);
-
-    // Filter based on user role and organization
-    if (userRole === 'admin' || userRole === 'superadmin') {
-      // Admins and superadmins can see dashboards from their organization
-      if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-      }
-    } else {
-      // Regular users can only see their own dashboards or public dashboards from their organization
-      if (organizationId) {
-        query = query.or(`and(owner_id.eq.${ownerId},organization_id.eq.${organizationId}),and(is_public.eq.true,organization_id.eq.${organizationId})`);
-      } else {
-        query = query.or(`owner_id.eq.${ownerId},is_public.eq.true`);
-      }
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       throw new InternalServerErrorException('No se pudieron listar los dashboards');
@@ -149,27 +142,16 @@ export class DashboardsService {
     return rows.map((row) => this.toEntity(row, datasets.get(row.id)));
   }
 
-  async countByUser(ownerId: string, userRole: string = 'user', organizationId?: string): Promise<number> {
-    let query = this.supabase
-      .from(this.tableName)
-      .select('id', { count: 'exact', head: true });
-
-    // Filter based on user role and organization
-    if (userRole === 'admin' || userRole === 'superadmin') {
-      // Admins and superadmins can see dashboards from their organization
-      if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-      }
-    } else {
-      // Regular users can only see their own dashboards or public dashboards from their organization
-      if (organizationId) {
-        query = query.or(`and(owner_id.eq.${ownerId},organization_id.eq.${organizationId}),and(is_public.eq.true,organization_id.eq.${organizationId})`);
-      } else {
-        query = query.or(`owner_id.eq.${ownerId},is_public.eq.true`);
-      }
+  async countByUser(ownerId: string, userRole: string = 'user', organizationId: string): Promise<number> {
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para contar dashboards');
     }
 
-    const { count, error } = await query;
+    // Count all dashboards from the organization
+    const { count, error } = await this.supabase
+      .from(this.tableName)
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', organizationId);
 
     if (error) {
       throw new InternalServerErrorException('No se pudo contar los dashboards');
@@ -178,26 +160,18 @@ export class DashboardsService {
     return count ?? 0;
   }
 
-  async findOne(ownerId: string, id: string, userRole: string = 'user', organizationId?: string): Promise<DashboardEntity> {
-    let query = this.supabase
-      .from(this.tableName)
-      .select('*')
-      .eq('id', id);
-
-    // Filter based on user role and organization
-    if (userRole === 'admin' || userRole === 'superadmin') {
-      // Admins and superadmins can access dashboards from their organization
-      if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-      } else {
-        query = query.eq('owner_id', ownerId);
-      }
-    } else {
-      // Regular users can only access their own dashboards
-      query = query.eq('owner_id', ownerId);
+  async findOne(ownerId: string, id: string, userRole: string = 'user', organizationId: string): Promise<DashboardEntity> {
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para obtener dashboards');
     }
 
-    const { data, error } = await query.maybeSingle();
+    // All users in the organization can access dashboards from that organization
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException('No se pudo obtener el dashboard');
@@ -217,39 +191,31 @@ export class DashboardsService {
     id: string,
     dto: UpdateDashboardDto,
     userRole: string = 'user',
-    organizationId?: string,
+    organizationId: string,
   ): Promise<DashboardEntity> {
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para actualizar dashboards');
+    }
+
     const { datasetIds, ...rest } = dto;
 
     // Validate new dataset ownership
     if (datasetIds && datasetIds.length > 0) {
       for (const datasetId of datasetIds) {
-        await this.datasetsService.findOne(ownerId, datasetId);
+        await this.datasetsService.findOne(ownerId, datasetId, userRole, organizationId);
       }
     }
-
 
     const updatePayload: Record<string, unknown> = { ...rest };
 
-    let query = this.supabase
+    // All users in the organization can update dashboards from that organization
+    const { data, error } = await this.supabase
       .from(this.tableName)
       .update(updatePayload)
-      .eq('id', id);
-
-    // Filter based on user role and organization
-    if (userRole === 'admin' || userRole === 'superadmin') {
-      // Admins and superadmins can update dashboards from their organization
-      if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-      } else {
-        query = query.eq('owner_id', ownerId);
-      }
-    } else {
-      // Regular users can only update their own dashboards
-      query = query.eq('owner_id', ownerId);
-    }
-
-    const { data, error } = await query.select('*').maybeSingle();
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select('*')
+      .maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException('No se pudo actualizar el dashboard');
@@ -271,27 +237,20 @@ export class DashboardsService {
     id: string,
     isPublic: boolean,
     userRole: string = 'user',
-    organizationId?: string,
+    organizationId: string,
   ): Promise<DashboardEntity> {
-    let query = this.supabase
-      .from(this.tableName)
-      .update({ is_public: isPublic })
-      .eq('id', id);
-
-    // Filter based on user role and organization
-    if (userRole === 'admin' || userRole === 'superadmin') {
-      // Admins and superadmins can share dashboards from their organization
-      if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-      } else {
-        query = query.eq('owner_id', ownerId);
-      }
-    } else {
-      // Regular users can only share their own dashboards
-      query = query.eq('owner_id', ownerId);
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para compartir dashboards');
     }
 
-    const { data, error } = await query.select('*').maybeSingle();
+    // All users in the organization can share dashboards from that organization
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .update({ is_public: isPublic })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select('*')
+      .maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException('No se pudo compartir el dashboard');
@@ -306,26 +265,19 @@ export class DashboardsService {
     return this.toEntity(data as DashboardRow, datasets.get((data as DashboardRow).id));
   }
 
-  async remove(ownerId: string, id: string, userRole: string = 'user', organizationId?: string): Promise<void> {
-    let query = this.supabase
-      .from(this.tableName)
-      .delete()
-      .eq('id', id);
-
-    // Filter based on user role and organization
-    if (userRole === 'admin' || userRole === 'superadmin') {
-      // Admins and superadmins can delete dashboards from their organization
-      if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-      } else {
-        query = query.eq('owner_id', ownerId);
-      }
-    } else {
-      // Regular users can only delete their own dashboards
-      query = query.eq('owner_id', ownerId);
+  async remove(ownerId: string, id: string, userRole: string = 'user', organizationId: string): Promise<void> {
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para eliminar dashboards');
     }
 
-    const { data, error } = await query.select('id').maybeSingle();
+    // All users in the organization can remove dashboards from that organization
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .delete()
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select('id')
+      .maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException('No se pudo eliminar el dashboard');
@@ -341,8 +293,12 @@ export class DashboardsService {
     id: string,
     dto: ShareDashboardDto,
     userRole: string = 'user',
-    organizationId?: string,
+    organizationId: string,
   ): Promise<DashboardShareEntity> {
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para compartir dashboards');
+    }
+
     const dashboard = await this.findOne(ownerId, id, userRole, organizationId);
 
     const contact = dto.contact.trim();
@@ -389,8 +345,12 @@ export class DashboardsService {
     id: string,
     format: 'pdf' | 'json',
     userRole: string = 'user',
-    organizationId?: string,
+    organizationId: string,
   ): Promise<DashboardEntity | Buffer> {
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para exportar dashboards');
+    }
+
     const dashboard = await this.findOne(ownerId, id, userRole, organizationId);
 
     if (format === 'json') {
@@ -542,28 +502,26 @@ export class DashboardsService {
     return result;
   }
 
-  async approveDashboard(ownerId: string, dashboardId: string, status: 'approved' | 'rejected', userRole: string = 'user', organizationId?: string): Promise<DashboardEntity> {
+  async approveDashboard(ownerId: string, dashboardId: string, status: 'approved' | 'rejected', userRole: string = 'user', organizationId: string): Promise<DashboardEntity> {
+    if (!organizationId) {
+      throw new BadRequestException('La organización es requerida para aprobar dashboards');
+    }
+
     // First check if the user has permission to approve (admin or superadmin)
     // This will be checked in the controller with guards
 
-    let query = this.supabase
+    // All users in the organization can approve dashboards from that organization (though typically only admins/superadmins will call this)
+    const { data, error } = await this.supabase
       .from(this.tableName)
       .update({
         status,
         approved_by: ownerId,
         approved_at: new Date().toISOString(),
       })
-      .eq('id', dashboardId);
-
-    // Filter based on user role and organization
-    if (userRole === 'admin' || userRole === 'superadmin') {
-      // Admins and superadmins can approve dashboards from their organization
-      if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-      }
-    }
-
-    const { data, error } = await query.select('*').single();
+      .eq('id', dashboardId)
+      .eq('organization_id', organizationId)
+      .select('*')
+      .single();
 
     if (error) {
       throw new InternalServerErrorException('No se pudo actualizar el status del dashboard');

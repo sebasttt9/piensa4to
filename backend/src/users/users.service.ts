@@ -1,11 +1,13 @@
-import { Inject, Injectable, NotFoundException, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, ConflictException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRole } from '../common/constants/roles.enum';
-import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_CLIENT, SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { UserEntity } from './entities/user.entity';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { AssignOrganizationDto } from './dto/assign-organization.dto';
 
 interface UserRow {
   id: string;
@@ -22,8 +24,10 @@ interface UserRow {
 @Injectable()
 export class UsersService {
   constructor(
-    @Inject(SUPABASE_DATA_CLIENT)
+    @Inject(SUPABASE_CLIENT)
     private readonly supabase: SupabaseClient,
+    @Inject(SUPABASE_DATA_CLIENT)
+    private readonly supabaseData: SupabaseClient,
   ) { }
 
   private readonly tableName = 'users';
@@ -45,6 +49,7 @@ export class UsersService {
           role: createUserDto.role ?? UserRole.User,
           password_hash: hashedPassword,
           approved: createUserDto.role === UserRole.SuperAdmin ? true : false,
+          organization_id: createUserDto.organizationId ?? null,
         })
         .select()
         .single();
@@ -153,6 +158,9 @@ export class UsersService {
     if (changes.approved !== undefined) {
       updatePayload.approved = changes.approved;
     }
+    if (changes.organizationId !== undefined) {
+      updatePayload.organization_id = changes.organizationId ?? null;
+    }
 
     if (Object.keys(updatePayload).length === 0) {
       return this.findById(id);
@@ -160,7 +168,7 @@ export class UsersService {
 
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .update(updatePayload)
+      .update({ ...updatePayload, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select('*')
       .maybeSingle();
@@ -174,6 +182,116 @@ export class UsersService {
     }
 
     return this.toPublicUser(data as UserRow);
+  }
+
+  async assignOrganization(id: string, dto: AssignOrganizationDto): Promise<Omit<UserEntity, 'passwordHash'>> {
+    const { data: orgData, error: orgError } = await this.supabaseData
+      .from('organizations')
+      .select('id')
+      .eq('id', dto.organizationId)
+      .maybeSingle();
+
+    if (orgError) {
+      throw new InternalServerErrorException('No se pudo verificar la organización');
+    }
+
+    if (!orgData) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    const approve = dto.approve ?? (dto.makeAdmin ? true : undefined);
+
+    const updatePayload: Record<string, unknown> = {
+      organization_id: dto.organizationId,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (dto.makeAdmin) {
+      updatePayload.role = UserRole.Admin;
+    }
+
+    if (approve !== undefined) {
+      updatePayload.approved = approve;
+    }
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .update(updatePayload)
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudo asignar la organización al usuario');
+    }
+
+    if (!data) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    return this.toPublicUser(data as UserRow);
+  }
+
+  async updateProfile(id: string, changes: UpdateProfileDto): Promise<Omit<UserEntity, 'passwordHash'>> {
+    const updatePayload: Record<string, unknown> = {};
+
+    if (changes.name) {
+      updatePayload.name = changes.name;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return this.findById(id);
+    }
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .update(updatePayload)
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudo actualizar el perfil');
+    }
+
+    if (!data) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    return this.toPublicUser(data as UserRow);
+  }
+
+  async changePassword(id: string, currentPassword: string, newPassword: string): Promise<void> {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('No se pudo obtener el usuario');
+    }
+
+    if (!data) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const userRow = data as UserRow;
+    const isValid = await bcrypt.compare(currentPassword, userRow.password_hash ?? '');
+    if (!isValid) {
+      throw new BadRequestException('La contraseña actual no es correcta');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    const { error: updateError } = await this.supabase
+      .from(this.tableName)
+      .update({ password_hash: hashedPassword })
+      .eq('id', id);
+
+    if (updateError) {
+      throw new InternalServerErrorException('No se pudo actualizar la contraseña');
+    }
   }
 
   async remove(id: string): Promise<void> {

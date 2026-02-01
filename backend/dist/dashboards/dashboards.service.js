@@ -33,9 +33,12 @@ let DashboardsService = class DashboardsService {
     shareTableName = 'dashboard_shares';
     datasetsJoinTable = 'dashboard_datasets';
     async create(ownerId, dto, userRole = 'user', organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para crear dashboards');
+        }
         if (dto.datasetIds && dto.datasetIds.length > 0) {
             for (const datasetId of dto.datasetIds) {
-                await this.datasetsService.findOne(ownerId, datasetId);
+                await this.datasetsService.findOne(ownerId, datasetId, userRole, organizationId);
             }
         }
         const initialStatus = userRole === 'admin' || userRole === 'superadmin' ? 'approved' : 'pending';
@@ -66,27 +69,17 @@ let DashboardsService = class DashboardsService {
         return this.toEntity(data, datasets.get(data.id));
     }
     async findAll(ownerId, userRole = 'user', skip = 0, limit = 10, organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para listar dashboards');
+        }
         const rangeStart = skip;
         const rangeEnd = skip + limit - 1;
-        let query = this.supabase
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .select('*')
+            .eq('organization_id', organizationId)
             .order('updated_at', { ascending: false })
             .range(rangeStart, rangeEnd);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-        }
-        else {
-            if (organizationId) {
-                query = query.or(`and(owner_id.eq.${ownerId},organization_id.eq.${organizationId}),and(is_public.eq.true,organization_id.eq.${organizationId})`);
-            }
-            else {
-                query = query.or(`owner_id.eq.${ownerId},is_public.eq.true`);
-            }
-        }
-        const { data, error } = await query;
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudieron listar los dashboards');
         }
@@ -95,45 +88,28 @@ let DashboardsService = class DashboardsService {
         return rows.map((row) => this.toEntity(row, datasets.get(row.id)));
     }
     async countByUser(ownerId, userRole = 'user', organizationId) {
-        let query = this.supabase
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para contar dashboards');
+        }
+        const { count, error } = await this.supabase
             .from(this.tableName)
-            .select('id', { count: 'exact', head: true });
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-        }
-        else {
-            if (organizationId) {
-                query = query.or(`and(owner_id.eq.${ownerId},organization_id.eq.${organizationId}),and(is_public.eq.true,organization_id.eq.${organizationId})`);
-            }
-            else {
-                query = query.or(`owner_id.eq.${ownerId},is_public.eq.true`);
-            }
-        }
-        const { count, error } = await query;
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', organizationId);
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo contar los dashboards');
         }
         return count ?? 0;
     }
     async findOne(ownerId, id, userRole = 'user', organizationId) {
-        let query = this.supabase
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para obtener dashboards');
+        }
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .select('*')
-            .eq('id', id);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-            else {
-                query = query.eq('owner_id', ownerId);
-            }
-        }
-        else {
-            query = query.eq('owner_id', ownerId);
-        }
-        const { data, error } = await query.maybeSingle();
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo obtener el dashboard');
         }
@@ -144,29 +120,23 @@ let DashboardsService = class DashboardsService {
         return this.toEntity(data, datasets.get(data.id));
     }
     async update(ownerId, id, dto, userRole = 'user', organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para actualizar dashboards');
+        }
         const { datasetIds, ...rest } = dto;
         if (datasetIds && datasetIds.length > 0) {
             for (const datasetId of datasetIds) {
-                await this.datasetsService.findOne(ownerId, datasetId);
+                await this.datasetsService.findOne(ownerId, datasetId, userRole, organizationId);
             }
         }
         const updatePayload = { ...rest };
-        let query = this.supabase
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .update(updatePayload)
-            .eq('id', id);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-            else {
-                query = query.eq('owner_id', ownerId);
-            }
-        }
-        else {
-            query = query.eq('owner_id', ownerId);
-        }
-        const { data, error } = await query.select('*').maybeSingle();
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .select('*')
+            .maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo actualizar el dashboard');
         }
@@ -178,22 +148,16 @@ let DashboardsService = class DashboardsService {
         return this.toEntity(data, datasets.get(id));
     }
     async share(ownerId, id, isPublic, userRole = 'user', organizationId) {
-        let query = this.supabase
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para compartir dashboards');
+        }
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .update({ is_public: isPublic })
-            .eq('id', id);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-            else {
-                query = query.eq('owner_id', ownerId);
-            }
-        }
-        else {
-            query = query.eq('owner_id', ownerId);
-        }
-        const { data, error } = await query.select('*').maybeSingle();
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .select('*')
+            .maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo compartir el dashboard');
         }
@@ -204,22 +168,16 @@ let DashboardsService = class DashboardsService {
         return this.toEntity(data, datasets.get(data.id));
     }
     async remove(ownerId, id, userRole = 'user', organizationId) {
-        let query = this.supabase
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para eliminar dashboards');
+        }
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .delete()
-            .eq('id', id);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-            else {
-                query = query.eq('owner_id', ownerId);
-            }
-        }
-        else {
-            query = query.eq('owner_id', ownerId);
-        }
-        const { data, error } = await query.select('id').maybeSingle();
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .select('id')
+            .maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo eliminar el dashboard');
         }
@@ -228,6 +186,9 @@ let DashboardsService = class DashboardsService {
         }
     }
     async shareWithContact(ownerId, id, dto, userRole = 'user', organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para compartir dashboards');
+        }
         const dashboard = await this.findOne(ownerId, id, userRole, organizationId);
         const contact = dto.contact.trim();
         if (dto.channel === share_dashboard_dto_1.ShareChannel.EMAIL) {
@@ -263,6 +224,9 @@ let DashboardsService = class DashboardsService {
         return this.toShareEntity(data);
     }
     async export(ownerId, id, format, userRole = 'user', organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para exportar dashboards');
+        }
         const dashboard = await this.findOne(ownerId, id, userRole, organizationId);
         if (format === 'json') {
             return dashboard;
@@ -389,20 +353,20 @@ let DashboardsService = class DashboardsService {
         return result;
     }
     async approveDashboard(ownerId, dashboardId, status, userRole = 'user', organizationId) {
-        let query = this.supabase
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para aprobar dashboards');
+        }
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .update({
             status,
             approved_by: ownerId,
             approved_at: new Date().toISOString(),
         })
-            .eq('id', dashboardId);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-        }
-        const { data, error } = await query.select('*').single();
+            .eq('id', dashboardId)
+            .eq('organization_id', organizationId)
+            .select('*')
+            .single();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo actualizar el status del dashboard');
         }
@@ -416,7 +380,7 @@ let DashboardsService = class DashboardsService {
 exports.DashboardsService = DashboardsService;
 exports.DashboardsService = DashboardsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_DATA_CLIENT)),
     __metadata("design:paramtypes", [supabase_js_1.SupabaseClient,
         datasets_service_1.DatasetsService])
 ], DashboardsService);

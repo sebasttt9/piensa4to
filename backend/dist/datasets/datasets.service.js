@@ -69,6 +69,9 @@ let DatasetsService = class DatasetsService {
         this.configService = configService;
     }
     async create(ownerId, dto, organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para crear datasets');
+        }
         if (!dto.name) {
             throw new common_1.BadRequestException('El nombre del dataset es obligatorio');
         }
@@ -91,6 +94,9 @@ let DatasetsService = class DatasetsService {
         return this.toEntity(data);
     }
     async createManual(ownerId, dto, organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para crear datasets manuales');
+        }
         this.validateManualData(dto.columns, dto.data);
         const previewLimit = this.configService.get('uploads.previewLimit', 50) ?? 50;
         const preview = dto.data.slice(0, previewLimit);
@@ -121,6 +127,9 @@ let DatasetsService = class DatasetsService {
         return this.toEntity(data);
     }
     async uploadDataset(ownerId, datasetId, file, userRole = 'user', organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para subir archivos a datasets');
+        }
         if (!file) {
             throw new common_1.BadRequestException('Debe adjuntar un archivo CSV o Excel.');
         }
@@ -148,7 +157,7 @@ let DatasetsService = class DatasetsService {
             status: 'processed',
         })
             .eq('id', datasetId)
-            .eq('owner_id', ownerId)
+            .eq('organization_id', organizationId)
             .select('*')
             .maybeSingle();
         if (error) {
@@ -160,6 +169,9 @@ let DatasetsService = class DatasetsService {
         return this.toEntity(data);
     }
     async update(ownerId, datasetId, dto, userRole = 'user', organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para actualizar datasets');
+        }
         await this.findOne(ownerId, datasetId, userRole, organizationId);
         const payload = {};
         if (dto.name !== undefined) {
@@ -174,22 +186,13 @@ let DatasetsService = class DatasetsService {
         if (Object.keys(payload).length === 0) {
             return this.findOne(ownerId, datasetId, userRole, organizationId);
         }
-        let query = this.supabase
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .update(payload)
-            .eq('id', datasetId);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-            else {
-                query = query.eq('owner_id', ownerId);
-            }
-        }
-        else {
-            query = query.eq('owner_id', ownerId);
-        }
-        const { data, error } = await query.select('*').maybeSingle();
+            .eq('id', datasetId)
+            .eq('organization_id', organizationId)
+            .select('*')
+            .maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo actualizar el dataset');
         }
@@ -199,40 +202,30 @@ let DatasetsService = class DatasetsService {
         return this.toEntity(data);
     }
     async findAll(ownerId, userRole = 'user', skip = 0, limit = 10, organizationId) {
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para listar datasets');
+        }
         const rangeStart = skip;
         const rangeEnd = skip + limit - 1;
-        let query = this.supabase
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .select('*')
+            .eq('organization_id', organizationId)
             .order('created_at', { ascending: false })
             .range(rangeStart, rangeEnd);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-        }
-        else {
-            query = query.eq('owner_id', ownerId);
-        }
-        const { data, error } = await query;
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudieron listar los datasets');
         }
         return (data ?? []).map((row) => this.toEntity(row));
     }
     async countByUser(ownerId, userRole = 'user', organizationId) {
-        let query = this.supabase
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para contar datasets');
+        }
+        const { count, error } = await this.supabase
             .from(this.tableName)
-            .select('id', { count: 'exact', head: true });
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-        }
-        else {
-            query = query.eq('owner_id', ownerId);
-        }
-        const { count, error } = await query;
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', organizationId);
         if (error) {
             console.error('Error counting datasets:', error);
             throw new common_1.InternalServerErrorException('No se pudo contar los datasets');
@@ -240,22 +233,15 @@ let DatasetsService = class DatasetsService {
         return count ?? 0;
     }
     async findOne(ownerId, datasetId, userRole = 'user', organizationId) {
-        let query = this.supabase
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para obtener datasets');
+        }
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .select('*')
-            .eq('id', datasetId);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-            else {
-                query = query.eq('owner_id', ownerId);
-            }
-        }
-        else {
-            query = query.eq('owner_id', ownerId);
-        }
-        const { data, error } = await query.maybeSingle();
+            .eq('id', datasetId)
+            .eq('organization_id', organizationId)
+            .maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo obtener el dataset');
         }
@@ -281,22 +267,16 @@ let DatasetsService = class DatasetsService {
         return preview.slice(0, limit);
     }
     async remove(ownerId, datasetId, userRole = 'user', organizationId) {
-        let query = this.supabase
+        if (!organizationId) {
+            throw new common_1.BadRequestException('La organización es requerida para eliminar datasets');
+        }
+        const { data, error } = await this.supabase
             .from(this.tableName)
             .delete()
-            .eq('id', datasetId);
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            }
-            else {
-                query = query.eq('owner_id', ownerId);
-            }
-        }
-        else {
-            query = query.eq('owner_id', ownerId);
-        }
-        const { data, error } = await query.select('id').maybeSingle();
+            .eq('id', datasetId)
+            .eq('organization_id', organizationId)
+            .select('id')
+            .maybeSingle();
         if (error) {
             throw new common_1.InternalServerErrorException('No se pudo eliminar el dataset');
         }
@@ -458,7 +438,7 @@ let DatasetsService = class DatasetsService {
 exports.DatasetsService = DatasetsService;
 exports.DatasetsService = DatasetsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_CLIENT)),
+    __param(0, (0, common_1.Inject)(supabase_constants_1.SUPABASE_DATA_CLIENT)),
     __metadata("design:paramtypes", [supabase_js_1.SupabaseClient,
         analysis_service_1.AnalysisService,
         config_1.ConfigService])

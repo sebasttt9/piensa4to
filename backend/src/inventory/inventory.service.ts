@@ -1,6 +1,6 @@
 import { Inject, Injectable, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_CLIENT, SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { AnalyticsService, OverviewAnalytics } from '../analytics/analytics.service';
 import { CreateInventoryItemDto, UpdateInventoryItemDto } from './dto/inventory-item.dto';
 
@@ -105,7 +105,7 @@ export class InventoryService {
     private readonly dashboardsTable = 'dashboards';
 
     constructor(
-        @Inject(SUPABASE_CLIENT)
+        @Inject(SUPABASE_DATA_CLIENT)
         private readonly supabase: SupabaseClient,
         private readonly analyticsService: AnalyticsService,
     ) { }

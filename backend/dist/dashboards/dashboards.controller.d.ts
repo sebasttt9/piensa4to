@@ -8,6 +8,7 @@ import type { Response } from 'express';
 export declare class DashboardsController {
     private readonly dashboardsService;
     constructor(dashboardsService: DashboardsService);
+    private validateOrganization;
     create(user: Omit<UserEntity, 'passwordHash'>, dto: CreateDashboardDto): Promise<import("./entities/dashboard.entity").DashboardEntity>;
     findAll(user: Omit<UserEntity, 'passwordHash'>, page?: number, limit?: number): Promise<{
         data: import("./entities/dashboard.entity").DashboardEntity[];

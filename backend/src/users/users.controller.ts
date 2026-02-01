@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Patch,
+  Put,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +19,9 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/constants/roles.enum';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { UserEntity } from './entities/user.entity';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { AssignOrganizationDto } from './dto/assign-organization.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,6 +31,22 @@ export class UsersController {
   @Get('me')
   getProfile(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
     return user;
+  }
+
+  @Put('me')
+  updateProfile(
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.usersService.updateProfile(user.id, dto);
+  }
+
+  @Post('change-password')
+  changePassword(
+    @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.usersService.changePassword(user.id, dto.currentPassword, dto.newPassword);
   }
 
   @Get()
@@ -45,6 +65,12 @@ export class UsersController {
   @Roles(UserRole.SuperAdmin)
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
+  }
+
+  @Patch(':id/organization')
+  @Roles(UserRole.SuperAdmin)
+  assignOrganization(@Param('id') id: string, @Body() dto: AssignOrganizationDto) {
+    return this.usersService.assignOrganization(id, dto);
   }
 
   @Patch(':id/approve')

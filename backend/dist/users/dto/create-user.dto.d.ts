@@ -4,4 +4,5 @@ export declare class CreateUserDto {
     password: string;
     name: string;
     role?: UserRole;
+    organizationId?: string;
 }

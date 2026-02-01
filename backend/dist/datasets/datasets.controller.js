@@ -28,13 +28,17 @@ let DatasetsController = class DatasetsController {
     constructor(datasetsService) {
         this.datasetsService = datasetsService;
     }
+    validateOrganization(organizationId) {
+        return organizationId ?? 'default-org';
+    }
     async findAll(user, page = 1, limit = 10) {
+        const organizationId = this.validateOrganization(user.organizationId);
         const parsedPage = Number(page) || 1;
         const parsedLimit = Number(limit) || 10;
         const skip = (parsedPage - 1) * parsedLimit;
         const [datasets, total] = await Promise.all([
-            this.datasetsService.findAll(user.id, user.role, skip, parsedLimit, user.organizationId),
-            this.datasetsService.countByUser(user.id, user.role, user.organizationId),
+            this.datasetsService.findAll(user.id, user.role, skip, parsedLimit, organizationId),
+            this.datasetsService.countByUser(user.id, user.role, organizationId),
         ]);
         return {
             data: datasets,
@@ -44,25 +48,31 @@ let DatasetsController = class DatasetsController {
         };
     }
     findOne(user, id) {
-        return this.datasetsService.findOne(user.id, id, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.datasetsService.findOne(user.id, id, user.role, organizationId);
     }
     create(user, dto) {
-        return this.datasetsService.create(user.id, dto, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.datasetsService.create(user.id, dto, organizationId);
     }
     createManual(user, dto) {
-        return this.datasetsService.createManual(user.id, dto, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.datasetsService.createManual(user.id, dto, organizationId);
     }
     update(user, id, dto) {
-        return this.datasetsService.update(user.id, id, dto, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.datasetsService.update(user.id, id, dto, user.role, organizationId);
     }
     uploadFile(user, id, file) {
+        const organizationId = this.validateOrganization(user.organizationId);
         if (!file) {
             throw new common_1.BadRequestException('No file provided');
         }
-        return this.datasetsService.uploadDataset(user.id, id, file, user.role, user.organizationId);
+        return this.datasetsService.uploadDataset(user.id, id, file, user.role, organizationId);
     }
     async getPreview(user, id, limit = 50) {
-        const dataset = await this.datasetsService.findOne(user.id, id);
+        const organizationId = this.validateOrganization(user.organizationId);
+        const dataset = await this.datasetsService.findOne(user.id, id, user.role, organizationId);
         const preview = await this.datasetsService.getPreview(id, Number(limit));
         const columns = preview.length > 0 ? Object.keys(preview[0]) : [];
         return {
@@ -72,20 +82,24 @@ let DatasetsController = class DatasetsController {
         };
     }
     analyzeDataset(user, id) {
+        const organizationId = this.validateOrganization(user.organizationId);
         return { datasetId: id, message: 'Analysis coming soon' };
     }
     getInsights(user, id) {
+        const organizationId = this.validateOrganization(user.organizationId);
         return { datasetId: id, message: 'Insights coming soon' };
     }
     async generateReport(user, id, format = 'json') {
-        await this.datasetsService.findOne(user.id, id, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        await this.datasetsService.findOne(user.id, id, user.role, organizationId);
         if (format === 'json') {
             return { datasetId: id, message: 'JSON report coming soon' };
         }
         throw new common_1.BadRequestException('PDF export coming soon');
     }
     remove(user, id) {
-        return this.datasetsService.remove(user.id, id, user.role, user.organizationId);
+        const organizationId = this.validateOrganization(user.organizationId);
+        return this.datasetsService.remove(user.id, id, user.role, organizationId);
     }
 };
 exports.DatasetsController = DatasetsController;

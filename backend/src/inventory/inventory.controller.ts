@@ -9,7 +9,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/constants/roles.enum';
 import { CreateInventoryItemDto, UpdateInventoryItemDto, ApproveInventoryItemDto } from './dto/inventory-item.dto';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { Inject, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 
 @Controller('inventory')
@@ -17,7 +17,7 @@ import { Inject, InternalServerErrorException, NotFoundException } from '@nestjs
 export class InventoryController {
     constructor(
         private readonly inventoryService: InventoryService,
-        @Inject(SUPABASE_CLIENT)
+        @Inject(SUPABASE_DATA_CLIENT)
         private readonly supabase: SupabaseClient,
     ) { }
 

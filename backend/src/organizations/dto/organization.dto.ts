@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsEmail } from 'class-validator';
 
 export class CreateOrganizationDto {
     @IsString()
@@ -8,6 +8,22 @@ export class CreateOrganizationDto {
     @IsString()
     @IsOptional()
     description?: string;
+
+    @IsString()
+    @IsOptional()
+    location?: string;
+
+    @IsString()
+    @IsOptional()
+    owner?: string;
+
+    @IsString()
+    @IsOptional()
+    ciRuc?: string;
+
+    @IsEmail()
+    @IsOptional()
+    businessEmail?: string;
 }
 
 export class UpdateOrganizationDto {
@@ -18,4 +34,20 @@ export class UpdateOrganizationDto {
     @IsString()
     @IsOptional()
     description?: string;
+
+    @IsString()
+    @IsOptional()
+    location?: string;
+
+    @IsString()
+    @IsOptional()
+    owner?: string;
+
+    @IsString()
+    @IsOptional()
+    ciRuc?: string;
+
+    @IsEmail()
+    @IsOptional()
+    businessEmail?: string;
 }

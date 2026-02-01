@@ -15,6 +15,7 @@ const class_validator_1 = require("class-validator");
 const create_user_dto_1 = require("./create-user.dto");
 class UpdateUserDto extends (0, mapped_types_1.PartialType)(create_user_dto_1.CreateUserDto) {
     approved;
+    organizationId;
 }
 exports.UpdateUserDto = UpdateUserDto;
 __decorate([
@@ -22,4 +23,9 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateUserDto.prototype, "approved", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], UpdateUserDto.prototype, "organizationId", void 0);
 //# sourceMappingURL=update-user.dto.js.map

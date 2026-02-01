@@ -298,7 +298,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 28px;
+  padding: 32px;
   border-radius: 22px;
   background: rgba(13, 18, 36, 0.75);
   border: 1px solid rgba(148, 163, 184, 0.12);
@@ -322,17 +322,17 @@
   letter-spacing: 0.16em;
   background: rgba(59, 130, 246, 0.18);
   color: rgba(191, 219, 254, 0.9);
-  margin-bottom: 10px;
+  margin-bottom: 16px;
 }
 
 .saved-dashboards-card__title {
-  margin: 0;
+  margin: 8px 0 0;
   font-size: 20px;
   font-weight: 600;
 }
 
 .saved-dashboards-card__description {
-  margin: 10px 0 0;
+  margin: 16px 0 0;
   font-size: 14px;
   color: rgba(203, 213, 225, 0.78);
 }
@@ -363,7 +363,7 @@
 }
 
 .saved-dashboards-card__meta dd {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   font-size: 15px;
   font-weight: 600;
   color: rgba(226, 232, 240, 0.92);
