@@ -567,6 +567,7 @@ export interface ManagedUser {
     email: string;
     role: 'user' | 'admin' | 'superadmin';
     approved: boolean;
+    organizationId?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -587,6 +588,14 @@ export const adminUsersAPI = {
         return response.data;
     },
 
+    assignOrganization: async (
+        id: string,
+        input: { organizationId: string; makeAdmin?: boolean; approve?: boolean },
+    ) => {
+        const response = await api.patch<ManagedUser>(`/users/${id}/organization`, input);
+        return response.data;
+    },
+
     remove: async (id: string) => {
         await api.delete(`/users/${id}`);
     },
@@ -602,6 +611,7 @@ export interface Organization {
     owner?: string;
     ciRuc?: string;
     businessEmail?: string;
+    availableUserSlots?: number;
     createdAt: string;
     updatedAt: string;
 }

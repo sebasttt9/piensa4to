@@ -179,16 +179,6 @@ export function InsightsPage() {
           <p className="insights-hero__subtitle">
             Orquesta análisis avanzados, detecta patrones relevantes y transforma tus datasets en decisiones listas para ejecutar.
           </p>
-          <div className="insights-hero__actions">
-            <button type="button" className="insights-hero__cta" onClick={() => void handleSendPrompt('Genera un resumen ejecutivo con próximos pasos')} disabled={isSending}>
-              <Sparkles size={16} />
-              Explorar con IA
-            </button>
-            <button type="button" className="insights-hero__cta insights-hero__cta--ghost" onClick={() => void handleSendPrompt('Ayúdame a crear un prompt personalizado')} disabled={isSending}>
-              <MessageCircle size={16} />
-              Prompt personalizado
-            </button>
-          </div>
         </div>
       </section>
 

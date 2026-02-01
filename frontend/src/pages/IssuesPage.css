@@ -5,13 +5,118 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  min-height: 100vh;
+  color: #ffffff;
+}
+
+.issues-dashboard {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-areas:
+    "summary summary"
+    "type status"
+    "type financial";
+  align-items: stretch;
+}
+
+.issues-dashboard--condensed {
+  grid-template-areas:
+    "summary summary"
+    "type status";
+}
+
+.issues-dashboard__summary {
+  grid-area: summary;
+}
+
+.issues-dashboard__type {
+  grid-area: type;
+}
+
+.issues-dashboard__status {
+  grid-area: status;
+}
+
+.issues-dashboard__financial {
+  grid-area: financial;
+}
+
+.issues-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.issues-metric-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.issues-metric-grid--primary {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.issues-metric-grid--secondary {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.issues-metric-card {
+  padding: 1.5rem;
+  border-radius: 16px;
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  background: rgba(30, 41, 59, 0.72);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.issues-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.55);
+}
+
+.issues-metric-card--primary {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+
+.issues-metric-label {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #cbd5e1;
+}
+
+.issues-metric-value {
+  font-size: 2.125rem;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .issues-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.issues-header__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 720px;
+  flex: 1 1 360px;
 }
 
 .issues-title {
+  text-align: left;
   font-size: 2rem;
   font-weight: 700;
   color: #ffffff;
@@ -20,8 +125,9 @@
 }
 
 .issues-subtitle {
+  text-align: left;
   color: #e2e8f0;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
 }
 
 .issues-add-button {
@@ -30,6 +136,8 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
+  margin-left: auto;
+  align-self: center;
   background: linear-gradient(
     135deg,
     rgba(99, 102, 241, 0.12) 0%,
@@ -81,6 +189,8 @@
 
 .issues-list {
   margin-top: 2rem;
+  display: grid;
+  gap: 1.5rem;
 }
 
 .issues-stats {
@@ -126,28 +236,47 @@
   font-weight: 600;
 }
 
-.issues-stat p {
-  font-size: 2.25rem;
-  font-weight: 800;
+.issues-empty {
+  text-align: center;
+  padding: 3rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  color: #cbd5e1;
+}
+
+.issues-empty__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem;
+  color: #64748b;
+  opacity: 0.7;
+}
+
+.issues-empty h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
   color: #ffffff;
+}
+
+.issues-empty p {
   margin: 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: #94a3b8;
 }
-
-.issues-reports {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-  gap: 2rem;
-  margin-bottom: 3rem;
-}
-
 .issues-report-section {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   border-radius: 16px;
   padding: 2rem;
-  margin-bottom: 2rem;
+  margin-bottom: 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   border: 1px solid #334155;
+}
+
+.issues-report-section--type,
+.issues-report-section--status,
+.issues-report-section--financial {
+  height: 100%;
 }
 
 .issues-report-title {
@@ -576,9 +705,47 @@
 }
 
 /* Responsive Design */
+@media (max-width: 992px) {
+  .issues-dashboard {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "summary"
+      "type"
+      "status"
+      "financial";
+  }
+
+  .issues-dashboard--condensed {
+    grid-template-areas:
+      "summary"
+      "type"
+      "status";
+  }
+}
+
 @media (max-width: 768px) {
   .issues-page {
     padding: 1rem;
+  }
+
+  .issues-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .issues-metric-grid--primary,
+  .issues-metric-grid--secondary {
+    grid-template-columns: 1fr;
+  }
+
+  .issues-item {
+    padding: 1.25rem;
+  }
+
+  .issues-add-button {
+    margin-left: 0;
+    align-self: stretch;
+    justify-content: center;
   }
 
   .issues-title {
@@ -676,29 +843,35 @@
 }
 
 .issues-item {
-  background: white;
-  border-radius: 12px;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .issues-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.52);
 }
 
 .issues-item__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  gap: 1rem;
 }
 
 .issues-item__type {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .issues-item__type-icon {
@@ -708,37 +881,39 @@
 
 .issues-item__type-label {
   font-weight: 600;
-  color: #0f172a;
+  color: #e2e8f0;
 }
 
 .issues-item__status {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #0f172a;
+  background: rgba(148, 163, 184, 0.35);
 }
 
 .issues-item__content {
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .issues-item__description {
-  color: #374151;
-  margin-bottom: 0.5rem;
+  color: #f8fafc;
   line-height: 1.5;
 }
 
 .issues-item__amount {
   font-weight: 700;
-  color: #00d4ff;
-  font-size: 1.125rem;
+  color: #38bdf8;
+  font-size: 1.05rem;
 }
 
 .issues-item__item {
-  color: #6b7280;
+  color: #94a3b8;
   font-size: 0.875rem;
 }
 
@@ -746,10 +921,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
 }
 
 .issues-item__date {
-  color: #9ca3af;
+  color: #94a3b8;
   font-size: 0.875rem;
 }
 
@@ -760,28 +936,40 @@
 
 .issues-item__action {
   padding: 0.5rem;
-  border: none;
-  border-radius: 6px;
+  border-radius: 10px;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+  background: rgba(15, 23, 42, 0.6);
+  color: #e2e8f0;
+}
+
+.issues-item__action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);
 }
 
 .issues-item__action--edit {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #bfdbfe;
 }
 
 .issues-item__action--edit:hover {
-  background: #bae6fd;
+  background: rgba(59, 130, 246, 0.28);
 }
 
 .issues-item__action--delete {
-  background: #fef2f2;
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fecaca;
 }
 
 .issues-item__action--delete:hover {
-  background: #fecaca;
+  background: rgba(239, 68, 68, 0.28);
 }
 
 .issues-empty {

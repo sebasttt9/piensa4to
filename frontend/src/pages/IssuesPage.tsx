@@ -34,6 +34,12 @@ const STATUS_COLORS = {
   cancelado: '#FF6B6B',
 };
 
+const STATUS_TEXT_COLORS: Record<Issue['status'], string> = {
+  pendiente: '#0f172a',
+  resuelto: '#052e1c',
+  cancelado: '#ffffff',
+};
+
 export function IssuesPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -163,6 +169,107 @@ export function IssuesPage() {
     }).format(value);
   };
 
+  const aggregates = issues.reduce<{
+    totalCost: number;
+    reportsWithCost: number;
+    maxCost: number;
+    typeCounts: Record<Issue['type'], number>;
+    statusCounts: Record<Issue['status'], number>;
+    oldestTimestamp: number;
+  }>((acc, issue) => {
+    const amount = issue.amount ?? 0;
+    acc.totalCost += amount;
+    if (amount > 0) {
+      acc.reportsWithCost += 1;
+      acc.maxCost = Math.max(acc.maxCost, amount);
+    }
+
+    acc.typeCounts[issue.type] += 1;
+    acc.statusCounts[issue.status] += 1;
+
+    const timestamp = new Date(issue.createdAt).getTime();
+    if (!Number.isNaN(timestamp)) {
+      acc.oldestTimestamp = Math.min(acc.oldestTimestamp, timestamp);
+    }
+
+    return acc;
+  }, {
+    totalCost: 0,
+    reportsWithCost: 0,
+    maxCost: 0,
+    typeCounts: {
+      compra: 0,
+      devolucion: 0,
+      error_logistico: 0,
+      otro: 0,
+    },
+    statusCounts: {
+      pendiente: 0,
+      resuelto: 0,
+      cancelado: 0,
+    },
+    oldestTimestamp: Number.POSITIVE_INFINITY,
+  });
+
+  const totalCost = aggregates.totalCost;
+  const typeCounts = aggregates.typeCounts;
+  const statusCounts = aggregates.statusCounts;
+  const pendingCount = statusCounts.pendiente;
+  const resolvedCount = statusCounts.resuelto;
+
+  const oldestDate = Number.isFinite(aggregates.oldestTimestamp)
+    ? new Date(aggregates.oldestTimestamp)
+    : null;
+  const today = new Date();
+  const monthsDiff = oldestDate
+    ? Math.max(
+        1,
+        (today.getFullYear() - oldestDate.getFullYear()) * 12 +
+          (today.getMonth() - oldestDate.getMonth()) +
+          1,
+      )
+    : 1;
+  const averageMonthly = issues.length > 0 ? Math.round(issues.length / monthsDiff) : 0;
+  const averageCost = issues.length > 0 ? aggregates.totalCost / issues.length : 0;
+  const reportsWithCostCount = aggregates.reportsWithCost;
+  const maxCost = aggregates.maxCost;
+
+  const primaryMetrics = [
+    { key: 'total', label: 'Total de reportes', value: issues.length.toLocaleString('es-ES') },
+    { key: 'pending', label: 'Pendientes', value: pendingCount.toLocaleString('es-ES') },
+    { key: 'resolved', label: 'Resueltos', value: resolvedCount.toLocaleString('es-ES') },
+    { key: 'cost', label: 'Costo total', value: formatCurrency(totalCost) },
+  ];
+
+  const secondaryMetrics = [
+    { key: 'compra', label: 'Compras', value: typeCounts.compra.toLocaleString('es-ES') },
+    { key: 'devolucion', label: 'Devoluciones', value: typeCounts.devolucion.toLocaleString('es-ES') },
+    { key: 'error', label: 'Errores logísticos', value: typeCounts.error_logistico.toLocaleString('es-ES') },
+    { key: 'avg', label: 'Promedio mensual', value: averageMonthly.toLocaleString('es-ES') },
+  ];
+
+  const typeBreakdown = Object.entries(ISSUE_TYPES).map(([type, info]) => {
+    const typed = type as Issue['type'];
+    const count = typeCounts[typed];
+    const percentage = issues.length > 0 ? Math.round((count / issues.length) * 100) : 0;
+    return {
+      key: type,
+      info,
+      count,
+      percentage,
+    };
+  });
+
+  const statusBreakdown = (['pendiente', 'resuelto', 'cancelado'] as Issue['status'][]).map((status) => {
+    const count = statusCounts[status];
+    const percentage = issues.length > 0 ? Math.round((count / issues.length) * 100) : 0;
+    return {
+      status,
+      count,
+      percentage,
+    };
+  });
+
   if (isLoading) {
     return (
       <div className="issues-page issues-page--loading">
@@ -183,388 +290,167 @@ export function IssuesPage() {
   }
 
   return (
-    <div className="issues-page" style={{
-      padding: '2rem',
-      maxWidth: '1400px',
-      margin: '0 auto',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '2rem',
-      minHeight: '100vh',
-      color: '#ffffff'
-    }}>
-      <header className="issues-header" style={{
-        marginBottom: '2rem'
-      }}>
-        <h1 className="issues-title" style={{
-          fontSize: '2rem',
-          fontWeight: '700',
-          color: '#ffffff',
-          marginBottom: '0.5rem',
-          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-        }}>
-          Reportes y Gastos Logísticos
-        </h1>
-        <p className="issues-subtitle" style={{
-          color: '#e2e8f0',
-          marginBottom: '1.5rem'
-        }}>
-          Análisis de compras, devoluciones y errores operativos
-        </p>
-        <button
-          className="issues-add-button"
-          onClick={openCreateForm}
-        >
+    <div className="issues-page">
+      <header className="issues-header">
+        <div className="issues-header__info">
+          <h1 className="issues-title">Reportes y Gastos Logísticos</h1>
+          <p className="issues-subtitle">Análisis de compras, devoluciones y errores operativos</p>
+        </div>
+        <button className="issues-add-button" onClick={openCreateForm}>
           <Plus className="issues-add-button__icon" />
           Nuevo Reporte
         </button>
       </header>
 
-      <div className="issues-content" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '2rem',
-        marginBottom: '3rem'
-      }}>
-        <div className="issues-stats" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: '1rem'
-        }}>
-        <div className="issues-stat" style={{
-          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-          borderRadius: '16px',
-          padding: '2rem',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-          border: '1px solid #334155',
-          transition: 'all 0.3s ease',
-          textAlign: 'center'
-        }}>
-          <h3 style={{
-            fontSize: '0.875rem',
-            color: '#cbd5e1',
-            marginBottom: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            fontWeight: '600'
-          }}>Total Reportes</h3>
-          <p style={{
-            fontSize: '2.25rem',
-            fontWeight: '800',
-            color: '#ffffff',
-            margin: 0,
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-          }}>{issues.length}</p>
-        </div>
-        <div className="issues-stat" style={{
-          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-          borderRadius: '16px',
-          padding: '2rem',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-          border: '1px solid #334155',
-          transition: 'all 0.3s ease',
-          textAlign: 'center'
-        }}>
-          <h3 style={{
-            fontSize: '0.875rem',
-            color: '#cbd5e1',
-            marginBottom: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            fontWeight: '600'
-          }}>Pendientes</h3>
-          <p style={{
-            fontSize: '2.25rem',
-            fontWeight: '800',
-            color: '#ffffff',
-            margin: 0,
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-          }}>{issues.filter(i => i.status === 'pendiente').length}</p>
-        </div>
-        <div className="issues-stat" style={{
-          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-          borderRadius: '16px',
-          padding: '2rem',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-          border: '1px solid #334155',
-          transition: 'all 0.3s ease',
-          textAlign: 'center'
-        }}>
-          <h3 style={{
-            fontSize: '0.875rem',
-            color: '#cbd5e1',
-            marginBottom: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            fontWeight: '600'
-          }}>Resueltos</h3>
-          <p style={{
-            fontSize: '2.25rem',
-            fontWeight: '800',
-            color: '#ffffff',
-            margin: 0,
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-          }}>{issues.filter(i => i.status === 'resuelto').length}</p>
-        </div>
-        <div className="issues-stat" style={{
-          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-          borderRadius: '16px',
-          padding: '2rem',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-          border: '1px solid #334155',
-          transition: 'all 0.3s ease',
-          textAlign: 'center'
-        }}>
-          <h3 style={{
-            fontSize: '0.875rem',
-            color: '#cbd5e1',
-            marginBottom: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            fontWeight: '600'
-          }}>Costo Total</h3>
-          <p style={{
-            fontSize: '2.25rem',
-            fontWeight: '800',
-            color: '#ffffff',
-            margin: 0,
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-          }}>{formatCurrency(issues.reduce((sum, i) => sum + (i.amount || 0), 0))}</p>
-        </div>
-        <div className="issues-stat">
-          <h3>Compras</h3>
-          <p>{issues.filter(i => i.type === 'compra').length}</p>
-        </div>
-        <div className="issues-stat">
-          <h3>Devoluciones</h3>
-          <p>{issues.filter(i => i.type === 'devolucion').length}</p>
-        </div>
-        <div className="issues-stat">
-          <h3>Errores Logísticos</h3>
-          <p>{issues.filter(i => i.type === 'error_logistico').length}</p>
-        </div>
-        <div className="issues-stat">
-          <h3>Promedio por Mes</h3>
-          <p>{issues.length > 0 ? (() => {
-            const oldestDate = new Date(Math.min(...issues.map(i => new Date(i.createdAt).getTime())));
-            const today = new Date();
-            const monthsDiff = Math.max(1, (today.getFullYear() - oldestDate.getFullYear()) * 12 + (today.getMonth() - oldestDate.getMonth()) + 1);
-            return Math.round(issues.length / monthsDiff);
-          })() : 0}</p>
-        </div>
+      <section
+        className={`issues-dashboard${issues.length > 0 ? '' : ' issues-dashboard--condensed'}`}
+      >
+        <div className="issues-summary issues-dashboard__summary">
+          <div className="issues-metric-grid issues-metric-grid--primary">
+            {primaryMetrics.map((metric) => (
+              <article key={metric.key} className="issues-metric-card issues-metric-card--primary">
+                <span className="issues-metric-label">{metric.label}</span>
+                <strong className="issues-metric-value">{metric.value}</strong>
+              </article>
+            ))}
+          </div>
+          <div className="issues-metric-grid issues-metric-grid--secondary">
+            {secondaryMetrics.map((metric) => (
+              <article key={metric.key} className="issues-metric-card">
+                <span className="issues-metric-label">{metric.label}</span>
+                <strong className="issues-metric-value">{metric.value}</strong>
+              </article>
+            ))}
+          </div>
         </div>
 
-        <div className="issues-reports">
-        <div className="issues-report-section">
+        <article className="issues-report-section issues-report-section--type issues-dashboard__type">
           <h2 className="issues-report-title">Distribución por Tipo de Reporte</h2>
           <div className="issues-type-breakdown">
-            {Object.entries(ISSUE_TYPES).map(([type, info]) => {
-              const count = issues.filter(i => i.type === type).length;
-              const percentage = issues.length > 0 ? Math.round((count / issues.length) * 100) : 0;
+            {typeBreakdown.map(({ key, info, count, percentage }) => {
               const TypeIcon = info.icon;
-
               return (
-                <div key={type} className="issues-type-item">
+                <div key={key} className="issues-type-item">
                   <div className="issues-type-header">
-                    <TypeIcon
-                      className="issues-type-icon"
-                      style={{ color: info.color }}
-                    />
+                    <TypeIcon className="issues-type-icon" style={{ color: info.color }} />
                     <span className="issues-type-label">{info.label}</span>
                   </div>
                   <div className="issues-type-stats">
-                    <span className="issues-type-count">{count}</span>
+                    <span className="issues-type-count">{count.toLocaleString('es-ES')}</span>
                     <span className="issues-type-percentage">({percentage}%)</span>
                   </div>
                   <div className="issues-type-bar">
                     <div
                       className="issues-type-bar-fill"
-                      style={{
-                        width: `${percentage}%`,
-                        backgroundColor: info.color
-                      }}
+                      style={{ width: `${percentage}%`, backgroundColor: info.color }}
                     />
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </article>
 
-        <div className="issues-report-section">
+        <article className="issues-report-section issues-report-section--status issues-dashboard__status">
           <h2 className="issues-report-title">Estado de Reportes</h2>
           <div className="issues-status-breakdown">
-            {['pendiente', 'resuelto', 'cancelado'].map(status => {
-              const count = issues.filter(i => i.status === status).length;
-              const percentage = issues.length > 0 ? Math.round((count / issues.length) * 100) : 0;
-
-              return (
-                <div key={status} className="issues-status-item">
-                  <div className="issues-status-header">
-                    <span className="issues-status-label">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
-                    <span className="issues-status-count">{count}</span>
-                  </div>
-                  <div className="issues-status-bar">
-                    <div
-                      className="issues-status-bar-fill"
-                      style={{
-                        width: `${percentage}%`,
-                        backgroundColor: STATUS_COLORS[status as keyof typeof STATUS_COLORS]
-                      }}
-                    />
-                  </div>
-                  <span className="issues-status-percentage">{percentage}%</span>
+            {statusBreakdown.map(({ status, count, percentage }) => (
+              <div key={status} className="issues-status-item">
+                <div className="issues-status-header">
+                  <span className="issues-status-label">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                  <span className="issues-status-count">{count.toLocaleString('es-ES')}</span>
                 </div>
-              );
-            })}
+                <div className="issues-status-bar">
+                  <div
+                    className="issues-status-bar-fill"
+                    style={{
+                      width: `${percentage}%`,
+                      backgroundColor: STATUS_COLORS[status],
+                    }}
+                  />
+                </div>
+                <span className="issues-status-percentage">{percentage}%</span>
+              </div>
+            ))}
           </div>
-        </div>
+        </article>
 
         {issues.length > 0 && (
-          <div className="issues-report-section">
+          <article className="issues-report-section issues-report-section--financial issues-dashboard__financial">
             <h2 className="issues-report-title">Resumen Financiero</h2>
             <div className="issues-financial-summary">
               <div className="issues-financial-item">
-                <span className="issues-financial-label">Costo Promedio:</span>
-                <span className="issues-financial-value">
-                  {formatCurrency(issues.reduce((sum, i) => sum + (i.amount || 0), 0) / issues.length)}
-                </span>
+                <span className="issues-financial-label">Costo promedio</span>
+                <span className="issues-financial-value">{formatCurrency(averageCost)}</span>
               </div>
               <div className="issues-financial-item">
-                <span className="issues-financial-label">Costo Máximo:</span>
-                <span className="issues-financial-value">
-                  {formatCurrency(Math.max(...issues.map(i => i.amount || 0)))}
-                </span>
+                <span className="issues-financial-label">Costo máximo</span>
+                <span className="issues-financial-value">{formatCurrency(maxCost)}</span>
               </div>
               <div className="issues-financial-item">
-                <span className="issues-financial-label">Reportes con Costo:</span>
-                <span className="issues-financial-value">
-                  {issues.filter(i => i.amount && i.amount > 0).length}
-                </span>
+                <span className="issues-financial-label">Reportes con costo</span>
+                <span className="issues-financial-value">{reportsWithCostCount.toLocaleString('es-ES')}</span>
               </div>
             </div>
-          </div>
+          </article>
         )}
-      </div>
-      </div>
+      </section>
 
-      <div className="issues-list" style={{
-        display: 'grid',
-        gap: '1rem'
-      }}>
+      <section className="issues-list">
         {issues.length === 0 ? (
-          <div className="issues-empty" style={{
-            textAlign: 'center',
-            padding: '3rem',
-            background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-            borderRadius: '16px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-            border: '1px solid #334155'
-          }}>
-            <Package style={{
-              width: '64px',
-              height: '64px',
-              margin: '0 auto 1rem',
-              color: '#64748b'
-            }} />
-            <h3 style={{
-              color: '#ffffff',
-              marginBottom: '0.5rem'
-            }}>No hay reportes registrados</h3>
-            <p style={{
-              color: '#94a3b8'
-            }}>Registra el primer reporte logístico</p>
+          <div className="issues-empty">
+            <Package className="issues-empty__icon" />
+            <h3>No hay reportes registrados</h3>
+            <p>Registra el primer reporte logístico.</p>
           </div>
         ) : (
           issues.map((issue) => {
             const typeInfo = ISSUE_TYPES[issue.type];
             const TypeIcon = typeInfo.icon;
+            const statusColor = STATUS_COLORS[issue.status];
+            const statusTextColor = STATUS_TEXT_COLORS[issue.status];
 
             return (
-              <div key={issue.id} className="issues-item" style={{
-                background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                borderRadius: '12px',
-                padding: '1.5rem',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-                border: '1px solid #334155',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    marginBottom: '0.5rem'
-                  }}>
-                    <TypeIcon
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        color: typeInfo.color
-                      }}
-                    />
-                    <span style={{
-                      color: '#e2e8f0',
-                      fontWeight: '600'
-                    }}>{typeInfo.label}</span>
-                    <span style={{
-                      backgroundColor: STATUS_COLORS[issue.status as keyof typeof STATUS_COLORS],
-                      color: '#ffffff',
-                      padding: '0.25rem 0.75rem',
-                      borderRadius: '20px',
-                      fontSize: '0.8rem',
-                      fontWeight: '500'
-                    }}>{issue.status}</span>
+              <article key={issue.id} className="issues-item">
+                <header className="issues-item__header">
+                  <div className="issues-item__type">
+                    <TypeIcon className="issues-item__type-icon" style={{ color: typeInfo.color }} />
+                    <span className="issues-item__type-label">{typeInfo.label}</span>
                   </div>
-                  <p style={{
-                    color: '#ffffff',
-                    marginBottom: '0.5rem'
-                  }}>{issue.description}</p>
-                  {issue.amount && (
-                    <p style={{
-                      color: '#00d4ff',
-                      fontWeight: '600'
-                    }}>{formatCurrency(issue.amount)}</p>
-                  )}
-                </div>
-                <div style={{
-                  display: 'flex',
-                  gap: '0.5rem'
-                }}>
-                  <button
-                    onClick={() => openEditForm(issue)}
-                    style={{
-                      background: 'rgba(59, 130, 246, 0.2)',
-                      border: '1px solid rgba(59, 130, 246, 0.3)',
-                      color: '#3b82f6',
-                      padding: '0.5rem',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
+                  <span
+                    className="issues-item__status"
+                    style={{ backgroundColor: statusColor, color: statusTextColor }}
                   >
-                    <Edit style={{ width: '16px', height: '16px' }} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(issue.id)}
-                    style={{
-                      background: 'rgba(239, 68, 68, 0.2)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      color: '#ef4444',
-                      padding: '0.5rem',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Trash2 style={{ width: '16px', height: '16px' }} />
-                  </button>
+                    {issue.status}
+                  </span>
+                </header>
+                <div className="issues-item__content">
+                  <p className="issues-item__description">{issue.description}</p>
+                  {issue.amount ? (
+                    <p className="issues-item__amount">{formatCurrency(issue.amount)}</p>
+                  ) : null}
+                  {issue.inventoryItem ? (
+                    <p className="issues-item__item">{issue.inventoryItem.name}</p>
+                  ) : null}
                 </div>
-              </div>
+                <footer className="issues-item__footer">
+                  <span className="issues-item__date">
+                    {new Date(issue.createdAt).toLocaleDateString('es-ES')}
+                  </span>
+                  <div className="issues-item__actions">
+                    <button className="issues-item__action issues-item__action--edit" onClick={() => openEditForm(issue)}>
+                      <Edit size={16} />
+                    </button>
+                    <button className="issues-item__action issues-item__action--delete" onClick={() => handleDelete(issue.id)}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </footer>
+              </article>
             );
           })
         )}
-      </div>
+      </section>
 
       {/* Modal del formulario */}
       {showForm && (

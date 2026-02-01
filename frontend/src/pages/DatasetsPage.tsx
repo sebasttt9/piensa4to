@@ -130,9 +130,7 @@ export function DatasetsPage() {
     <div className="datasets-page">
       <header className="datasets-header">
         <div className="datasets-header__info">
-          <span className="datasets-header__icon">
-            <Database className="w-6 h-6" />
-          </span>
+          <Database className="datasets-header__glyph" />
           <div className="datasets-header__meta">
             <h1 className="datasets-header__title">Datasets</h1>
             <p className="datasets-header__subtitle">

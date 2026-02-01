@@ -220,6 +220,25 @@ export function OrganizationsPage() {
     setEditForm({ name: '', description: '' });
   };
 
+  const getAvailabilityMeta = (slots?: number) => {
+    if (typeof slots !== 'number' || Number.isNaN(slots)) {
+      return { label: 'Sin información', variant: 'unknown' as const };
+    }
+
+    if (slots > 0) {
+      return {
+        label: `${slots.toLocaleString('es-ES')} ${slots === 1 ? 'usuario disponible' : 'usuarios disponibles'}`,
+        variant: 'positive' as const,
+      };
+    }
+
+    if (slots === 0) {
+      return { label: 'Sin cupos disponibles', variant: 'empty' as const };
+    }
+
+    return { label: `${slots.toLocaleString('es-ES')} cupos`, variant: 'unknown' as const };
+  };
+
   if (selectedOrgForManagement) {
     return (
       <OrganizationManagementPage
@@ -242,32 +261,35 @@ export function OrganizationsPage() {
 
   return (
     <div className="organizations-page">
-      <div className="organizations-page__header">
-        <div className="organizations-page__title">
-          <Building2 className="organizations-page__title-icon" />
-          <h1>Gestión de Organizaciones</h1>
+      <header className="organizations-header">
+        <div className="organizations-header__top">
+          <div className="organizations-header__leading">
+            <div className="organizations-header__icon">
+              <Building2 size={24} />
+            </div>
+            <div className="organizations-header__titles">
+              <span className="organizations-header__eyebrow">Administración central</span>
+              <h1 className="organizations-header__title">Gestión de Organizaciones</h1>
+            </div>
+          </div>
+          <div className="organizations-header__actions">
+            <button
+              type="button"
+              className="organizations-header__button organizations-header__button--primary"
+              onClick={() => {
+                setCreateStep(0);
+                setShowCreateForm(true);
+              }}
+            >
+              <Plus size={16} />
+              Nueva
+            </button>
+          </div>
         </div>
-        <div className="organizations-page__actions">
-          <button
-            className="organizations-page__cancel-btn"
-            onClick={loadOrganizations}
-            disabled={loading}
-          >
-            <RefreshCcw className="organizations-page__cancel-icon" />
-            Actualizar
-          </button>
-          <button
-            className="organizations-page__cancel-btn"
-            onClick={() => {
-              setCreateStep(0);
-              setShowCreateForm(true);
-            }}
-          >
-            <Plus className="organizations-page__cancel-icon" />
-            Nueva
-          </button>
-        </div>
-      </div>
+        <p className="organizations-header__subtitle">
+          Gestiona registros empresariales, actualiza sus datos clave y mantén tu catálogo alineado.
+        </p>
+      </header>
 
       {error && (
         <div className="organizations-page__error">
@@ -459,125 +481,164 @@ export function OrganizationsPage() {
         </div>
       )}
 
-      <div className="organizations-page__table-container">
-        <table className="organizations-page__table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Descripción</th>
-              <th>Creado</th>
-              <th>Actualizado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {organizations.map((organization) => (
-              <tr key={organization.id}>
-                <td>
-                  {editingId === organization.id ? (
-                    <input
-                      type="text"
-                      value={editForm.name}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="organizations-page__edit-input"
-                    />
-                  ) : (
-                    <span className="organizations-page__name">{organization.name}</span>
-                  )}
-                </td>
-                <td>
-                  {editingId === organization.id ? (
-                    <textarea
-                      value={editForm.description}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                      className="organizations-page__edit-textarea"
-                      rows={2}
-                    />
-                  ) : (
-                    <span className="organizations-page__description">
-                      {organization.description || 'Sin descripción'}
-                    </span>
-                  )}
-                </td>
-                <td className="organizations-page__date">
-                  {formatDate(organization.createdAt)}
-                </td>
-                <td className="organizations-page__date">
-                  {formatDate(organization.updatedAt)}
-                </td>
-                <td>
-                  <div className="organizations-page__actions-cell">
-                    {editingId === organization.id ? (
-                      <>
-                        <button
-                          className="organizations-page__save-btn"
-                          onClick={handleUpdate}
-                          disabled={processingId === organization.id}
-                        >
-                          {processingId === organization.id ? (
-                            <RefreshCcw className="organizations-page__save-icon organizations-page__save-icon--spinning" />
-                          ) : (
-                            <Save className="organizations-page__save-icon" />
-                          )}
-                        </button>
-                        <button
-                          className="organizations-page__cancel-edit-btn"
-                          onClick={cancelEdit}
-                        >
-                          <X className="organizations-page__cancel-edit-icon" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          className="organizations-page__manage-btn"
-                          onClick={() => setSelectedOrgForManagement(organization)}
-                          title="Gestionar organización"
-                        >
-                          <Settings className="organizations-page__manage-icon" />
-                        </button>
-                        <button
-                          className="organizations-page__edit-btn"
-                          onClick={() => handleEdit(organization)}
-                          title="Editar organización"
-                        >
-                          <Edit3 className="organizations-page__edit-icon" />
-                        </button>
-                        <button
-                          className="organizations-page__delete-btn"
-                          onClick={() => handleDelete(organization.id)}
-                          disabled={processingId === organization.id}
-                          title="Eliminar organización"
-                        >
-                          {processingId === organization.id ? (
-                            <RefreshCcw className="organizations-page__delete-icon organizations-page__delete-icon--spinning" />
-                          ) : (
-                            <Trash2 className="organizations-page__delete-icon" />
-                          )}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {organizations.length === 0 && !loading && (
-          <div className="organizations-page__empty">
-            <Building2 className="organizations-page__empty-icon" />
-            <p>No hay organizaciones registradas.</p>
-            <button
-              className="organizations-page__create-first-btn"
-              onClick={() => setShowCreateForm(true)}
-            >
-              <Plus className="organizations-page__create-first-icon" />
-              Crear primera organización
-            </button>
+      <section className="organizations-table-card">
+        <header className="organizations-table-card__header">
+          <div>
+            <h2 className="organizations-table-card__title">Organizaciones registradas</h2>
+            <p className="organizations-table-card__subtitle">Administra accesos corporativos y mantén los datos al día.</p>
           </div>
-        )}
-      </div>
+          <span className="organizations-table-card__badge">
+            {organizations.length.toLocaleString('es-ES')} organizaciones
+          </span>
+        </header>
+
+        <div className="organizations-table-card__content">
+          <div className="organizations-table__scroll">
+            <table className="organizations-page__table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Descripción</th>
+                  <th>Creado</th>
+                  <th>Actualizado</th>
+                  <th>Usuarios disponibles</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {organizations.map((organization) => {
+                  const availability = getAvailabilityMeta(organization.availableUserSlots);
+
+                  return (
+                    <tr key={organization.id}>
+                    <td>
+                      {editingId === organization.id ? (
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                          className="organizations-page__edit-input"
+                        />
+                      ) : (
+                        <span className="organizations-page__name">{organization.name}</span>
+                      )}
+                    </td>
+                    <td>
+                      {editingId === organization.id ? (
+                        <textarea
+                          value={editForm.description}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                          className="organizations-page__edit-textarea"
+                          rows={2}
+                        />
+                      ) : (
+                        <span className="organizations-page__description">
+                          {organization.description || 'Sin descripción'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="organizations-page__date">
+                      {formatDate(organization.createdAt)}
+                    </td>
+                    <td className="organizations-page__date">
+                      {formatDate(organization.updatedAt)}
+                    </td>
+                    <td>
+                      <span
+                        className={`organizations-page__availability organizations-page__availability--${availability.variant}`}
+                        title={availability.label}
+                      >
+                        {availability.label}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="organizations-page__actions-cell">
+                        {editingId === organization.id ? (
+                          <>
+                            <button
+                              className="organizations-page__save-btn"
+                              onClick={handleUpdate}
+                              disabled={processingId === organization.id}
+                            >
+                              {processingId === organization.id ? (
+                                <RefreshCcw className="organizations-page__save-icon organizations-page__save-icon--spinning" />
+                              ) : (
+                                <Save className="organizations-page__save-icon" />
+                              )}
+                            </button>
+                            <button
+                              className="organizations-page__cancel-edit-btn"
+                              onClick={cancelEdit}
+                            >
+                              <X className="organizations-page__cancel-edit-icon" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="organizations-page__manage-btn"
+                              onClick={() => setSelectedOrgForManagement(organization)}
+                              title="Gestionar organización"
+                            >
+                              <Settings className="organizations-page__manage-icon" />
+                            </button>
+                            <button
+                              className="organizations-page__edit-btn"
+                              onClick={() => handleEdit(organization)}
+                              title="Editar organización"
+                            >
+                              <Edit3 className="organizations-page__edit-icon" />
+                            </button>
+                            <button
+                              className="organizations-page__delete-btn"
+                              onClick={() => handleDelete(organization.id)}
+                              disabled={processingId === organization.id}
+                              title="Eliminar organización"
+                            >
+                              {processingId === organization.id ? (
+                                <RefreshCcw className="organizations-page__delete-icon organizations-page__delete-icon--spinning" />
+                              ) : (
+                                <Trash2 className="organizations-page__delete-icon" />
+                              )}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {organizations.length === 0 && !loading && (
+            <div className="organizations-page__empty">
+              <Building2 className="organizations-page__empty-icon" />
+              <p>No hay organizaciones registradas.</p>
+              <button
+                className="organizations-page__create-first-btn"
+                onClick={() => setShowCreateForm(true)}
+              >
+                <Plus className="organizations-page__create-first-icon" />
+                Crear primera organización
+              </button>
+            </div>
+          )}
+        </div>
+        <footer className="organizations-table-card__footer">
+          <button
+            type="button"
+            className="organizations-icon-button"
+            onClick={() => void loadOrganizations()}
+            disabled={loading}
+            aria-label="Recargar organizaciones"
+            title="Recargar organizaciones"
+          >
+            <RefreshCcw size={20} />
+          </button>
+        </footer>
+      </section>
     </div>
   );
 }
