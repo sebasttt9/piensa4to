@@ -1,7 +1,9 @@
 import { BadRequestException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT, SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
+import { RegisterSaleDto } from './dto/register-sale.dto';
 
 export interface CommerceTotals {
     revenueCurrent: number;
@@ -92,6 +94,7 @@ export class CommerceService {
     private readonly salesOrdersTable = 'sales_orders';
     private readonly salesOrderItemsTable = 'sales_order_items';
     private readonly customersTable = 'customers';
+    private readonly inventoryItemsTable = 'inventory_items';
 
     constructor(
         @Inject(SUPABASE_DATA_CLIENT)
@@ -140,6 +143,124 @@ export class CommerceService {
             topProducts,
             currency,
             hasOrders: orders.length > 0,
+        };
+    }
+
+    async registerSale(
+        ownerId: string,
+        organizationId: string | undefined,
+        dto: RegisterSaleDto,
+    ) {
+        if (!organizationId) {
+            throw new BadRequestException('La organización es requerida para registrar ventas.');
+        }
+
+        const sanitizedQuantity = Number.isFinite(dto.quantity) ? Math.floor(dto.quantity) : 0;
+        if (sanitizedQuantity <= 0) {
+            throw new BadRequestException('La cantidad debe ser mayor a cero.');
+        }
+
+        const { data: inventoryItem, error: inventoryError } = await this.salesSupabase
+            .from(this.inventoryItemsTable)
+            .select('id, owner_id, organization_id, name, code, quantity, status')
+            .eq('id', dto.itemId)
+            .single();
+
+        if (inventoryError || !inventoryItem) {
+            if (this.isSchemaMismatchError(inventoryError)) {
+                console.error('[Commerce] registerSale inventory schema mismatch', inventoryError);
+                throw new InternalServerErrorException('No se pudo registrar la venta.');
+            }
+            throw new BadRequestException('El producto indicado no existe.');
+        }
+
+        if (inventoryItem.owner_id !== ownerId) {
+            throw new BadRequestException('El producto indicado no pertenece al usuario.');
+        }
+
+        if (inventoryItem.organization_id !== organizationId) {
+            throw new BadRequestException('El producto indicado no pertenece a la organización.');
+        }
+
+        if (inventoryItem.status !== 'approved') {
+            throw new BadRequestException('El producto indicado no está aprobado para la venta.');
+        }
+
+        const availableQuantity = this.toNumber(inventoryItem.quantity);
+        if (sanitizedQuantity > availableQuantity) {
+            throw new BadRequestException(`Solo hay ${availableQuantity.toLocaleString('es-ES')} unidades disponibles.`);
+        }
+
+        const orderId = randomUUID();
+        const nowIso = new Date().toISOString();
+        const orderTotal = dto.unitPrice * sanitizedQuantity;
+
+        const { error: orderError } = await this.salesSupabase
+            .from(this.salesOrdersTable)
+            .insert({
+                id: orderId,
+                owner_id: ownerId,
+                organization_id: organizationId,
+                customer_id: null,
+                status: 'completed',
+                order_total: orderTotal,
+                currency_code: dto.currencyCode,
+                order_date: nowIso,
+                created_at: nowIso,
+            });
+
+        if (orderError) {
+            if (this.isSchemaMismatchError(orderError)) {
+                console.error('[Commerce] registerSale order schema mismatch', orderError);
+            } else {
+                console.error('[Commerce] registerSale order insert failed', orderError);
+            }
+            throw new InternalServerErrorException('No se pudo registrar la venta.');
+        }
+
+        const { error: itemError } = await this.salesSupabase
+            .from(this.salesOrderItemsTable)
+            .insert({
+                order_id: orderId,
+                owner_id: ownerId,
+                organization_id: organizationId,
+                sku: inventoryItem.code,
+                product_name: inventoryItem.name,
+                quantity: sanitizedQuantity,
+                unit_price: dto.unitPrice,
+                line_total: orderTotal,
+                created_at: nowIso,
+            });
+
+        if (itemError) {
+            console.error('[Commerce] registerSale order items insert failed', itemError);
+            await this.salesSupabase
+                .from(this.salesOrdersTable)
+                .delete()
+                .eq('id', orderId);
+            throw new InternalServerErrorException('No se pudo registrar la venta.');
+        }
+
+        const nextQuantity = availableQuantity - sanitizedQuantity;
+        const { error: updateError } = await this.salesSupabase
+            .from(this.inventoryItemsTable)
+            .update({ quantity: nextQuantity })
+            .eq('id', inventoryItem.id)
+            .eq('owner_id', ownerId)
+            .eq('organization_id', organizationId);
+
+        if (updateError) {
+            console.error('[Commerce] registerSale inventory update failed', updateError);
+            throw new InternalServerErrorException('La venta se registró pero no se pudo actualizar el inventario.');
+        }
+
+        return {
+            orderId,
+            orderTotal,
+            currencyCode: dto.currencyCode,
+            quantity: sanitizedQuantity,
+            remainingQuantity: nextQuantity,
+            registeredAt: nowIso,
         };
     }
 

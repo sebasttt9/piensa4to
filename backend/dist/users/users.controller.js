@@ -52,6 +52,12 @@ let UsersController = class UsersController {
     assignOrganization(id, dto) {
         return this.usersService.assignOrganization(id, dto);
     }
+    removeOrganization(id) {
+        return this.usersService.removeOrganization(id);
+    }
+    removeOrganizationAlt(id) {
+        return this.usersService.removeOrganization(id);
+    }
     approve(id) {
         return this.usersService.update(id, { approved: true });
     }
@@ -122,6 +128,22 @@ __decorate([
     __metadata("design:paramtypes", [String, assign_organization_dto_1.AssignOrganizationDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "assignOrganization", null);
+__decorate([
+    (0, common_1.Delete)(':id/organization'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "removeOrganization", null);
+__decorate([
+    (0, common_1.Patch)(':id/organization/remove'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "removeOrganizationAlt", null);
 __decorate([
     (0, common_1.Patch)(':id/approve'),
     (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.SuperAdmin),

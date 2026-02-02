@@ -1,6 +1,6 @@
-import { Inject, Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_CLIENT } from '../database/supabase.constants';
+import { Inject, Injectable, NotFoundException, InternalServerErrorException, ConflictException } from '@nestjs/common';
+import { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
+import { SUPABASE_CLIENT, SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { CreateOrganizationDto, UpdateOrganizationDto } from './dto/organization.dto';
 import { OrganizationEntity } from './entities/organization.entity';
 
@@ -21,6 +21,8 @@ export class OrganizationsService {
     constructor(
         @Inject(SUPABASE_CLIENT)
         private readonly supabase: SupabaseClient,
+        @Inject(SUPABASE_DATA_CLIENT)
+        private readonly supabaseData: SupabaseClient,
     ) { }
 
     private readonly tableName = 'organizations';
@@ -149,6 +151,122 @@ export class OrganizationsService {
     }
 
     async remove(id: string): Promise<void> {
+        // 1) Limpia relaciones en usuarios (primary DB) para evitar FK 23503
+        await this.execRequired(
+            this.supabase
+                .from('users')
+                .update({ organization_id: null, updated_at: new Date().toISOString() })
+                .eq('organization_id', id),
+            'users.clearOrganization',
+        );
+
+        // Verificación: asegura que no quedan usuarios referenciando la organización
+        const { data: remainingUsers, error: remainingError } = await this.supabase
+            .from('users')
+            .select('id,email')
+            .eq('organization_id', id);
+
+        if (remainingError) {
+            console.error('Supabase error verificando usuarios con organización antes de eliminarla', remainingError);
+            throw new InternalServerErrorException('No se pudo verificar usuarios de la organización antes de eliminarla');
+        }
+
+        if ((remainingUsers ?? []).length > 0) {
+            const sample = (remainingUsers ?? []).slice(0, 5).map((u) => u.email ?? u.id);
+            throw new ConflictException(
+                `La organización aún tiene usuarios asignados (${(remainingUsers ?? []).length}). Quita a los usuarios antes de eliminarla. Ejemplos: ${sample.join(', ')}`,
+            );
+        }
+
+        // 2) Limpia datos operativos en datasets DB
+        // Dashboards relacionados (para limpiar joins y shares)
+        const dashboardIds = await this.collectIds(
+            this.supabaseData
+                .from('dashboards')
+                .select('id')
+                .eq('organization_id', id),
+            'dashboards.fetchIds',
+        );
+
+        if (dashboardIds.length > 0) {
+            await this.execSafe(
+                this.supabaseData
+                    .from('dashboard_datasets')
+                    .delete()
+                    .in('dashboard_id', dashboardIds),
+                'dashboard_datasets.removeByDashboard',
+            );
+
+            await this.execSafe(
+                this.supabaseData
+                    .from('dashboard_shares')
+                    .delete()
+                    .in('dashboard_id', dashboardIds),
+                'dashboard_shares.removeByDashboard',
+            );
+        }
+
+        // Issues de la organización
+        await this.execSafe(
+            this.supabaseData
+                .from('issues')
+                .delete()
+                .eq('organization_id', id),
+            'issues.removeByOrganization',
+        );
+
+        // Ajustes e items de inventario
+        await this.execSafe(
+            this.supabaseData
+                .from('inventory_adjustments')
+                .delete()
+                .eq('organization_id', id),
+            'inventory_adjustments.removeByOrganization',
+        );
+
+        await this.execSafe(
+            this.supabaseData
+                .from('sales_order_items')
+                .delete()
+                .eq('organization_id', id),
+            'sales_order_items.removeByOrganization',
+        );
+
+        await this.execSafe(
+            this.supabaseData
+                .from('sales_orders')
+                .delete()
+                .eq('organization_id', id),
+            'sales_orders.removeByOrganization',
+        );
+
+        await this.execSafe(
+            this.supabaseData
+                .from('inventory_items')
+                .delete()
+                .eq('organization_id', id),
+            'inventory_items.removeByOrganization',
+        );
+
+        // Datasets de la organización
+        await this.execSafe(
+            this.supabaseData
+                .from('datasets')
+                .delete()
+                .eq('organization_id', id),
+            'datasets.removeByOrganization',
+        );
+
+        // Dashboards de la organización
+        await this.execSafe(
+            this.supabaseData
+                .from('dashboards')
+                .delete()
+                .eq('organization_id', id),
+            'dashboards.removeByOrganization',
+        );
+
+        // 3) Finalmente elimina la organización (primary DB)
         const { error } = await this.supabase
             .from(this.tableName)
             .delete()
@@ -158,6 +276,59 @@ export class OrganizationsService {
             console.error('Supabase error eliminando organización', error);
             throw new InternalServerErrorException('No se pudo eliminar la organización');
         }
+    }
+
+    private async collectIds(
+        operation: PromiseLike<{ data: Array<{ id: string }> | null; error: PostgrestError | null }>,
+        context: string,
+    ): Promise<string[]> {
+        try {
+            const { data, error } = await operation;
+            if (error && !this.isIgnorableCleanupError(error)) {
+                console.warn(`No se pudieron recopilar IDs (${context}):`, error);
+                return [];
+            }
+            return (data ?? []).map((row) => row.id);
+        } catch (error) {
+            console.warn(`Fallo inesperado recopilando IDs (${context}):`, error);
+            return [];
+        }
+    }
+
+    private async execSafe(
+        operation: PromiseLike<{ error: PostgrestError | null }>,
+        context: string,
+    ): Promise<void> {
+        try {
+            const { error } = await operation;
+            if (error && !this.isIgnorableCleanupError(error)) {
+                console.warn(`No se pudo limpiar completamente (${context}).`, error);
+            }
+        } catch (error) {
+            console.warn(`Fallo inesperado durante la limpieza (${context}).`, error);
+        }
+    }
+
+    private async execRequired(
+        operation: PromiseLike<{ error: PostgrestError | null }>,
+        context: string,
+    ): Promise<void> {
+        const { error } = await operation;
+        if (error) {
+            console.error(`Error crítico durante la limpieza (${context}).`, error);
+            throw new InternalServerErrorException('No se pudo preparar la eliminación de la organización (limpieza de usuarios)');
+        }
+    }
+
+    private isIgnorableCleanupError(error?: PostgrestError | null): boolean {
+        if (!error) return true;
+        const ignorable = new Set([
+            'PGRST116', // no rows
+            '42P01',    // table missing
+            '42703',    // column missing
+            '42501',    // insufficient privilege
+        ]);
+        return ignorable.has(error.code ?? '');
     }
 
     private toEntity(row: OrganizationRow): OrganizationEntity {

@@ -16,6 +16,7 @@ export declare class UsersService {
     update(id: string, changes: UpdateUserDto): Promise<Omit<UserEntity, 'passwordHash'>>;
     assignOrganization(id: string, dto: AssignOrganizationDto): Promise<Omit<UserEntity, 'passwordHash'>>;
     updateProfile(id: string, changes: UpdateProfileDto): Promise<Omit<UserEntity, 'passwordHash'>>;
+    removeOrganization(id: string): Promise<Omit<UserEntity, 'passwordHash'>>;
     changePassword(id: string, currentPassword: string, newPassword: string): Promise<void>;
     remove(id: string): Promise<void>;
     private cleanupUserRelations;

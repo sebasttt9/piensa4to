@@ -32,7 +32,6 @@ const RECENT_CUSTOMERS_STORAGE_KEY = 'datapulse:sales-recent-customers';
 type RegisterSalePayload = {
   itemId: string;
   itemName: string;
-  nextQuantity: number;
   soldQuantity: number;
   customerLabel: string;
   currencyCode: string;
@@ -179,16 +178,30 @@ export function SalesPage() {
   const currencyCodeForSale = resolvedCurrency as typeof currency.code;
   const hasSaleableItems = saleableItems.length > 0;
 
-  const registerSaleMutation = useMutation<InventoryItem, Error, RegisterSalePayload>({
-    mutationFn: async (payload) => inventoryItemsAPI.update(payload.itemId, { quantity: payload.nextQuantity }),
-    onSuccess: (_, payload) => {
+  const registerSaleMutation = useMutation<{
+    orderId: string;
+    orderTotal: number;
+    currencyCode: string;
+    quantity: number;
+    remainingQuantity: number;
+    registeredAt: string;
+  }, Error, RegisterSalePayload>({
+    mutationFn: async (payload) =>
+      commerceAPI.registerSale({
+        itemId: payload.itemId,
+        quantity: payload.soldQuantity,
+        unitPrice: payload.unitPrice,
+        currencyCode: payload.currencyCode,
+        customerLabel: payload.customerLabel,
+      }),
+    onSuccess: (result, payload) => {
       const totalFormatted = formatAmount(
-        payload.unitPrice * payload.soldQuantity,
-        payload.currencyCode as typeof currency.code,
+        result.orderTotal,
+        result.currencyCode as typeof currency.code,
       );
       setSaleFeedback({
         variant: 'success',
-        message: `${payload.soldQuantity.toLocaleString('es-ES')} unidades de ${payload.itemName} registradas para ${payload.customerLabel}. Total vendido: ${totalFormatted}. Stock restante: ${payload.nextQuantity.toLocaleString('es-ES')} unidades.`,
+        message: `${result.quantity.toLocaleString('es-ES')} unidades de ${payload.itemName} registradas para ${payload.customerLabel}. Total vendido: ${totalFormatted}. Stock restante: ${result.remainingQuantity.toLocaleString('es-ES')} unidades.`,
       });
       if (payload.customerLabel !== 'Consumidor final') {
         setRecentCustomers((prev) => {
@@ -315,7 +328,6 @@ export function SalesPage() {
       await registerSaleMutation.mutateAsync({
         itemId: selectedItem.id,
         itemName: selectedItem.name,
-        nextQuantity: inventoryAvailable - normalizedQuantity,
         soldQuantity: normalizedQuantity,
         customerLabel,
         currencyCode: currencyCodeForSale,

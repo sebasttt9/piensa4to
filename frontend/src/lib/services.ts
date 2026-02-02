@@ -447,6 +447,23 @@ export const commerceAPI = {
         const response = await api.get<CommerceOverview>('/commerce/overview');
         return response.data;
     },
+    registerSale: async (input: {
+        itemId: string;
+        quantity: number;
+        unitPrice: number;
+        currencyCode: string;
+        customerLabel?: string;
+    }) => {
+        const response = await api.post<{
+            orderId: string;
+            orderTotal: number;
+            currencyCode: string;
+            quantity: number;
+            remainingQuantity: number;
+            registeredAt: string;
+        }>('/commerce/sales', input);
+        return response.data;
+    },
 };
 
 /* ==================== SUPERADMIN DASHBOARD API ==================== */
@@ -696,6 +713,20 @@ export const adminUsersAPI = {
     ) => {
         const response = await api.patch<ManagedUser>(`/users/${id}/organization`, input);
         return response.data;
+    },
+
+    removeOrganization: async (id: string) => {
+        try {
+            const response = await api.delete<ManagedUser>(`/users/${id}/organization`);
+            return response.data;
+        } catch (error) {
+            // Fallback si DELETE no está disponible: usar PATCH alt
+            if (isAxiosError(error) && error.response?.status === 404) {
+                const alt = await api.patch<ManagedUser>(`/users/${id}/organization/remove`);
+                return alt.data;
+            }
+            throw error;
+        }
     },
 
     remove: async (id: string) => {

@@ -333,6 +333,50 @@ export class UsersService {
     return this.toPublicUser(data as UserRow);
   }
 
+  async removeOrganization(id: string): Promise<Omit<UserEntity, 'passwordHash'>> {
+    // Fetch current role and organization
+    const { data: existingUser, error: existingUserError } = await this.supabase
+      .from(this.tableName)
+      .select('id, role, organization_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (existingUserError) {
+      console.error('Supabase error fetching user before removing organization:', existingUserError);
+      throw new InternalServerErrorException('No se pudo verificar el usuario antes de quitar la organización');
+    }
+
+    if (!existingUser) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const currentRole = (existingUser.role as UserRole) ?? UserRole.User;
+
+    // Build update payload: solo quitar organización sin cambiar rol ni aprobación
+    const updatePayload: Record<string, unknown> = {
+      organization_id: null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .update(updatePayload)
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Supabase error removing organization from user:', error);
+      throw new InternalServerErrorException('No se pudo quitar la organización del usuario');
+    }
+
+    if (!data) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    return this.toPublicUser(data as UserRow);
+  }
+
   async changePassword(id: string, currentPassword: string, newPassword: string): Promise<void> {
     const { data, error } = await this.supabase
       .from(this.tableName)

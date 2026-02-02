@@ -73,6 +73,19 @@ export class UsersController {
     return this.usersService.assignOrganization(id, dto);
   }
 
+  @Delete(':id/organization')
+  @Roles(UserRole.SuperAdmin)
+  removeOrganization(@Param('id') id: string) {
+    return this.usersService.removeOrganization(id);
+  }
+
+  // Ruta alternativa por si algún proxy bloquea DELETE
+  @Patch(':id/organization/remove')
+  @Roles(UserRole.SuperAdmin)
+  removeOrganizationAlt(@Param('id') id: string) {
+    return this.usersService.removeOrganization(id);
+  }
+
   @Patch(':id/approve')
   @Roles(UserRole.SuperAdmin)
   approve(@Param('id') id: string) {

@@ -1,0 +1,17 @@
+/* Layout overrides to align pages with Overview spacing and avoid sidebar overlap */
+
+.manual-dataset-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 0 clamp(18px, 5vw, 56px) 0 clamp(12px, 4vw, 32px);
+  margin-right: clamp(18px, 6vw, 72px);
+  align-self: stretch;
+}
+
+@media (max-width: 960px) {
+  .manual-dataset-page {
+    margin-right: 0;
+    padding: 0 clamp(14px, 5vw, 32px) 0 clamp(12px, 6vw, 36px);
+  }
+}

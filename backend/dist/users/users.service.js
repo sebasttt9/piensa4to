@@ -293,6 +293,39 @@ let UsersService = class UsersService {
         }
         return this.toPublicUser(data);
     }
+    async removeOrganization(id) {
+        const { data: existingUser, error: existingUserError } = await this.supabase
+            .from(this.tableName)
+            .select('id, role, organization_id')
+            .eq('id', id)
+            .maybeSingle();
+        if (existingUserError) {
+            console.error('Supabase error fetching user before removing organization:', existingUserError);
+            throw new common_1.InternalServerErrorException('No se pudo verificar el usuario antes de quitar la organización');
+        }
+        if (!existingUser) {
+            throw new common_1.NotFoundException('Usuario no encontrado');
+        }
+        const currentRole = existingUser.role ?? roles_enum_1.UserRole.User;
+        const updatePayload = {
+            organization_id: null,
+            updated_at: new Date().toISOString(),
+        };
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update(updatePayload)
+            .eq('id', id)
+            .select('*')
+            .maybeSingle();
+        if (error) {
+            console.error('Supabase error removing organization from user:', error);
+            throw new common_1.InternalServerErrorException('No se pudo quitar la organización del usuario');
+        }
+        if (!data) {
+            throw new common_1.NotFoundException('Usuario no encontrado');
+        }
+        return this.toPublicUser(data);
+    }
     async changePassword(id, currentPassword, newPassword) {
         const { data, error } = await this.supabase
             .from(this.tableName)

@@ -14,7 +14,8 @@ import {
   Target,
   Activity,
   Layers,
-  ChevronDown
+  ChevronDown,
+  Users
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
 import { inventoryAPI, inventoryItemsAPI, datasetsAPI, dashboardsAPI, issuesAPI, commerceAPI, type InventorySummary, type InventoryItem, type Dataset, type Dashboard, type Issue, type CommerceOverview } from '../lib/services';

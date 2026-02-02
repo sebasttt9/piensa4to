@@ -68,6 +68,7 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [assigningUserId, setAssigningUserId] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -146,6 +147,42 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
       }
     },
     [availableUsers, canManageMembers, loadData, organization.id, organization.name],
+  );
+
+  const handleRemove = useCallback(
+    async (userId: string) => {
+      if (!canManageMembers) {
+        return;
+      }
+
+      const user = members.find((item) => item.id === userId);
+      if (!user) {
+        return;
+      }
+
+      // Do not allow removing superadmin (should not belong to org)
+      if (user.role === 'superadmin') {
+        return;
+      }
+
+      setRemovingUserId(userId);
+      setFeedback(null);
+      try {
+        const confirmed = window.confirm(`¿Quitar a ${user.name} de ${organization.name}?`);
+        if (!confirmed) {
+          setRemovingUserId(null);
+          return;
+        }
+        await adminUsersAPI.removeOrganization(userId);
+        setFeedback({ type: 'success', message: `${user.name} fue removido de ${organization.name}.` });
+        await loadData();
+      } catch (err) {
+        setFeedback({ type: 'error', message: resolveErrorMessage(err) });
+      } finally {
+        setRemovingUserId(null);
+      }
+    },
+    [canManageMembers, members, loadData, organization.name],
   );
 
   const filteredAvailable = useMemo(() => {
@@ -423,6 +460,7 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
                 <span>Rol</span>
                 <span>Estado</span>
                 <span>Actualizado</span>
+                {canManageMembers && <span>Acciones</span>}
               </div>
               {members.map((member) => (
                 <div className="org-management-table__row" key={member.id}>
@@ -444,6 +482,36 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
                     {member.approved ? <Check size={16} aria-hidden /> : <X size={16} aria-hidden />}
                   </span>
                   <span className="org-management-table__date">{formatDate(member.updatedAt)}</span>
+                  {canManageMembers && (
+                    <div className="org-management-table__actions">
+                      {member.role !== 'superadmin' ? (
+                        <button
+                          className="org-management-assign-btn"
+                          onClick={() => void handleRemove(member.id)}
+                          disabled={removingUserId === member.id}
+                          title="Quitar de la organización"
+                        >
+                          {removingUserId === member.id ? (
+                            <>
+                              <RefreshCcw
+                                size={16}
+                                className="org-management-assign-btn__icon org-management-assign-btn__icon--spinning"
+                                aria-hidden
+                              />
+                              <span>Quitando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserMinus size={16} className="org-management-assign-btn__icon" aria-hidden />
+                              <span>Quitar</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <span className="org-management-available__hint">Superadmin</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

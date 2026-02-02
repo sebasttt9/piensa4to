@@ -16,6 +16,8 @@ export declare class UsersController {
     findOne(id: string): Promise<Omit<UserEntity, "passwordHash">>;
     update(id: string, dto: UpdateUserDto): Promise<Omit<UserEntity, "passwordHash">>;
     assignOrganization(id: string, dto: AssignOrganizationDto): Promise<Omit<UserEntity, "passwordHash">>;
+    removeOrganization(id: string): Promise<Omit<UserEntity, "passwordHash">>;
+    removeOrganizationAlt(id: string): Promise<Omit<UserEntity, "passwordHash">>;
     approve(id: string): Promise<Omit<UserEntity, "passwordHash">>;
     remove(id: string): Promise<void>;
     resetPassword(id: string, dto: ResetPasswordDto): Promise<Omit<UserEntity, "passwordHash">>;
