@@ -706,7 +706,11 @@
   padding: 12px 16px;
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.3);
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.85) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.92) 0%,
+    rgba(30, 41, 59, 0.85) 100%
+  );
   color: #e2e8f0;
   font-size: 0.9rem;
   transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -716,7 +720,9 @@
 .inventory-form-input:focus {
   outline: none;
   border-color: rgba(59, 130, 246, 0.7);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25), 0 14px 32px rgba(15, 23, 42, 0.6);
+  box-shadow:
+    0 0 0 2px rgba(59, 130, 246, 0.25),
+    0 14px 32px rgba(15, 23, 42, 0.6);
 }
 
 .inventory-form-input option {

@@ -230,7 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className={contentClasses}>
           <div className={headerClasses}>
             <div className="flex items-center justify-end">
-              {location.pathname.includes('/inventory') && <CurrencySelector />}
+              {(location.pathname.includes('/inventory') || location.pathname.includes('/sales')) && <CurrencySelector />}
             </div>
           </div>
           {children}

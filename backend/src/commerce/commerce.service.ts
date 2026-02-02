@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
+import type { PostgrestError } from '@supabase/supabase-js';
+import { SUPABASE_CLIENT, SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 
 export interface CommerceTotals {
     revenueCurrent: number;
@@ -94,7 +95,9 @@ export class CommerceService {
 
     constructor(
         @Inject(SUPABASE_DATA_CLIENT)
-        private readonly supabase: SupabaseClient,
+        private readonly salesSupabase: SupabaseClient,
+        @Inject(SUPABASE_CLIENT)
+        private readonly accountsSupabase: SupabaseClient,
     ) { }
 
     async getOverview(ownerId: string, organizationId?: string): Promise<CommerceOverview> {
@@ -141,14 +144,20 @@ export class CommerceService {
     }
 
     private async fetchSalesOrders(ownerId: string, organizationId: string, from: Date): Promise<SalesOrderRow[]> {
-        const { data, error } = await this.supabase
+        const { data, error } = await this.salesSupabase
             .from(this.salesOrdersTable)
-            .select('id, owner_id, organization_id, customer_id, order_total, currency_code, order_date, created_at, status')
+            .select('*')
             .eq('owner_id', ownerId)
             .eq('organization_id', organizationId)
-            .gte('order_date', from.toISOString());
+            .gte('created_at', from.toISOString());
 
         if (error) {
+            if (this.isSchemaMismatchError(error)) {
+                console.warn('[Commerce] fetchSalesOrders schema mismatch', error);
+                return [];
+            }
+
+            console.error('[Commerce] fetchSalesOrders failed', error);
             throw new InternalServerErrorException('No se pudieron obtener las órdenes de venta.');
         }
 
@@ -156,14 +165,20 @@ export class CommerceService {
     }
 
     private async fetchSalesOrderItems(ownerId: string, organizationId: string, from: Date): Promise<SalesOrderItemRow[]> {
-        const { data, error } = await this.supabase
+        const { data, error } = await this.salesSupabase
             .from(this.salesOrderItemsTable)
-            .select('order_id, owner_id, organization_id, sku, product_name, quantity, unit_price, line_total, created_at')
+            .select('*')
             .eq('owner_id', ownerId)
             .eq('organization_id', organizationId)
             .gte('created_at', from.toISOString());
 
         if (error) {
+            if (this.isSchemaMismatchError(error)) {
+                console.warn('[Commerce] fetchSalesOrderItems schema mismatch', error);
+                return [];
+            }
+
+            console.error('[Commerce] fetchSalesOrderItems failed', error);
             throw new InternalServerErrorException('No se pudieron obtener los productos vendidos.');
         }
 
@@ -171,17 +186,43 @@ export class CommerceService {
     }
 
     private async fetchCustomers(ownerId: string, organizationId: string): Promise<CustomerRow[]> {
-        const { data, error } = await this.supabase
+        const primaryResult = await this.accountsSupabase
             .from(this.customersTable)
             .select('id, owner_id, organization_id, status, segment_key, segment_id, created_at')
             .eq('owner_id', ownerId)
             .eq('organization_id', organizationId);
 
-        if (error) {
+        if (!primaryResult.error) {
+            return (primaryResult.data ?? []) as CustomerRow[];
+        }
+
+        if (!this.shouldAttemptFallback(primaryResult.error)) {
+            if (this.isSchemaMismatchError(primaryResult.error)) {
+                console.warn('[Commerce] fetchCustomers primary schema mismatch', primaryResult.error);
+                return [];
+            }
+
+            console.error('[Commerce] fetchCustomers primary failed', primaryResult.error);
             throw new InternalServerErrorException('No se pudieron obtener los clientes.');
         }
 
-        return (data ?? []) as CustomerRow[];
+        const fallbackResult = await this.salesSupabase
+            .from(this.customersTable)
+            .select('*')
+            .eq('owner_id', ownerId)
+            .eq('organization_id', organizationId);
+
+        if (fallbackResult.error) {
+            if (this.isSchemaMismatchError(fallbackResult.error)) {
+                console.warn('[Commerce] fetchCustomers fallback schema mismatch', fallbackResult.error);
+                return [];
+            }
+
+            console.error('[Commerce] fetchCustomers fallback failed', fallbackResult.error);
+            throw new InternalServerErrorException('No se pudieron obtener los clientes.');
+        }
+
+        return (fallbackResult.data ?? []) as CustomerRow[];
     }
 
     private computeOrderAggregates(
@@ -438,4 +479,25 @@ export class CommerceService {
         }
         return 0;
     }
+
+    private isSchemaMismatchError(error?: PostgrestError | null): boolean {
+        if (!error) {
+            return false;
+        }
+
+        return error.code === '42703';
+    }
+
+    private shouldAttemptFallback(error?: PostgrestError | null): boolean {
+        if (!error) {
+            return false;
+        }
+
+        const fallbackCodes = new Set(['PGRST114', 'PGRST116', '42P01']);
+        return fallbackCodes.has(error.code ?? '');
+    }
 }
+
+
+
+
