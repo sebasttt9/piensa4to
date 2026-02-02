@@ -105,6 +105,7 @@ let DatasetsController = class DatasetsController {
 exports.DatasetsController = DatasetsController;
 __decorate([
     (0, common_1.Get)(),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Query)('page')),
     __param(2, (0, common_1.Query)('limit')),
@@ -114,6 +115,7 @@ __decorate([
 ], DatasetsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -161,6 +163,7 @@ __decorate([
 ], DatasetsController.prototype, "uploadFile", null);
 __decorate([
     (0, common_1.Get)(':id/preview'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Query)('limit')),
@@ -170,6 +173,7 @@ __decorate([
 ], DatasetsController.prototype, "getPreview", null);
 __decorate([
     (0, common_1.Get)(':id/analyze'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -178,6 +182,7 @@ __decorate([
 ], DatasetsController.prototype, "analyzeDataset", null);
 __decorate([
     (0, common_1.Get)(':id/insights'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -186,6 +191,7 @@ __decorate([
 ], DatasetsController.prototype, "getInsights", null);
 __decorate([
     (0, common_1.Get)(':id/report'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Query)('format')),

@@ -97,7 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   const navigationItems = useMemo(
-    () => appNavigation.filter((item) => !item.minRole || hasRole(item.minRole)),
+    () => appNavigation.filter((item) => !item.roles || hasRole(item.roles)),
     [hasRole],
   );
 

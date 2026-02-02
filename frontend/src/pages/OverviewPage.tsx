@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   TrendingUp,
   TrendingDown,
   Package,
   ShoppingCart,
+  UserPlus,
   DollarSign,
   Database,
   LayoutDashboard,
@@ -16,7 +17,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
-import { inventoryAPI, inventoryItemsAPI, datasetsAPI, dashboardsAPI, issuesAPI, type InventorySummary, type InventoryItem, type Dataset, type Dashboard, type Issue } from '../lib/services';
+import { inventoryAPI, inventoryItemsAPI, datasetsAPI, dashboardsAPI, issuesAPI, commerceAPI, type InventorySummary, type InventoryItem, type Dataset, type Dashboard, type Issue, type CommerceOverview } from '../lib/services';
 import { useCurrency } from '../context/CurrencyContext';
 import './OverviewPage.css';
 
@@ -59,6 +60,7 @@ const CHART_OPTIONS: ChartOption[] = [
 export function OverviewPage() {
   const { formatAmount } = useCurrency();
   const [overview, setOverview] = useState<InventoryOverview | null>(null);
+  const [commerce, setCommerce] = useState<CommerceOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('bar');
@@ -73,11 +75,144 @@ export function OverviewPage() {
       setIsLoading(true);
       try {
         // Cargar datos principales primero
-        const [summary, items, datasets, dashboards] = await Promise.all([
+        const commercePromise = commerceAPI
+          .getOverview()
+          .catch((commerceError) => {
+            console.warn('Commerce overview not available:', commerceError);
+            return null;
+          });
+
+      {commerce && commerce.hasOrders && (
+        <div className="overview-commerce">
+          <div className="overview-chart-card">
+            <div className="overview-chart-card__header">
+              <div className="overview-chart-card__header-main">
+                <DollarSign className="overview-chart-card__type-icon" />
+                <div>
+                  <h3 className="overview-chart-card__title">Evolución de Ingresos</h3>
+                {commerce && !commerce.hasOrders && (
+                  <div className="overview-alert" role="status">
+                    <DollarSign className="overview-alert__icon" />
+                    <div className="overview-alert__content">
+                      <p className="overview-alert__title">Sin datos de ventas todavía</p>
+                      <p className="overview-alert__message">Carga pedidos recientes para activar el resumen comercial y las métricas de clientes.</p>
+                    </div>
+                  </div>
+                )}
+
+                  <p className="overview-chart-card__subtitle">Ingresos, órdenes y clientes por mes</p>
+                </div>
+              </div>
+            </div>
+            <div className="overview-chart-card__content">
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={salesTrendData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="commerceRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#7C3AED" stopOpacity={0.1} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      name === 'revenue' ? formatCurrency(value) : value.toLocaleString('es-ES'),
+                      name === 'revenue' ? 'Ingresos' : name === 'orders' ? 'Órdenes' : 'Clientes'
+                    ]}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
+                  />
+                  <Area type="monotone" dataKey="revenue" stroke="#7C3AED" fill="url(#commerceRevenueGradient)" name="revenue" />
+                  <Line type="monotone" dataKey="orders" stroke="#F97316" strokeWidth={2} name="orders" />
+                  <Line type="monotone" dataKey="customers" stroke="#22C55E" strokeWidth={2} name="customers" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="overview-chart-card">
+            <div className="overview-chart-card__header">
+              <div className="overview-chart-card__header-main">
+                <BarChart3 className="overview-chart-card__type-icon" />
+                <div>
+                  <h3 className="overview-chart-card__title">Segmentos con Mayor Valor</h3>
+                  <p className="overview-chart-card__subtitle">Participación de ingresos por segmento</p>
+                </div>
+              </div>
+            </div>
+            <div className="overview-chart-card__content">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={segmentPerformanceData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      name === 'revenue' ? formatCurrency(value) : `${value.toFixed(1)}%`,
+                      name === 'revenue' ? 'Ingresos' : 'Participación'
+                    ]}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      color: '#f1f5f9'
+                    }}
+                  />
+                  <Bar dataKey="revenue" fill="#4ECDC4" name="revenue" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="overview-chart-card">
+            <div className="overview-chart-card__header">
+              <div className="overview-chart-card__header-main">
+                <ShoppingCart className="overview-chart-card__type-icon" />
+                <div>
+                  <h3 className="overview-chart-card__title">Productos Destacados</h3>
+                  <p className="overview-chart-card__subtitle">Top 5 productos por ingresos</p>
+                </div>
+              </div>
+            </div>
+            <div className="overview-chart-card__content overview-chart-card__content--list">
+              {topSalesProducts.length > 0 ? (
+                <ul className="overview-commerce-list">
+                  {topSalesProducts.map((product) => (
+                    <li key={product.sku} className="overview-commerce-list__item">
+                      <div>
+                        <span className="overview-commerce-list__name">{product.name}</span>
+                        <span className="overview-commerce-list__meta">SKU {product.sku}</span>
+                      </div>
+                      <div className="overview-commerce-list__figures">
+                        <span>{formatCurrency(product.revenue)}</span>
+                        <span>{product.quantity.toLocaleString('es-ES')} uds</span>
+                        <span>{product.growth !== null ? `${product.growth > 0 ? '+' : ''}${product.growth.toFixed(1)}%` : '––'}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="overview-commerce-empty">Aún no hay ventas por producto registradas.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+        const [summary, items, datasets, dashboards, commerceData] = await Promise.all([
           inventoryAPI.getSummary(),
           inventoryItemsAPI.list(),
           datasetsAPI.list(1, 100),
-          dashboardsAPI.list(1, 100)
+          dashboardsAPI.list(1, 100),
+          commercePromise
         ]);
 
         // Cargar issues de forma opcional (si la tabla existe)
@@ -98,6 +233,7 @@ export function OverviewPage() {
           dashboards: dashboards.data || [],
           issues: issues || []
         });
+        setCommerce(commerceData);
         setError(null);
       } catch (err: unknown) {
         if (!active) return;
@@ -106,6 +242,7 @@ export function OverviewPage() {
             ? String((err as { message?: unknown }).message ?? 'Error desconocido')
             : 'No se pudo cargar el resumen del inventario';
         setError(message);
+        setCommerce(null);
       } finally {
         if (active) {
           setIsLoading(false);
@@ -120,75 +257,143 @@ export function OverviewPage() {
     };
   }, []);
 
-  const formatCurrency = (value: number) => formatAmount(value, 'USD');
+  const formatCurrency = useCallback((value: number) => formatAmount(value), [formatAmount]);
 
   const statCards: StatCard[] = useMemo(() => {
-    if (!overview) return [];
+    const cards: StatCard[] = [];
 
-    const totalValue = overview.items.reduce((sum, item) => sum + (item.quantity * item.pvp), 0);
-    const totalCost = overview.items.reduce((sum, item) => sum + (item.quantity * item.cost), 0);
-    const totalItems = overview.items.length;
-    const approvedItems = overview.items.filter(item => item.status === 'approved').length;
-    const linkedDatasets = new Set(overview.items.filter(item => item.datasetId).map(item => item.datasetId)).size;
-    const linkedDashboards = new Set(overview.items.filter(item => item.dashboardId).map(item => item.dashboardId)).size;
+    if (overview) {
+      const totalValue = overview.items.reduce((sum, item) => sum + (item.quantity * item.pvp), 0);
+      const totalCost = overview.items.reduce((sum, item) => sum + (item.quantity * item.cost), 0);
+      const totalItems = overview.items.length;
+      const approvedItems = overview.items.filter(item => item.status === 'approved').length;
+      const linkedDatasets = new Set(overview.items.filter(item => item.datasetId).map(item => item.datasetId)).size;
+      const linkedDashboards = new Set(overview.items.filter(item => item.dashboardId).map(item => item.dashboardId)).size;
 
-    return [
-      {
-        title: 'Valor Total del Inventario',
-        value: formatCurrency(totalValue),
-        icon: DollarSign,
-        accent: '#00D4FF', // Cyan brillante
-        accentSoft: 'rgba(0, 212, 255, 0.15)',
-        meta: 'Valor de mercado actual',
-        trend: totalValue > 0 ? 'up' : 'neutral'
-      },
-      {
-        title: 'Costo Total',
-        value: formatCurrency(totalCost),
-        icon: ShoppingCart,
-        accent: '#FF6B6B', // Rojo coral
-        accentSoft: 'rgba(255, 107, 107, 0.15)',
-        meta: 'Inversión total',
-        trend: 'neutral'
-      },
-      {
-        title: 'Items de Inventario',
-        value: totalItems.toLocaleString('es-ES'),
-        icon: Package,
-        accent: '#4ECDC4', // Turquesa
-        accentSoft: 'rgba(78, 205, 196, 0.15)',
-        meta: `${approvedItems} aprobados`,
-        trend: totalItems > 0 ? 'up' : 'neutral'
-      },
-      {
-        title: 'Datasets Vinculados',
-        value: linkedDatasets.toString(),
-        icon: Database,
-        accent: '#45B7D1', // Azul cielo
-        accentSoft: 'rgba(69, 183, 209, 0.15)',
-        meta: 'Conexiones activas',
-        trend: linkedDatasets > 0 ? 'up' : 'neutral'
-      },
-      {
-        title: 'Dashboards Vinculados',
-        value: linkedDashboards.toString(),
-        icon: LayoutDashboard,
-        accent: '#96CEB4', // Verde menta
-        accentSoft: 'rgba(150, 206, 180, 0.15)',
-        meta: 'Visualizaciones activas',
-        trend: linkedDashboards > 0 ? 'up' : 'neutral'
-      },
-      {
-        title: 'Margen Promedio',
-        value: totalValue > 0 ? `${(((totalValue - totalCost) / totalValue) * 100).toFixed(1)}%` : '0%',
-        icon: TrendingUp,
-        accent: '#FFEAA7', // Amarillo crema
-        accentSoft: 'rgba(255, 234, 167, 0.15)',
-        meta: 'Rentabilidad',
-        trend: totalValue > totalCost ? 'up' : totalValue < totalCost ? 'down' : 'neutral'
-      }
-    ];
-  }, [overview]);
+      cards.push(
+        {
+          title: 'Valor Total del Inventario',
+          value: formatCurrency(totalValue),
+          icon: DollarSign,
+          accent: '#00D4FF',
+          accentSoft: 'rgba(0, 212, 255, 0.15)',
+          meta: 'Valor de mercado actual',
+          trend: totalValue > 0 ? 'up' : 'neutral'
+        },
+        {
+          title: 'Costo Total',
+          value: formatCurrency(totalCost),
+          icon: ShoppingCart,
+          accent: '#FF6B6B',
+          accentSoft: 'rgba(255, 107, 107, 0.15)',
+          meta: 'Inversión total',
+          trend: 'neutral'
+        },
+        {
+          title: 'Items de Inventario',
+          value: totalItems.toLocaleString('es-ES'),
+          icon: Package,
+          accent: '#4ECDC4',
+          accentSoft: 'rgba(78, 205, 196, 0.15)',
+          meta: `${approvedItems} aprobados`,
+          trend: totalItems > 0 ? 'up' : 'neutral'
+        },
+        {
+          title: 'Datasets Vinculados',
+          value: linkedDatasets.toString(),
+          icon: Database,
+          accent: '#45B7D1',
+          accentSoft: 'rgba(69, 183, 209, 0.15)',
+          meta: 'Conexiones activas',
+          trend: linkedDatasets > 0 ? 'up' : 'neutral'
+        },
+        {
+          title: 'Dashboards Vinculados',
+          value: linkedDashboards.toString(),
+          icon: LayoutDashboard,
+          accent: '#96CEB4',
+          accentSoft: 'rgba(150, 206, 180, 0.15)',
+          meta: 'Visualizaciones activas',
+          trend: linkedDashboards > 0 ? 'up' : 'neutral'
+        },
+        {
+          title: 'Margen Promedio',
+          value: totalValue > 0 ? `${(((totalValue - totalCost) / totalValue) * 100).toFixed(1)}%` : '0%',
+          icon: TrendingUp,
+          accent: '#FFEAA7',
+          accentSoft: 'rgba(255, 234, 167, 0.15)',
+          meta: 'Rentabilidad',
+          trend: totalValue > totalCost ? 'up' : totalValue < totalCost ? 'down' : 'neutral'
+        }
+      );
+    }
+
+    if (commerce) {
+      const { totals } = commerce;
+      const formatPercent = (value: number) => {
+        if (!Number.isFinite(value)) {
+          return '0.0%';
+        }
+        const safe = Number(value);
+        const sign = safe > 0 ? '+' : safe < 0 ? '' : '';
+        return `${sign}${safe.toFixed(1)}%`;
+      };
+
+      const ordersMeta = totals.ordersPrevious > 0
+        ? `Mes anterior ${totals.ordersPrevious.toLocaleString('es-ES')} órdenes`
+        : 'Primer mes con órdenes registradas';
+
+      cards.push(
+        {
+          title: 'Ingresos del Mes',
+          value: formatCurrency(totals.revenueCurrent),
+          icon: DollarSign,
+          accent: '#7C3AED',
+          accentSoft: 'rgba(124, 58, 237, 0.15)',
+          meta: `Vs mes anterior ${formatPercent(totals.revenueChangePct)} · Moneda ${commerce.currency}`,
+          trend: totals.revenueChangePct > 0 ? 'up' : totals.revenueChangePct < 0 ? 'down' : 'neutral'
+        },
+        {
+          title: 'Órdenes del Mes',
+          value: totals.ordersCurrent.toLocaleString('es-ES'),
+          icon: Activity,
+          accent: '#F97316',
+          accentSoft: 'rgba(249, 115, 22, 0.15)',
+          meta: ordersMeta,
+          trend: totals.ordersCurrent >= totals.ordersPrevious ? 'up' : 'down'
+        },
+        {
+          title: 'Ticket Promedio',
+          value: formatCurrency(totals.avgTicketCurrent),
+          icon: Target,
+          accent: '#38BDF8',
+          accentSoft: 'rgba(56, 189, 248, 0.15)',
+          meta: `Variación ${formatPercent(totals.avgTicketChangePct)}`,
+          trend: totals.avgTicketChangePct > 0 ? 'up' : totals.avgTicketChangePct < 0 ? 'down' : 'neutral'
+        },
+        {
+          title: 'Clientes Nuevos',
+          value: totals.newCustomersCurrent.toLocaleString('es-ES'),
+          icon: UserPlus,
+          accent: '#22C55E',
+          accentSoft: 'rgba(34, 197, 94, 0.15)',
+          meta: `Variación ${formatPercent(totals.newCustomersChangePct)}`,
+          trend: totals.newCustomersChangePct > 0 ? 'up' : totals.newCustomersChangePct < 0 ? 'down' : 'neutral'
+        },
+        {
+          title: 'Clientes Activos',
+          value: totals.activeCustomers.toLocaleString('es-ES'),
+          icon: Users,
+          accent: '#14B8A6',
+          accentSoft: 'rgba(20, 184, 166, 0.15)',
+          meta: `${totals.returningCustomers.toLocaleString('es-ES')} recurrentes`,
+          trend: totals.returningCustomers > 0 ? 'up' : 'neutral'
+        }
+      );
+    }
+
+    return cards;
+  }, [overview, commerce, formatCurrency]);
 
   const inventoryStatusData = useMemo(() => {
     if (!overview) return [];
@@ -340,6 +545,39 @@ export function OverviewPage() {
       cost: items.reduce((sum, item) => sum + (item.quantity * item.cost), 0)
     }));
   }, [overview]);
+
+  const salesTrendData = useMemo(() => {
+    if (!commerce) return [];
+    return commerce.monthlyRevenue.map((point) => ({
+      label: point.label,
+      revenue: point.revenue,
+      orders: point.orders,
+      customers: point.customers,
+    }));
+  }, [commerce]);
+
+  const segmentPerformanceData = useMemo(() => {
+    if (!commerce) return [];
+    return commerce.segmentPerformance.map((segment) => ({
+      name: segment.segment,
+      revenue: segment.revenue,
+      customers: segment.customers,
+      avgTicket: segment.avgTicket,
+      share: segment.revenueShare * 100,
+    }));
+  }, [commerce]);
+
+  const topSalesProducts = useMemo(() => {
+    if (!commerce) return [];
+    return commerce.topProducts.map((product) => ({
+      sku: product.sku,
+      name: product.name,
+      quantity: product.quantity,
+      revenue: product.revenue,
+      growth: product.growthPct,
+      share: product.revenueShare * 100,
+    }));
+  }, [commerce]);
 
   // Función para renderizar el gráfico secundario seleccionado
   const renderSecondaryChart = () => {

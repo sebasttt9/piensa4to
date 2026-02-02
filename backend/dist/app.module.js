@@ -25,6 +25,8 @@ const analytics_module_1 = require("./analytics/analytics.module");
 const inventory_module_1 = require("./inventory/inventory.module");
 const issues_module_1 = require("./issues/issues.module");
 const organizations_module_1 = require("./organizations/organizations.module");
+const commerce_module_1 = require("./commerce/commerce.module");
+const superadmin_dashboard_module_1 = require("./superadmin-dashboard/superadmin-dashboard.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -42,6 +44,8 @@ exports.AppModule = AppModule = __decorate([
             inventory_module_1.InventoryModule,
             issues_module_1.IssuesModule,
             organizations_module_1.OrganizationsModule,
+            commerce_module_1.CommerceModule,
+            superadmin_dashboard_module_1.SuperadminDashboardModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

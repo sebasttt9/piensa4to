@@ -5,19 +5,22 @@ import api from '../lib/api';
 
 export type Role = 'user' | 'admin' | 'superadmin';
 
-const ROLE_PRIORITY: Record<Role, number> = {
-  user: 1,
-  admin: 2,
-  superadmin: 3,
+const KNOWN_ROLES: Role[] = ['user', 'admin', 'superadmin'];
+const ROLE_ACCESS: Record<Role, Role[]> = {
+  user: ['user'],
+  admin: ['user', 'admin'],
+  superadmin: ['superadmin'],
 };
 
-const isRole = (value: unknown): value is Role => typeof value === 'string' && value in ROLE_PRIORITY;
+const isRole = (value: unknown): value is Role => typeof value === 'string' && KNOWN_ROLES.includes(value as Role);
 
 type AuthUser = {
   id: string;
   name: string;
   email: string;
   role: Role;
+  organizationId?: string | null;
+  approved?: boolean;
 };
 
 type AuthContextValue = {
@@ -41,6 +44,12 @@ const mapApiUser = (payload: any): AuthUser => ({
   name: payload.name ?? 'Usuario',
   email: payload.email,
   role: isRole(payload.role) ? payload.role : 'user',
+  organizationId: typeof payload.organizationId === 'string'
+    ? payload.organizationId
+    : typeof payload.organization_id === 'string'
+      ? payload.organization_id
+      : null,
+  approved: typeof payload.approved === 'boolean' ? payload.approved : true,
 });
 
 const resolveErrorMessage = (error: unknown): string => {
@@ -158,15 +167,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) {
       return false;
     }
-    const userPriority = ROLE_PRIORITY[user.role] ?? 0;
-    const requiredPriority = ROLE_PRIORITY[required] ?? Number.MAX_SAFE_INTEGER;
-    return userPriority >= requiredPriority;
+    const accessible = ROLE_ACCESS[user.role] ?? [];
+    return accessible.includes(required);
   }, [user]);
 
   const hasRole = useCallback((roles: Role | Role[]) => {
+    if (!user) {
+      return false;
+    }
     const list = Array.isArray(roles) ? roles : [roles];
-    return list.some((role) => roleAtLeast(role));
-  }, [roleAtLeast]);
+    const accessible = ROLE_ACCESS[user.role] ?? [];
+    return list.some((role) => accessible.includes(role));
+  }, [user]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {

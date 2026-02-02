@@ -21,9 +21,12 @@ import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { ShareDashboardDto } from './dto/share-dashboard.dto';
 import { ApproveDashboardDto } from './dto/approve-dashboard.dto';
 import type { Response } from 'express';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../common/constants/roles.enum';
 
 @Controller('dashboards')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class DashboardsController {
   constructor(private readonly dashboardsService: DashboardsService) { }
 
@@ -33,12 +36,14 @@ export class DashboardsController {
   }
 
   @Post()
+  @Roles(UserRole.User, UserRole.Admin)
   create(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Body() dto: CreateDashboardDto) {
     const organizationId = this.validateOrganization(user.organizationId);
     return this.dashboardsService.create(user.id, dto, user.role, organizationId);
   }
 
   @Get()
+  @Roles(UserRole.User, UserRole.Admin)
   async findAll(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Query('page') page = 1,
@@ -61,12 +66,14 @@ export class DashboardsController {
   }
 
   @Get(':id')
+  @Roles(UserRole.User, UserRole.Admin)
   findOne(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
     const organizationId = this.validateOrganization(user.organizationId);
     return this.dashboardsService.findOne(user.id, id, user.role, organizationId);
   }
 
   @Put(':id')
+  @Roles(UserRole.User, UserRole.Admin)
   update(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
@@ -77,6 +84,7 @@ export class DashboardsController {
   }
 
   @Patch(':id/share')
+  @Roles(UserRole.User, UserRole.Admin)
   share(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
@@ -87,6 +95,7 @@ export class DashboardsController {
   }
 
   @Post(':id/share/invite')
+  @Roles(UserRole.User, UserRole.Admin)
   shareWithContact(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
@@ -97,12 +106,14 @@ export class DashboardsController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.User, UserRole.Admin)
   remove(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
     const organizationId = this.validateOrganization(user.organizationId);
     return this.dashboardsService.remove(user.id, id, user.role, organizationId);
   }
 
   @Get(':id/export')
+  @Roles(UserRole.User, UserRole.Admin)
   async export(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
@@ -125,6 +136,7 @@ export class DashboardsController {
   }
 
   @Patch(':id/approve')
+  @Roles(UserRole.Admin)
   approve(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string, @Body() dto: ApproveDashboardDto) {
     const organizationId = this.validateOrganization(user.organizationId);
     return this.dashboardsService.approveDashboard(user.id, id, dto.status, user.role, organizationId);

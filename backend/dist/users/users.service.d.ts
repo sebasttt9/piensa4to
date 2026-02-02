@@ -18,6 +18,12 @@ export declare class UsersService {
     updateProfile(id: string, changes: UpdateProfileDto): Promise<Omit<UserEntity, 'passwordHash'>>;
     changePassword(id: string, currentPassword: string, newPassword: string): Promise<void>;
     remove(id: string): Promise<void>;
+    private cleanupUserRelations;
+    private cleanupClientRelations;
+    private collectIds;
+    private executeCleanup;
+    private isIgnorableCleanupError;
+    private resolveUserDeleteError;
     private toPublicUser;
     private toUserEntity;
 }

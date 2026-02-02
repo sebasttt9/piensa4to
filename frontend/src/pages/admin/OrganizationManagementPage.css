@@ -581,16 +581,27 @@
   border: 1px solid rgba(249, 115, 22, 0.34);
 }
 
-.org-management-badge--state-approved {
-  background: rgba(34, 197, 94, 0.14);
-  color: #bbf7d0;
-  border: 1px solid rgba(34, 197, 94, 0.32);
+.org-management-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  box-shadow: 0 6px 14px rgba(3, 7, 23, 0.4);
 }
 
-.org-management-badge--state-pending {
-  background: rgba(249, 115, 22, 0.14);
-  color: #fdba74;
-  border: 1px solid rgba(249, 115, 22, 0.32);
+.org-management-state-icon--approved {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.32);
+  color: #bbf7d0;
+}
+
+.org-management-state-icon--pending {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fecaca;
 }
 
 .org-management-table__date {
@@ -668,7 +679,7 @@
 .org-management-available__actions {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: flex-end;
 }
 
 .org-management-select {

@@ -1,8 +1,9 @@
-import { Inject, Injectable, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_DATA_CLIENT } from '../database/supabase.constants';
 import { AnalyticsService, OverviewAnalytics } from '../analytics/analytics.service';
 import { CreateInventoryItemDto, UpdateInventoryItemDto } from './dto/inventory-item.dto';
+import { UserRole } from '../common/constants/roles.enum';
 
 interface DatasetRow {
     id: string;
@@ -110,12 +111,20 @@ export class InventoryService {
         private readonly analyticsService: AnalyticsService,
     ) { }
 
-    async getInventory(ownerId: string): Promise<InventorySummary> {
+    async getInventory(ownerId: string, userRole: UserRole = UserRole.User, organizationId?: string): Promise<InventorySummary> {
+        if (userRole === UserRole.SuperAdmin) {
+            throw new ForbiddenException('El superadmin no puede consultar inventario.');
+        }
+
+        if (!organizationId) {
+            throw new BadRequestException('La organización es requerida para consultar el inventario.');
+        }
+
         // Fetch all required data
         const [datasets, dashboards, adjustments] = await Promise.all([
-            this.fetchDatasets(ownerId),
-            this.fetchDashboards(ownerId),
-            this.fetchAdjustments(ownerId),
+            this.fetchDatasets(ownerId, organizationId),
+            this.fetchDashboards(ownerId, organizationId),
+            this.fetchAdjustments(ownerId, organizationId),
         ]);
 
         // Create adjustment lookup map
@@ -178,14 +187,28 @@ export class InventoryService {
         };
     }
 
-    async adjustInventory(ownerId: string, datasetId: string, amount: number): Promise<InventorySummary> {
+    async adjustInventory(
+        ownerId: string,
+        datasetId: string,
+        amount: number,
+        userRole: UserRole = UserRole.User,
+        organizationId?: string,
+    ): Promise<InventorySummary> {
+        if (userRole === UserRole.SuperAdmin) {
+            throw new ForbiddenException('El superadmin no puede ajustar inventario.');
+        }
+
+        if (!organizationId) {
+            throw new BadRequestException('La organización es requerida para ajustar inventario.');
+        }
+
         if (!Number.isFinite(amount) || amount === 0) {
             throw new BadRequestException('El ajuste de inventario debe ser un entero distinto de cero.');
         }
 
-        await this.ensureDatasetOwnership(ownerId, datasetId);
+        await this.ensureDatasetOwnership(ownerId, datasetId, organizationId);
 
-        const current = await this.fetchAdjustment(ownerId, datasetId);
+        const current = await this.fetchAdjustment(ownerId, datasetId, organizationId);
         const nextValue = (current?.adjustment ?? 0) + amount;
 
         if (nextValue === 0) {
@@ -193,7 +216,8 @@ export class InventoryService {
                 .from(this.inventoryTable)
                 .delete()
                 .eq('owner_id', ownerId)
-                .eq('dataset_id', datasetId);
+                .eq('dataset_id', datasetId)
+                .eq('organization_id', organizationId);
 
             if (error) {
                 throw new InternalServerErrorException('No se pudo actualizar el inventario.');
@@ -203,36 +227,52 @@ export class InventoryService {
                 .from(this.inventoryTable)
                 .upsert({
                     owner_id: ownerId,
+                    organization_id: organizationId,
                     dataset_id: datasetId,
                     adjustment: nextValue,
-                }, { onConflict: 'owner_id,dataset_id' });
+                }, { onConflict: 'owner_id,dataset_id,organization_id' });
 
             if (error) {
                 throw new InternalServerErrorException('No se pudo actualizar el inventario.');
             }
         }
 
-        return this.getInventory(ownerId);
+        return this.getInventory(ownerId, userRole, organizationId);
     }
 
-    async resetAdjustments(ownerId: string): Promise<InventorySummary> {
+    async resetAdjustments(ownerId: string, userRole: UserRole = UserRole.User, organizationId?: string): Promise<InventorySummary> {
+        if (userRole === UserRole.SuperAdmin) {
+            throw new ForbiddenException('El superadmin no puede reiniciar ajustes de inventario.');
+        }
+
+        if (!organizationId) {
+            throw new BadRequestException('La organización es requerida para reiniciar ajustes.');
+        }
+
         const { error } = await this.supabase
             .from(this.inventoryTable)
             .delete()
-            .eq('owner_id', ownerId);
+            .eq('owner_id', ownerId)
+            .eq('organization_id', organizationId);
 
         if (error) {
             throw new InternalServerErrorException('No se pudo reiniciar los ajustes de inventario.');
         }
 
-        return this.getInventory(ownerId);
+        return this.getInventory(ownerId, userRole, organizationId);
     }
 
-    private async fetchDatasets(ownerId: string): Promise<DatasetRow[]> {
-        const { data, error } = await this.supabase
+    private async fetchDatasets(ownerId: string, organizationId?: string): Promise<DatasetRow[]> {
+        let query = this.supabase
             .from(this.datasetsTable)
             .select('id, owner_id, name, status, row_count, updated_at, tags')
             .eq('owner_id', ownerId);
+
+        if (organizationId) {
+            query = query.eq('organization_id', organizationId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             throw new InternalServerErrorException('No se pudieron leer los datasets desde Supabase.');
@@ -241,11 +281,17 @@ export class InventoryService {
         return (data ?? []) as DatasetRow[];
     }
 
-    private async fetchDashboards(ownerId: string): Promise<DashboardRow[]> {
-        const { data, error } = await this.supabase
+    private async fetchDashboards(ownerId: string, organizationId?: string): Promise<DashboardRow[]> {
+        let query = this.supabase
             .from(this.dashboardsTable)
             .select('id, owner_id, name, dataset_ids, updated_at')
             .eq('owner_id', ownerId);
+
+        if (organizationId) {
+            query = query.eq('organization_id', organizationId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             throw new InternalServerErrorException('No se pudieron leer los dashboards desde Supabase.');
@@ -254,11 +300,17 @@ export class InventoryService {
         return (data ?? []) as DashboardRow[];
     }
 
-    private async fetchAdjustments(ownerId: string): Promise<InventoryAdjustmentRow[]> {
-        const { data, error } = await this.supabase
+    private async fetchAdjustments(ownerId: string, organizationId?: string): Promise<InventoryAdjustmentRow[]> {
+        let query = this.supabase
             .from(this.inventoryTable)
             .select('dataset_id, owner_id, adjustment, updated_at')
             .eq('owner_id', ownerId);
+
+        if (organizationId) {
+            query = query.eq('organization_id', organizationId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             throw new InternalServerErrorException('No se pudieron leer los ajustes de inventario desde Supabase.');
@@ -267,13 +319,18 @@ export class InventoryService {
         return (data ?? []) as InventoryAdjustmentRow[];
     }
 
-    private async fetchAdjustment(ownerId: string, datasetId: string): Promise<InventoryAdjustmentRow | null> {
-        const { data, error } = await this.supabase
+    private async fetchAdjustment(ownerId: string, datasetId: string, organizationId?: string): Promise<InventoryAdjustmentRow | null> {
+        let query = this.supabase
             .from(this.inventoryTable)
             .select('dataset_id, owner_id, adjustment, updated_at')
             .eq('owner_id', ownerId)
-            .eq('dataset_id', datasetId)
-            .maybeSingle();
+            .eq('dataset_id', datasetId);
+
+        if (organizationId) {
+            query = query.eq('organization_id', organizationId);
+        }
+
+        const { data, error } = await query.maybeSingle();
 
         if (error) {
             throw new InternalServerErrorException('No se pudo leer el ajuste actual de inventario.');
@@ -282,13 +339,18 @@ export class InventoryService {
         return (data as InventoryAdjustmentRow | null) ?? null;
     }
 
-    private async ensureDatasetOwnership(ownerId: string, datasetId: string): Promise<void> {
-        const { data, error } = await this.supabase
+    private async ensureDatasetOwnership(ownerId: string, datasetId: string, organizationId?: string): Promise<void> {
+        let query = this.supabase
             .from(this.datasetsTable)
             .select('id')
             .eq('id', datasetId)
-            .eq('owner_id', ownerId)
-            .maybeSingle();
+            .eq('owner_id', ownerId);
+
+        if (organizationId) {
+            query = query.eq('organization_id', organizationId);
+        }
+
+        const { data, error } = await query.maybeSingle();
 
         if (error) {
             throw new InternalServerErrorException('No se pudo validar el dataset en Supabase.');
@@ -299,13 +361,18 @@ export class InventoryService {
         }
     }
 
-    private async ensureDashboardOwnership(ownerId: string, dashboardId: string): Promise<void> {
-        const { data, error } = await this.supabase
+    private async ensureDashboardOwnership(ownerId: string, dashboardId: string, organizationId?: string): Promise<void> {
+        let query = this.supabase
             .from(this.dashboardsTable)
             .select('id')
             .eq('id', dashboardId)
-            .eq('owner_id', ownerId)
-            .maybeSingle();
+            .eq('owner_id', ownerId);
+
+        if (organizationId) {
+            query = query.eq('organization_id', organizationId);
+        }
+
+        const { data, error } = await query.maybeSingle();
 
         if (error) {
             throw new InternalServerErrorException('No se pudo validar el dashboard en Supabase.');
@@ -375,14 +442,27 @@ export class InventoryService {
     }
 
     // Inventory Items CRUD
-    async createItem(ownerId: string, dto: CreateInventoryItemDto, userRole: string = 'user', organizationId?: string): Promise<InventoryItem> {
+    async createItem(
+        ownerId: string,
+        dto: CreateInventoryItemDto,
+        userRole: UserRole = UserRole.User,
+        organizationId?: string,
+    ): Promise<InventoryItem> {
+        if (userRole === UserRole.SuperAdmin) {
+            throw new ForbiddenException('El superadmin no puede crear items de inventario.');
+        }
+
+        if (!organizationId) {
+            throw new BadRequestException('La organización es requerida para crear items de inventario.');
+        }
+
         console.log('Creating inventory item for ownerId:', ownerId, 'dto:', dto);
         // Validate dataset/dashboard ownership if provided
         if (dto.datasetId) {
-            await this.ensureDatasetOwnership(ownerId, dto.datasetId);
+            await this.ensureDatasetOwnership(ownerId, dto.datasetId, organizationId);
         }
         if (dto.dashboardId) {
-            await this.ensureDashboardOwnership(ownerId, dto.dashboardId);
+            await this.ensureDashboardOwnership(ownerId, dto.dashboardId, organizationId);
         }
 
         // All items start as pending, regardless of user role
@@ -418,7 +498,11 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async getItems(ownerId: string, userRole: string = 'user', organizationId?: string): Promise<InventoryItem[]> {
+    async getItems(ownerId: string, userRole: UserRole = UserRole.User, organizationId?: string): Promise<InventoryItem[]> {
+        if (userRole === UserRole.SuperAdmin) {
+            throw new ForbiddenException('El superadmin no puede consultar items de inventario.');
+        }
+
         console.log('getItems called with ownerId:', ownerId, 'userRole:', userRole, 'organizationId:', organizationId);
 
         let query = this.supabase
@@ -426,15 +510,16 @@ export class InventoryService {
             .select('*')
             .order('created_at', { ascending: false });
 
+        const isAdmin = userRole === UserRole.Admin;
+
         // Filter based on user role and organization
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            // Admins and superadmins can see items from their organization
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
+        if (isAdmin) {
+            if (!organizationId) {
+                throw new BadRequestException('La organización es requerida para consultar el inventario como administrador.');
             }
-            console.log('User is admin/superadmin, fetching items from organization:', organizationId);
+            query = query.eq('organization_id', organizationId);
+            console.log('User is admin, enforcing organization filter:', organizationId);
         } else {
-            // Regular users can only see their own items
             console.log('User is regular user, filtering by owner_id:', ownerId);
             query = query.eq('owner_id', ownerId);
         }
@@ -450,22 +535,24 @@ export class InventoryService {
         return (data as InventoryItemRow[]).map(row => this.mapToInventoryItem(row));
     }
 
-    async getItem(ownerId: string, itemId: string, userRole: string = 'user', organizationId?: string): Promise<InventoryItem> {
+    async getItem(ownerId: string, itemId: string, userRole: UserRole = UserRole.User, organizationId?: string): Promise<InventoryItem> {
+        if (userRole === UserRole.SuperAdmin) {
+            throw new ForbiddenException('El superadmin no puede consultar items de inventario.');
+        }
+
         let query = this.supabase
             .from(this.itemsTable)
             .select('*')
             .eq('id', itemId);
 
-        // Filter based on user role and organization
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            // Admins and superadmins can access items from their organization
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            } else {
-                query = query.eq('owner_id', ownerId);
+        const isAdmin = userRole === UserRole.Admin;
+
+        if (isAdmin) {
+            if (!organizationId) {
+                throw new BadRequestException('La organización es requerida para consultar items como administrador.');
             }
+            query = query.eq('organization_id', organizationId);
         } else {
-            // Regular users can only access their own items
             query = query.eq('owner_id', ownerId);
         }
 
@@ -478,16 +565,32 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async updateItem(ownerId: string, itemId: string, dto: UpdateInventoryItemDto, userRole: string = 'user', organizationId?: string): Promise<InventoryItem> {
+    async updateItem(
+        ownerId: string,
+        itemId: string,
+        dto: UpdateInventoryItemDto,
+        userRole: UserRole = UserRole.User,
+        organizationId?: string,
+    ): Promise<InventoryItem> {
+        if (userRole === UserRole.SuperAdmin) {
+            throw new ForbiddenException('El superadmin no puede actualizar items de inventario.');
+        }
+
+        const isAdmin = userRole === UserRole.Admin;
+
+        if (!organizationId) {
+            throw new BadRequestException('La organización es requerida para actualizar items de inventario.');
+        }
+
         // Validate ownership first
         await this.getItem(ownerId, itemId, userRole, organizationId);
 
         // Validate new dataset/dashboard ownership if provided
         if (dto.datasetId) {
-            await this.ensureDatasetOwnership(ownerId, dto.datasetId);
+            await this.ensureDatasetOwnership(ownerId, dto.datasetId, organizationId);
         }
         if (dto.dashboardId) {
-            await this.ensureDashboardOwnership(ownerId, dto.dashboardId);
+            await this.ensureDashboardOwnership(ownerId, dto.dashboardId, organizationId);
         }
 
         const updateData: Record<string, unknown> = {};
@@ -504,16 +607,9 @@ export class InventoryService {
             .update(updateData)
             .eq('id', itemId);
 
-        // Filter based on user role and organization
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            // Admins and superadmins can update items from their organization
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            } else {
-                query = query.eq('owner_id', ownerId);
-            }
+        if (isAdmin) {
+            query = query.eq('organization_id', organizationId);
         } else {
-            // Regular users can only update their own items
             query = query.eq('owner_id', ownerId);
         }
 
@@ -529,7 +625,17 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async approveItem(ownerId: string, itemId: string, status: 'approved' | 'rejected', userRole: string = 'user', organizationId?: string): Promise<InventoryItem> {
+    async approveItem(
+        ownerId: string,
+        itemId: string,
+        status: 'approved' | 'rejected',
+        userRole: UserRole = UserRole.User,
+        organizationId?: string,
+    ): Promise<InventoryItem> {
+        if (userRole === UserRole.SuperAdmin) {
+            throw new ForbiddenException('El superadmin no puede aprobar items de inventario.');
+        }
+
         let query = this.supabase
             .from(this.itemsTable)
             .update({
@@ -539,12 +645,13 @@ export class InventoryService {
             })
             .eq('id', itemId);
 
-        // Filter based on user role and organization
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            // Admins and superadmins can approve items from their organization
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
+        const isAdmin = userRole === UserRole.Admin;
+
+        if (isAdmin) {
+            if (!organizationId) {
+                throw new BadRequestException('La organización es requerida para aprobar items como administrador.');
             }
+            query = query.eq('organization_id', organizationId);
         }
 
         const { data, error } = await query.select().single();
@@ -556,22 +663,24 @@ export class InventoryService {
         return this.mapToInventoryItem(data as InventoryItemRow);
     }
 
-    async deleteItem(ownerId: string, itemId: string, userRole: string = 'user', organizationId?: string): Promise<void> {
+    async deleteItem(ownerId: string, itemId: string, userRole: UserRole = UserRole.User, organizationId?: string): Promise<void> {
+        if (userRole === UserRole.SuperAdmin) {
+            throw new ForbiddenException('El superadmin no puede eliminar items de inventario.');
+        }
+
         let query = this.supabase
             .from(this.itemsTable)
             .delete()
             .eq('id', itemId);
 
-        // Filter based on user role and organization
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            // Admins and superadmins can delete items from their organization
-            if (organizationId) {
-                query = query.eq('organization_id', organizationId);
-            } else {
-                query = query.eq('owner_id', ownerId);
+        const isAdmin = userRole === UserRole.Admin;
+
+        if (isAdmin) {
+            if (!organizationId) {
+                throw new BadRequestException('La organización es requerida para eliminar items como administrador.');
             }
+            query = query.eq('organization_id', organizationId);
         } else {
-            // Regular users can only delete their own items
             query = query.eq('owner_id', ownerId);
         }
 

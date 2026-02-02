@@ -13,6 +13,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { IssuesModule } from './issues/issues.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { CommerceModule } from './commerce/commerce.module';
+import { SuperadminDashboardModule } from './superadmin-dashboard/superadmin-dashboard.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { OrganizationsModule } from './organizations/organizations.module';
     InventoryModule,
     IssuesModule,
     OrganizationsModule,
+    CommerceModule,
+    SuperadminDashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

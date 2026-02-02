@@ -15,16 +15,19 @@ const passport_1 = require("@nestjs/passport");
 const passport_jwt_1 = require("passport-jwt");
 const config_1 = require("@nestjs/config");
 const users_service_1 = require("../../users/users.service");
+const active_users_service_1 = require("../../common/services/active-users.service");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     configService;
     usersService;
-    constructor(configService, usersService) {
+    activeUsersService;
+    constructor(configService, usersService, activeUsersService) {
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
             secretOrKey: configService.getOrThrow('auth.jwtSecret'),
         });
         this.configService = configService;
         this.usersService = usersService;
+        this.activeUsersService = activeUsersService;
     }
     async validate(payload) {
         const user = await this.usersService.findByEmail(payload.email).catch(() => {
@@ -36,6 +39,7 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         if (!user.approved) {
             throw new common_1.UnauthorizedException('Cuenta pendiente de aprobación por administrador');
         }
+        this.activeUsersService.registerActivity(user.id, user.role);
         return user;
     }
 };
@@ -43,6 +47,7 @@ exports.JwtStrategy = JwtStrategy;
 exports.JwtStrategy = JwtStrategy = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [config_1.ConfigService,
-        users_service_1.UsersService])
+        users_service_1.UsersService,
+        active_users_service_1.ActiveUsersService])
 ], JwtStrategy);
 //# sourceMappingURL=jwt.strategy.js.map

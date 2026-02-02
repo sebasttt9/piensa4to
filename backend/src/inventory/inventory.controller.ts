@@ -117,39 +117,30 @@ export class InventoryController {
     }
 
     @Get()
+    @Roles(UserRole.User, UserRole.Admin)
     getSummary(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
-        // Temporary test endpoint
-        return {
-            overview: null,
-            totals: {
-                baseUnits: 0,
-                adjustedUnits: 0,
-                datasetsWithAlerts: 0,
-                dashboardsLinked: 0,
-            },
-            records: [],
-        };
+        return this.inventoryService.getInventory(user.id, user.role, user.organizationId);
     }
 
     @Post(':datasetId/adjust')
-    @Roles(UserRole.User)
+    @Roles(UserRole.User, UserRole.Admin)
     adjustInventory(
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Param('datasetId') datasetId: string,
         @Body() body: AdjustInventoryDto,
     ) {
-        return this.inventoryService.adjustInventory(user.id, datasetId, body.amount);
+        return this.inventoryService.adjustInventory(user.id, datasetId, body.amount, user.role, user.organizationId);
     }
 
     @Delete('adjustments')
-    @Roles(UserRole.User)
+    @Roles(UserRole.User, UserRole.Admin)
     resetAdjustments(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
-        return this.inventoryService.resetAdjustments(user.id);
+        return this.inventoryService.resetAdjustments(user.id, user.role, user.organizationId);
     }
 
     // Inventory Items endpoints
     @Post('items')
-    @Roles(UserRole.User)
+    @Roles(UserRole.User, UserRole.Admin)
     createItem(
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Body() dto: CreateInventoryItemDto,
@@ -158,14 +149,14 @@ export class InventoryController {
     }
 
     @Get('items')
-    @Roles(UserRole.User)
+    @Roles(UserRole.User, UserRole.Admin)
     getItems(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>) {
         console.log('GET /inventory/items called by user:', user.id, 'role:', user.role, 'email:', user.email, 'organizationId:', user.organizationId);
         return this.inventoryService.getItems(user.id, user.role, user.organizationId);
     }
 
     @Get('items/:id')
-    @Roles(UserRole.User)
+    @Roles(UserRole.User, UserRole.Admin)
     getItem(
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Param('id') itemId: string,
@@ -174,7 +165,7 @@ export class InventoryController {
     }
 
     @Put('items/:id')
-    @Roles(UserRole.User)
+    @Roles(UserRole.User, UserRole.Admin)
     updateItem(
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Param('id') itemId: string,
@@ -194,7 +185,7 @@ export class InventoryController {
     }
 
     @Delete('items/:id')
-    @Roles(UserRole.User)
+    @Roles(UserRole.User, UserRole.Admin)
     deleteItem(
         @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
         @Param('id') itemId: string,

@@ -37,10 +37,17 @@ export function InventoryPage() {
 
   const canAdjust = roleAtLeast('admin');
   const canManageItems = roleAtLeast('user');
+  const missingOrganization = !user?.organizationId;
+  const organizationRequiredMessage = 'Necesitas pertenecer a una organización para gestionar el inventario.';
 
   const loadItems = useCallback(async () => {
     const currentCanManageItems = roleAtLeast('user');
     if (!currentCanManageItems) {
+      return;
+    }
+    if (!user?.organizationId) {
+      setItems([]);
+      setItemsError(organizationRequiredMessage);
       return;
     }
     setItemsLoading(true);
@@ -54,7 +61,7 @@ export function InventoryPage() {
     } finally {
       setItemsLoading(false);
     }
-  }, [roleAtLeast]); // Solo dependemos de roleAtLeast
+  }, [organizationRequiredMessage, roleAtLeast, user?.organizationId]);
 
   const loadDatasets = useCallback(async () => {
     try {
@@ -92,6 +99,10 @@ export function InventoryPage() {
 
   const handleCreateItem = async () => {
     try {
+      if (!user?.organizationId) {
+        setItemsError(organizationRequiredMessage);
+        return;
+      }
       // Clear previous errors
       setItemsError(null);
 
@@ -129,6 +140,10 @@ export function InventoryPage() {
     if (!editingItem) return;
 
     try {
+      if (!user?.organizationId) {
+        setItemsError(organizationRequiredMessage);
+        return;
+      }
       // Clear previous errors
       setItemsError(null);
 
@@ -170,6 +185,10 @@ export function InventoryPage() {
   const handleDeleteItem = async (id: string) => {
     if (!confirm('¿Estás seguro de que quieres eliminar este item?')) return;
     try {
+      if (!user?.organizationId) {
+        setItemsError(organizationRequiredMessage);
+        return;
+      }
       await inventoryItemsAPI.delete(id);
       await loadItems();
     } catch (err) {
@@ -179,6 +198,10 @@ export function InventoryPage() {
 
   const handleApproveItem = async (id: string) => {
     try {
+      if (!user?.organizationId) {
+        setItemsError(organizationRequiredMessage);
+        return;
+      }
       await inventoryItemsAPI.approve(id, 'approved');
       await loadItems();
     } catch (err) {
@@ -188,6 +211,10 @@ export function InventoryPage() {
 
   const handleRejectItem = async (id: string) => {
     try {
+      if (!user?.organizationId) {
+        setItemsError(organizationRequiredMessage);
+        return;
+      }
       await inventoryItemsAPI.reject(id, 'rejected');
       await loadItems();
     } catch (err) {
@@ -235,17 +262,37 @@ export function InventoryPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'items') {
-      loadItems();
-      loadDatasets();
-      loadDashboards();
+    if (activeTab !== 'items') {
+      return;
     }
-  }, [activeTab, user]); // Dependemos de activeTab y user
+
+    if (!user?.organizationId) {
+      setItems([]);
+      setDatasets([]);
+      setDashboards([]);
+      setItemsError(organizationRequiredMessage);
+      return;
+    }
+
+    loadItems();
+    loadDatasets();
+    loadDashboards();
+  }, [activeTab, loadDashboards, loadDatasets, loadItems, organizationRequiredMessage, user?.organizationId]);
 
   useEffect(() => {
     let active = true;
 
     const loadSummary = async () => {
+      if (!user?.organizationId) {
+        if (active) {
+          setLoading(false);
+          setSummary(null);
+          setPendingAmounts({});
+          setError(null);
+        }
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
@@ -278,7 +325,7 @@ export function InventoryPage() {
     return () => {
       active = false;
     };
-  }, []); // Remover syncPendingDefaults de las dependencias
+  }, [syncPendingDefaults, user?.organizationId]);
 
   const records = summary?.records ?? [];
   const overview = summary?.overview ?? null;
@@ -304,6 +351,11 @@ export function InventoryPage() {
 
   const handleAdjust = async (datasetId: string, direction: 'add' | 'subtract') => {
     if (!canAdjust || actionLoading) {
+      return;
+    }
+
+    if (!user?.organizationId) {
+      setActionError(organizationRequiredMessage);
       return;
     }
 
@@ -336,6 +388,11 @@ export function InventoryPage() {
       return;
     }
 
+    if (!user?.organizationId) {
+      setActionError(organizationRequiredMessage);
+      return;
+    }
+
     setActionError(null);
     setActionLoading(true);
 
@@ -351,8 +408,17 @@ export function InventoryPage() {
       setActionLoading(false);
     }
   };
-
-
+  if (missingOrganization) {
+    return (
+      <div className="inventory-page inventory-page--error">
+        <div className="inventory-state inventory-error">
+          <h1 className="inventory-error__title">Organización requerida</h1>
+          <p className="inventory-error__message">{organizationRequiredMessage}</p>
+          <p className="mt-4 text-sm text-slate-500">Pide a un administrador que te asigne a una organización para habilitar estas funciones.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

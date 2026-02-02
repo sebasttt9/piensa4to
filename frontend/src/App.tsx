@@ -16,6 +16,7 @@ import { AccountsPage } from './pages/admin/AccountsPage';
 import { OrganizationsPage } from './pages/admin/OrganizationsPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { SuperadminDashboardPage } from './pages/admin/SuperadminDashboardPage';
 
 export default function App() {
   return (
@@ -29,17 +30,19 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AuthenticatedApp />}>
           <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<OverviewPage />} />
-          <Route path="datasets" element={<DatasetsPage />} />
-          <Route path="datasets/:datasetId" element={<DatasetDetailPage />} />
-          <Route path="insights" element={<InsightsPage />} />
-          <Route path="inventory" element={<InventoryPage />} />
-          <Route path="issues" element={<IssuesPage />} />
-
-          <Route path="upload" element={<UploadPage />} />
-          <Route path="manual-dataset" element={<ManualDatasetPage />} />
-          <Route path="saved" element={<SavedDashboardsPage />} />
-          <Route element={<ProtectedRoute allowedRoles="superadmin" />}>
+          <Route element={<ProtectedRoute allowedRoles={['user', 'admin']} redirectTo="/app/admin/dashboard" />}>
+            <Route path="overview" element={<OverviewPage />} />
+            <Route path="datasets" element={<DatasetsPage />} />
+            <Route path="datasets/:datasetId" element={<DatasetDetailPage />} />
+            <Route path="insights" element={<InsightsPage />} />
+            <Route path="inventory" element={<InventoryPage />} />
+            <Route path="issues" element={<IssuesPage />} />
+            <Route path="upload" element={<UploadPage />} />
+            <Route path="manual-dataset" element={<ManualDatasetPage />} />
+            <Route path="saved" element={<SavedDashboardsPage />} />
+          </Route>
+          <Route element={<ProtectedRoute allowedRoles="superadmin" redirectTo="/app/admin/dashboard" />}>
+            <Route path="admin/dashboard" element={<SuperadminDashboardPage />} />
             <Route path="admin/accounts" element={<AccountsPage />} />
             <Route path="admin/organizations" element={<OrganizationsPage />} />
           </Route>

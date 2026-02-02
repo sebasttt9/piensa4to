@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Building2,
   Briefcase,
+  Check,
   MapPin,
   Mail,
   RefreshCcw,
@@ -12,6 +13,7 @@ import {
   UserMinus,
   UserPlus,
   Users,
+  X,
 } from 'lucide-react';
 import { adminUsersAPI, organizationsAPI, type ManagedUser, type Organization } from '../../lib/services';
 import { useAuth } from '../../context/AuthContext';
@@ -68,7 +70,6 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
   const [assigningUserId, setAssigningUserId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleSelections, setRoleSelections] = useState<Record<string, 'user' | 'admin'>>({});
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -94,14 +95,8 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
         .filter((user) => user.role !== 'superadmin' && user.organizationId !== organization.id)
         .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
-      const defaultSelections: Record<string, 'user' | 'admin'> = {};
-      for (const user of available) {
-        defaultSelections[user.id] = user.role === 'admin' ? 'admin' : 'user';
-      }
-
       setMembers(assigned);
       setAvailableUsers(available);
-      setRoleSelections(defaultSelections);
     } catch (err) {
       setError(resolveErrorMessage(err));
     } finally {
@@ -130,14 +125,14 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
         return;
       }
 
-      const desiredRole = roleSelections[userId] ?? (user.role === 'admin' ? 'admin' : 'user');
+      const shouldMakeAdmin = user.role === 'admin';
 
       setAssigningUserId(userId);
       setFeedback(null);
       try {
         await adminUsersAPI.assignOrganization(userId, {
           organizationId: organization.id,
-          makeAdmin: desiredRole === 'admin',
+          makeAdmin: shouldMakeAdmin,
         });
         setFeedback({ type: 'success', message: `${user.name} ahora pertenece a ${organization.name}.` });
         await loadData();
@@ -150,7 +145,7 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
         setAssigningUserId(null);
       }
     },
-    [availableUsers, canManageMembers, loadData, organization.id, organization.name, roleSelections],
+    [availableUsers, canManageMembers, loadData, organization.id, organization.name],
   );
 
   const filteredAvailable = useMemo(() => {
@@ -441,9 +436,12 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
                     {ROLE_LABELS[member.role]}
                   </span>
                   <span
-                    className={`org-management-badge org-management-badge--state-${member.approved ? 'approved' : 'pending'}`}
+                    className={`org-management-state-icon org-management-state-icon--${member.approved ? 'approved' : 'pending'}`}
+                    role="img"
+                    aria-label={member.approved ? 'Aprobado' : 'Pendiente'}
+                    title={member.approved ? 'Aprobado' : 'Pendiente'}
                   >
-                    {member.approved ? 'Aprobado' : 'Pendiente'}
+                    {member.approved ? <Check size={16} aria-hidden /> : <X size={16} aria-hidden />}
                   </span>
                   <span className="org-management-table__date">{formatDate(member.updatedAt)}</span>
                 </div>
@@ -515,20 +513,15 @@ export function OrganizationManagementPage({ organization, onBack }: Organizatio
                     </div>
                   </div>
                   <div className="org-management-available__actions">
-                    <div className="org-management-select">
-                      <span>Rol</span>
-                      <select
-                        value={roleSelections[user.id]}
-                        onChange={(event) =>
-                          setRoleSelections((prev) => ({
-                            ...prev,
-                            [user.id]: event.target.value as 'user' | 'admin',
-                          }))
-                        }
+                    <div className="org-management-available__role">
+                      <span>Rol actual</span>
+                      <span
+                        className={`org-management-badge org-management-badge--role-${
+                          user.role === 'superadmin' ? 'superadmin' : user.role
+                        }`}
                       >
-                        <option value="user">Usuario</option>
-                        <option value="admin">Administrador</option>
-                      </select>
+                        {ROLE_LABELS[user.role]}
+                      </span>
                     </div>
                     <button
                       className="org-management-assign-btn"

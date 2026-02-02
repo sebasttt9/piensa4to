@@ -277,7 +277,7 @@ export function AccountsPage() {
                             className="accounts-role__select"
                             value={account.role}
                             onChange={(event) => handleRoleChange(account.id, event.target.value as Role)}
-                            disabled={isProcessing || !account.approved}
+                            disabled={isProcessing}
                           >
                             {roleOptions.map((option) => (
                               <option key={option.value} value={option.value}>

@@ -37,6 +37,7 @@ export class DatasetsController {
   }
 
   @Get()
+  @Roles(UserRole.User, UserRole.Admin)
   async findAll(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Query('page') page = 1,
@@ -59,6 +60,7 @@ export class DatasetsController {
   }
 
   @Get(':id')
+  @Roles(UserRole.User, UserRole.Admin)
   findOne(@CurrentUser() user: Omit<UserEntity, 'passwordHash'>, @Param('id') id: string) {
     const organizationId = this.validateOrganization(user.organizationId);
     return this.datasetsService.findOne(user.id, id, user.role, organizationId);
@@ -111,6 +113,7 @@ export class DatasetsController {
   }
 
   @Get(':id/preview')
+  @Roles(UserRole.User, UserRole.Admin)
   async getPreview(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
@@ -128,6 +131,7 @@ export class DatasetsController {
   }
 
   @Get(':id/analyze')
+  @Roles(UserRole.User, UserRole.Admin)
   analyzeDataset(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
@@ -138,6 +142,7 @@ export class DatasetsController {
   }
 
   @Get(':id/insights')
+  @Roles(UserRole.User, UserRole.Admin)
   getInsights(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,
@@ -148,6 +153,7 @@ export class DatasetsController {
   }
 
   @Get(':id/report')
+  @Roles(UserRole.User, UserRole.Admin)
   async generateReport(
     @CurrentUser() user: Omit<UserEntity, 'passwordHash'>,
     @Param('id') id: string,

@@ -14,17 +14,17 @@ const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 const roles_decorator_1 = require("../decorators/roles.decorator");
 const roles_enum_1 = require("../constants/roles.enum");
+const ROLE_ACCESS = {
+    [roles_enum_1.UserRole.User]: [roles_enum_1.UserRole.User],
+    [roles_enum_1.UserRole.Admin]: [roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin],
+    [roles_enum_1.UserRole.SuperAdmin]: [roles_enum_1.UserRole.SuperAdmin],
+};
 let RolesGuard = class RolesGuard {
     reflector;
     constructor(reflector) {
         this.reflector = reflector;
     }
     canActivate(context) {
-        const rolePriority = {
-            [roles_enum_1.UserRole.User]: 1,
-            [roles_enum_1.UserRole.Admin]: 2,
-            [roles_enum_1.UserRole.SuperAdmin]: 3,
-        };
         const requiredRoles = this.reflector.getAllAndOverride(roles_decorator_1.ROLES_KEY, [
             context.getHandler(),
             context.getClass(),
@@ -38,11 +38,8 @@ let RolesGuard = class RolesGuard {
             return false;
         }
         const userRole = user.role ?? roles_enum_1.UserRole.User;
-        const userPriority = rolePriority[userRole] ?? 0;
-        return requiredRoles.some((role) => {
-            const requiredPriority = rolePriority[role] ?? Number.MAX_SAFE_INTEGER;
-            return userPriority >= requiredPriority;
-        });
+        const accessible = ROLE_ACCESS[userRole] ?? [];
+        return requiredRoles.some((role) => accessible.includes(role));
     }
 };
 exports.RolesGuard = RolesGuard;

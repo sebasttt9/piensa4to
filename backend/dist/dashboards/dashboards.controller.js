@@ -21,6 +21,9 @@ const create_dashboard_dto_1 = require("./dto/create-dashboard.dto");
 const update_dashboard_dto_1 = require("./dto/update-dashboard.dto");
 const share_dashboard_dto_1 = require("./dto/share-dashboard.dto");
 const approve_dashboard_dto_1 = require("./dto/approve-dashboard.dto");
+const roles_guard_1 = require("../common/guards/roles.guard");
+const roles_decorator_1 = require("../common/decorators/roles.decorator");
+const roles_enum_1 = require("../common/constants/roles.enum");
 let DashboardsController = class DashboardsController {
     dashboardsService;
     constructor(dashboardsService) {
@@ -91,6 +94,7 @@ let DashboardsController = class DashboardsController {
 exports.DashboardsController = DashboardsController;
 __decorate([
     (0, common_1.Post)(),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -99,6 +103,7 @@ __decorate([
 ], DashboardsController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Query)('page')),
     __param(2, (0, common_1.Query)('limit')),
@@ -108,6 +113,7 @@ __decorate([
 ], DashboardsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -116,6 +122,7 @@ __decorate([
 ], DashboardsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Put)(':id'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
@@ -125,6 +132,7 @@ __decorate([
 ], DashboardsController.prototype, "update", null);
 __decorate([
     (0, common_1.Patch)(':id/share'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
@@ -134,6 +142,7 @@ __decorate([
 ], DashboardsController.prototype, "share", null);
 __decorate([
     (0, common_1.Post)(':id/share/invite'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
@@ -143,6 +152,7 @@ __decorate([
 ], DashboardsController.prototype, "shareWithContact", null);
 __decorate([
     (0, common_1.Delete)(':id'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -151,6 +161,7 @@ __decorate([
 ], DashboardsController.prototype, "remove", null);
 __decorate([
     (0, common_1.Get)(':id/export'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.User, roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Query)('format')),
@@ -161,6 +172,7 @@ __decorate([
 ], DashboardsController.prototype, "export", null);
 __decorate([
     (0, common_1.Patch)(':id/approve'),
+    (0, roles_decorator_1.Roles)(roles_enum_1.UserRole.Admin),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
@@ -170,7 +182,7 @@ __decorate([
 ], DashboardsController.prototype, "approve", null);
 exports.DashboardsController = DashboardsController = __decorate([
     (0, common_1.Controller)('dashboards'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     __metadata("design:paramtypes", [dashboards_service_1.DashboardsService])
 ], DashboardsController);
 //# sourceMappingURL=dashboards.controller.js.map

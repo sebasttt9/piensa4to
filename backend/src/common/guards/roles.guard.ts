@@ -3,17 +3,17 @@ import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { UserRole } from '../constants/roles.enum';
 
+const ROLE_ACCESS: Record<UserRole, UserRole[]> = {
+  [UserRole.User]: [UserRole.User],
+  [UserRole.Admin]: [UserRole.User, UserRole.Admin],
+  [UserRole.SuperAdmin]: [UserRole.SuperAdmin],
+};
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
-    const rolePriority: Record<UserRole, number> = {
-      [UserRole.User]: 1,
-      [UserRole.Admin]: 2,
-      [UserRole.SuperAdmin]: 3,
-    };
-
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -30,11 +30,8 @@ export class RolesGuard implements CanActivate {
     }
 
     const userRole = user.role ?? UserRole.User;
-    const userPriority = rolePriority[userRole] ?? 0;
+    const accessible = ROLE_ACCESS[userRole] ?? [];
 
-    return requiredRoles.some((role) => {
-      const requiredPriority = rolePriority[role] ?? Number.MAX_SAFE_INTEGER;
-      return userPriority >= requiredPriority;
-    });
+    return requiredRoles.some((role) => accessible.includes(role));
   }
 }

@@ -390,6 +390,108 @@ export const inventoryAPI = {
     },
 };
 
+/* ==================== COMMERCE API ==================== */
+
+export interface CommerceTotals {
+    revenueCurrent: number;
+    revenuePrevious: number;
+    revenueChangePct: number;
+    ordersCurrent: number;
+    ordersPrevious: number;
+    avgTicketCurrent: number;
+    avgTicketPrevious: number;
+    avgTicketChangePct: number;
+    newCustomersCurrent: number;
+    newCustomersPrevious: number;
+    newCustomersChangePct: number;
+    activeCustomers: number;
+    returningCustomers: number;
+}
+
+export interface CommerceMonthlyPoint {
+    month: string;
+    label: string;
+    revenue: number;
+    orders: number;
+    customers: number;
+}
+
+export interface CommerceSegmentPerformance {
+    segment: string;
+    customers: number;
+    revenue: number;
+    avgTicket: number;
+    revenueShare: number;
+}
+
+export interface CommerceProductPerformance {
+    sku: string;
+    name: string;
+    quantity: number;
+    revenue: number;
+    growthPct: number | null;
+    revenueShare: number;
+}
+
+export interface CommerceOverview {
+    totals: CommerceTotals;
+    monthlyRevenue: CommerceMonthlyPoint[];
+    segmentPerformance: CommerceSegmentPerformance[];
+    topProducts: CommerceProductPerformance[];
+    currency: string;
+    hasOrders: boolean;
+}
+
+export const commerceAPI = {
+    getOverview: async () => {
+        const response = await api.get<CommerceOverview>('/commerce/overview');
+        return response.data;
+    },
+};
+
+/* ==================== SUPERADMIN DASHBOARD API ==================== */
+
+export interface SuperadminDashboardOverview {
+    timestamp: string;
+    activity: {
+        onlineUsers: number;
+        onlineAdmins: number;
+        onlineSuperadmins: number;
+        windowMinutes: number;
+    };
+    users: {
+        total: number;
+        approved: number;
+        pending: number;
+        admins: number;
+        superadmins: number;
+        averageUsersPerOrganization: number;
+        recentSignups7d: number;
+    };
+    organizations: {
+        total: number;
+        withOwner: number;
+        withoutOwner: number;
+        withMembers: number;
+        withoutMembers: number;
+        createdLast30d: number;
+    };
+    datasets: {
+        total: number;
+        processed: number;
+        pending: number;
+        error: number;
+        updatedLast7d: number;
+    };
+}
+
+export const superadminDashboardAPI = {
+    getOverview: async () => {
+        const response = await api.get<SuperadminDashboardOverview>('/superadmin/dashboard/overview');
+        return response.data;
+    },
+};
+
 /* ==================== INVENTORY ITEMS API ==================== */
 
 export interface InventoryItem {
